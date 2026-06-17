@@ -13,21 +13,21 @@ export class ReportsController {
   constructor(private reportsService: ReportsService) {}
 
   @Post('report-cards/generate')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.STUDENT)
   @ApiOperation({ summary: 'Generate report card for a single student' })
   generateOne(@Body() dto: GenerateReportCardDto) {
     return this.reportsService.generateReportCard(dto.studentId, dto.termId);
   }
 
   @Post('report-cards/batch')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Batch generate report cards for entire class' })
   batchGenerate(@Body() dto: BatchGenerateDto) {
     return this.reportsService.batchGenerateReportCards(dto.classSectionId, dto.termId);
   }
 
   @Post('transcripts/generate')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Build 3-year transcript' })
   buildTranscript(@Body() dto: BuildTranscriptDto) {
     return this.reportsService.buildTranscript(dto.studentIdOrIndex);
