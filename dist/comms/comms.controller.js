@@ -21,6 +21,7 @@ const comms_service_1 = require("./comms.service");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const comms_dto_1 = require("./dto/comms.dto");
 const create_ticket_dto_1 = require("./dto/create-ticket.dto");
+const ticket_dto_1 = require("./dto/ticket.dto");
 let CommsController = class CommsController {
     constructor(commsService) {
         this.commsService = commsService;
@@ -31,20 +32,29 @@ let CommsController = class CommsController {
     emergency(dto, userId) {
         return this.commsService.broadcastEmergency(dto.title, dto.message, userId);
     }
-    getNotifications(studentId, unreadOnly) {
-        return this.commsService.getStudentNotifications(studentId, unreadOnly);
+    getNotifications(studentId, unreadOnly, userId, role) {
+        return this.commsService.getStudentNotifications(studentId, unreadOnly, userId, role);
     }
     markRead(id) {
         return this.commsService.markAsRead(id);
     }
-    getPulse(academicYearId) {
-        return this.commsService.getAnalyticsPulse(academicYearId);
+    getPulse(academicYearId, userId) {
+        return this.commsService.getAnalyticsPulse(academicYearId, userId);
     }
     createTicket(dto, userId) {
         return this.commsService.createTicket(dto, userId);
     }
-    getMyTickets(userId) {
-        return this.commsService.getStudentTickets(userId);
+    getMyTickets(userId, role) {
+        return this.commsService.listTickets({}, userId, role);
+    }
+    listTickets(query, userId, role) {
+        return this.commsService.listTickets(query, userId, role);
+    }
+    updateTicketStatus(id, dto, userId, role) {
+        return this.commsService.updateTicketStatus(id, dto, userId, role);
+    }
+    addReply(id, dto, userId, role) {
+        return this.commsService.addTicketReply(id, dto, userId, role);
     }
 };
 exports.CommsController = CommsController;
@@ -72,12 +82,15 @@ __decorate([
 ], CommsController.prototype, "emergency", null);
 __decorate([
     (0, common_1.Get)('notifications/:studentId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.STUDENT, client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: "Get student's notification inbox" }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Param)('studentId')),
     __param(1, (0, common_1.Query)('unreadOnly')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Boolean]),
+    __metadata("design:paramtypes", [String, Boolean, String, String]),
     __metadata("design:returntype", void 0)
 ], CommsController.prototype, "getNotifications", null);
 __decorate([
@@ -92,16 +105,18 @@ __decorate([
 __decorate([
     openapi.ApiQuery({ name: "academicYearId", required: false }),
     (0, common_1.Get)('analytics/pulse'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD),
+    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get academic pulse dashboard data' }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Query)('academicYearId')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], CommsController.prototype, "getPulse", null);
 __decorate([
     (0, common_1.Post)('tickets'),
+    (0, roles_decorator_1.Roles)(client_1.Role.STUDENT),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Raise a support ticket (student-facing)' }),
     openapi.ApiResponse({ status: 201, type: Object }),
@@ -113,14 +128,57 @@ __decorate([
 ], CommsController.prototype, "createTicket", null);
 __decorate([
     (0, common_1.Get)('tickets/my'),
+    (0, roles_decorator_1.Roles)(client_1.Role.STUDENT),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Get current student\'s support tickets' }),
-    openapi.ApiResponse({ status: 200 }),
+    (0, swagger_1.ApiOperation)({ summary: "Get current student's support tickets" }),
+    openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], CommsController.prototype, "getMyTickets", null);
+__decorate([
+    (0, common_1.Get)('tickets'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'List tickets (filtered by role)' }),
+    openapi.ApiResponse({ status: 200, type: [Object] }),
+    __param(0, (0, common_1.Query)()),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [ticket_dto_1.TicketQueryDto, String, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "listTickets", null);
+__decorate([
+    (0, common_1.Patch)('tickets/:id/status'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Update ticket status and notes' }),
+    openapi.ApiResponse({ status: 200, type: Object }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, ticket_dto_1.UpdateTicketStatusDto, String, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "updateTicketStatus", null);
+__decorate([
+    (0, common_1.Post)('tickets/:id/reply'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Add a reply to a ticket' }),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, ticket_dto_1.AddTicketReplyDto, String, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "addReply", null);
 exports.CommsController = CommsController = __decorate([
     (0, swagger_1.ApiTags)('Comms'),
     (0, swagger_1.ApiBearerAuth)(),

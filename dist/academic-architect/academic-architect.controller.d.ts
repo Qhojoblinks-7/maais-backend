@@ -7,53 +7,53 @@ export declare class AcademicArchitectController {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     activateYear(id: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     getActiveYear(): Promise<{
         terms: {
             id: string;
             isActive: boolean;
+            academicYearId: string;
             isLocked: boolean;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
-            academicYearId: string;
         }[];
     } & {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     createTerm(dto: CreateTermDto): Promise<{
         id: string;
         isActive: boolean;
+        academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
-        academicYearId: string;
     }>;
     activateTerm(id: string): Promise<{
         id: string;
         isActive: boolean;
+        academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
-        academicYearId: string;
     }>;
     createDepartment(dto: CreateDepartmentDto): Promise<{
         name: string;
@@ -152,10 +152,10 @@ export declare class AcademicArchitectController {
     }>;
     assignTeacher(dto: AssignTeacherDto): Promise<{
         id: string;
-        subjectId: string;
-        academicYearId: string;
         teacherId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     }>;
     getTeacherAssignments(teacherId: string): Promise<({
         subject: {
@@ -177,10 +177,10 @@ export declare class AcademicArchitectController {
         };
     } & {
         id: string;
-        subjectId: string;
-        academicYearId: string;
         teacherId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     })[]>;
     getMyAssignments(user: any): any[] | Promise<({
         subject: {
@@ -202,9 +202,9 @@ export declare class AcademicArchitectController {
         };
     } & {
         id: string;
-        subjectId: string;
-        academicYearId: string;
         teacherId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     })[]>;
 }

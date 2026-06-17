@@ -91,10 +91,39 @@ let ArchiveService = class ArchiveService {
             graduated: graduates.length,
         };
     }
-    async searchVault(query) {
+    async searchVault(query, userId, userRole) {
+        const roleFilter = {};
+        if (userRole === client_1.Role.TEACHER && userId) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+            });
+            if (staffProfile) {
+                const teacherGrades = await this.prisma.gradeEntry.findMany({
+                    where: { submittedById: staffProfile.id },
+                    select: { studentId: true },
+                    distinct: ['studentId'],
+                });
+                const taughtStudentIds = teacherGrades.map((g) => g.studentId);
+                if (taughtStudentIds.length > 0) {
+                    roleFilter.id = { in: taughtStudentIds };
+                }
+                else {
+                    roleFilter.id = '';
+                }
+            }
+        }
+        else if (userRole === client_1.Role.HOD && userId) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+            });
+            if (staffProfile) {
+                roleFilter.departmentId = staffProfile.departmentId;
+            }
+        }
         return this.prisma.studentProfile.findMany({
             where: {
                 AND: [
+                    roleFilter,
                     query.indexNumber
                         ? {
                             indexNumber: {

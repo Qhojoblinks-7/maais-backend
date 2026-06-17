@@ -21,8 +21,8 @@ export class ArchiveController {
   @Get('vault/search')
   @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Search The Vault for historical records' })
-  searchVault(@Query() query: any) {
-    return this.archiveService.searchVault(query);
+  searchVault(@Query() query: any, @CurrentUser('id') userId: string, @CurrentUser('role') role: Role) {
+    return this.archiveService.searchVault(query, userId, role);
   }
 
   @Patch('terms/:id/lock')

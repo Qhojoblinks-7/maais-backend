@@ -20,14 +20,13 @@ export class UsersController {
   }
 
   @Post('students')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.TEACHER, Role.STUDENT)
-  @ApiOperation({ summary: 'Enrol a new student' })
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   createStudent(@Body() dto: CreateStudentDto) {
     return this.usersService.createStudent(dto);
   }
 
   @Post('parents')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.TEACHER)
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   @ApiOperation({ summary: 'Enrol a new parent' })
   createParent(@Body() dto: CreateParentDto) {
     return this.usersService.createParent(dto);
@@ -42,8 +41,9 @@ export class UsersController {
 
   @Get('students/:id')
   @ApiOperation({ summary: 'Get full student profile' })
-  getStudentProfile(@Param('id') id: string, @CurrentUser('role') role: Role) {
-    return this.usersService.getStudentProfile(id, role);
+  getStudentProfile(@Param('id') id: string, @CurrentUser('role') role: Role, @CurrentUser() user: { id: string; staffProfile?: { id: string } }) {
+    const teacherStaffId = role === Role.TEACHER ? user?.staffProfile?.id : undefined;
+    return this.usersService.getStudentProfile(id, role, teacherStaffId);
   }
 
   @Patch('students/:id')

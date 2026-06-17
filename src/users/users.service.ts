@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, Gender } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -199,6 +199,36 @@ export class UsersService {
       departmentId = staff?.departmentId || undefined;
     }
 
+    if (user?.role === Role.TEACHER) {
+      const staff = await this.prisma.staffProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!staff) {
+        throw new Error('Teacher profile not found');
+      }
+
+      const teacherAssignments = await this.prisma.teachingAssignment.findMany({
+        where: { teacherId: staff.id },
+        select: { classSectionId: true },
+      });
+
+      const classSectionIds = teacherAssignments.map(a => a.classSectionId);
+
+      return this.prisma.studentProfile.findMany({
+        where: {
+          archivedAt: null,
+          currentClassId: { in: classSectionIds },
+        },
+        include: {
+          currentClass: true,
+          department: true,
+          user: { select: { email: true, isActive: true } },
+        },
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      });
+    }
+
     return this.prisma.studentProfile.findMany({
       where: {
         archivedAt: null,
@@ -213,8 +243,8 @@ export class UsersService {
     });
   }
 
-  async getStudentProfile(studentId: string, requesterRole?: Role) {
-    return this.prisma.studentProfile.findUniqueOrThrow({
+  async getStudentProfile(studentId: string, requesterRole?: Role, teacherStaffId?: string) {
+    const baseProfile = await this.prisma.studentProfile.findUniqueOrThrow({
       where: { id: studentId },
       include: {
         currentClass: true,
@@ -233,6 +263,21 @@ export class UsersService {
         },
       },
     });
+
+    if (requesterRole === Role.TEACHER && teacherStaffId) {
+      const isAssigned = await this.prisma.teachingAssignment.findFirst({
+        where: {
+          teacherId: teacherStaffId,
+          classSectionId: baseProfile.currentClassId || '',
+        },
+      });
+
+      if (!isAssigned) {
+        throw new ForbiddenException('You are not assigned to this student\'s class');
+      }
+    }
+
+    return baseProfile;
   }
 
   async getAllStaff(user?: { id: string; role: Role }) {

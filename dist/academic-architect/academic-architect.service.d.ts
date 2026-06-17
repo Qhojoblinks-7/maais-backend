@@ -7,53 +7,53 @@ export declare class AcademicArchitectService {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     setActiveYear(yearId: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     getActiveYear(): Promise<{
         terms: {
             id: string;
             isActive: boolean;
+            academicYearId: string;
             isLocked: boolean;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
-            academicYearId: string;
         }[];
     } & {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     createTerm(academicYearId: string, termNumber: TermNumber, startDate: Date, endDate: Date): Promise<{
         id: string;
         isActive: boolean;
+        academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
-        academicYearId: string;
     }>;
     setActiveTerm(termId: string): Promise<{
         id: string;
         isActive: boolean;
+        academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
-        academicYearId: string;
     }>;
     createDepartment(name: string, code: string, description?: string): Promise<{
         name: string;
@@ -163,10 +163,10 @@ export declare class AcademicArchitectService {
         academicYearId: string;
     }): Promise<{
         id: string;
-        subjectId: string;
-        academicYearId: string;
         teacherId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     }>;
     getTeacherAssignments(teacherId: string): Promise<({
         subject: {
@@ -188,9 +188,9 @@ export declare class AcademicArchitectService {
         };
     } & {
         id: string;
-        subjectId: string;
-        academicYearId: string;
         teacherId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     })[]>;
 }

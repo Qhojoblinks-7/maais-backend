@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { NotificationChannel } from '@prisma/client';
+import { NotificationChannel, Role } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import * as twilio from 'twilio';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
@@ -22,13 +22,9 @@ export class CommsService {
     private config: ConfigService,
   ) {}
 
-  /**
-   * Send a notification to one or more students (+ their parents)
-   */
   async sendNotification(dto: SendNotificationDto, sentById: string) {
     const recipients = dto.studentIds ?? [];
 
-    // Fetch student/parent contact info
     const students = await this.prisma.studentProfile.findMany({
       where: recipients.length > 0 ? { id: { in: recipients } } : {},
       include: {
@@ -42,7 +38,6 @@ export class CommsService {
 
     const results = await Promise.allSettled(
       students.map(async (student) => {
-        // Create notification record
         const notification = await this.prisma.notification.create({
           data: {
             studentId: student.id,
@@ -62,7 +57,6 @@ export class CommsService {
               `${dto.title}\n\n${dto.body}`,
             );
           }
-          // APP channel: mark as delivered (push handled by frontend)
           await this.prisma.notification.update({
             where: { id: notification.id },
             data: { deliveredAt: new Date() },
@@ -86,16 +80,12 @@ export class CommsService {
     };
   }
 
-  /**
-   * Send SMS via Twilio with emergency SMS failover
-   */
   private async sendSms(to: string, body: string) {
     if (!to) {
       this.logger.warn('SMS skipped: no phone number');
       return;
     }
 
-    // Twilio integration
     try {
       const client = twilio(
         this.config.get('TWILIO_ACCOUNT_SID'),
@@ -113,9 +103,6 @@ export class CommsService {
     }
   }
 
-  /**
-   * Broadcast an emergency notice to ALL active parents
-   */
   async broadcastEmergency(title: string, body: string, sentById: string) {
     return this.sendNotification(
       { title, body, channel: NotificationChannel.SMS, isEmergency: true },
@@ -123,23 +110,27 @@ export class CommsService {
     );
   }
 
-  /**
-   * Get notifications for a student (app inbox)
-   */
-  async getStudentNotifications(studentId: string, unreadOnly = false) {
+  async getStudentNotifications(studentId: string, unreadOnly = false, requesterId?: string, requesterRole?: Role) {
+    let where: any = { studentId };
+
+    if (requesterRole === Role.STUDENT && requesterId) {
+      const student = await this.prisma.studentProfile.findUnique({
+        where: { id: studentId },
+        select: { userId: true },
+      });
+
+      if (!student || student.userId !== requesterId) {
+        throw new ForbiddenException('You can only view your own notifications');
+      }
+    }
+
     return this.prisma.notification.findMany({
-      where: {
-        studentId,
-        ...(unreadOnly ? { isRead: false } : {}),
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
   }
 
-  /**
-   * Mark notification as read
-   */
   async markAsRead(notificationId: string) {
     return this.prisma.notification.update({
       where: { id: notificationId },
@@ -147,30 +138,33 @@ export class CommsService {
     });
   }
 
-  async createTicket(dto: CreateSupportTicketDto, studentId: string) {
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: studentId },
+  async createTicket(dto: CreateSupportTicketDto, requesterId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: requesterId },
+      include: { studentProfile: true },
     });
 
-    if (!student) {
-      throw new Error('Student not found');
+    if (!user || !user.studentProfile) {
+      throw new ForbiddenException('Only students can create support tickets');
     }
+
+    const student = user.studentProfile;
 
     return this.prisma.supportTicket.create({
       data: {
-        studentId,
+        studentId: student.id,
         title: dto.title,
         description: dto.description,
         category: dto.category || 'General',
         priority: dto.priority || 'MEDIUM',
-        createdById: student.userId,
+        createdById: requesterId,
+        status: 'OPEN',
       },
       include: {
         student: {
           include: {
-            user: {
-              select: { email: true },
-            },
+            currentClass: true,
+            user: { select: { email: true } },
           },
         },
       },
@@ -185,10 +179,140 @@ export class CommsService {
     });
   }
 
-  /**
-   * Analytics pulse data for dashboard
-   */
-  async getAnalyticsPulse(academicYearId?: string) {
+  async listTickets(
+    query: { status?: string; category?: string; priority?: string },
+    requesterId: string,
+    role: Role,
+  ) {
+    const where: any = {};
+
+    if (query.status) where.status = query.status;
+    if (query.category) where.category = query.category;
+    if (query.priority) where.priority = query.priority;
+
+    if (role === Role.STUDENT) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: requesterId },
+        include: { studentProfile: true },
+      });
+
+      if (!user?.studentProfile) {
+        throw new ForbiddenException('Only students can view their own tickets');
+      }
+
+      where.studentId = user.studentProfile.id;
+    } else if (role === Role.TEACHER || role === Role.HOD) {
+      const staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId: requesterId },
+      });
+
+      if (!staffProfile) {
+        throw new ForbiddenException('Staff profile not found');
+      }
+
+      const assignments = await this.prisma.teachingAssignment.findMany({
+        where: { teacherId: staffProfile.id },
+        select: { classSectionId: true },
+      });
+
+      const classSectionIds = assignments.map((a) => a.classSectionId);
+      const students = await this.prisma.studentProfile.findMany({
+        where: { currentClassId: { in: classSectionIds } },
+        select: { id: true },
+      });
+
+      where.studentId = { in: students.map((s) => s.id) };
+    }
+
+    return this.prisma.supportTicket.findMany({
+      where,
+      include: {
+        student: {
+          include: {
+            currentClass: true,
+            user: { select: { email: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  async updateTicketStatus(
+    ticketId: string,
+    dto: { status: string; notes?: string },
+    userId: string,
+    role: Role,
+  ) {
+    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
+      throw new ForbiddenException('Only administrators can update ticket status');
+    }
+
+    return this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        status: dto.status,
+        resolvedAt: dto.status === 'RESOLVED' ? new Date() : null,
+        assignedTo: userId,
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { email: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async addTicketReply(
+    ticketId: string,
+    dto: { message: string; priority?: string },
+    userId: string,
+    role: Role,
+  ) {
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD &&
+      role !== Role.TEACHER
+    ) {
+      throw new ForbiddenException('Only staff can reply to tickets');
+    }
+
+    const updatedTicket = await this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        updatedAt: new Date(),
+        ...(dto.priority ? { priority: dto.priority } : {}),
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { email: true } },
+          },
+        },
+      },
+    });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    return {
+      ...updatedTicket,
+      reply: {
+        message: dto.message,
+        repliedBy: user?.email || userId,
+        repliedAt: new Date(),
+        responderRole: role,
+      },
+    };
+  }
+
+  async getAnalyticsPulse(academicYearId?: string, userId?: string) {
     const [enrollmentByClass, averageBySubject, attendanceSummary] =
       await Promise.all([
         this.prisma.classSection.findMany({
@@ -204,18 +328,62 @@ export class CommsService {
         }),
       ]);
 
+    let teacherAssignments: any[] = [];
+    if (userId) {
+      const staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId },
+      });
+
+      if (staffProfile) {
+        teacherAssignments = await this.prisma.teachingAssignment.findMany({
+          where: { teacherId: staffProfile.id },
+          include: { classSection: true, subject: true },
+        });
+      }
+    }
+
+    const teacherClassIds = teacherAssignments.map((a) => a.classSectionId);
+    const teacherSubjectIds = teacherAssignments.map((a) => a.subjectId);
+
+    const enrollment = userId && teacherClassIds.length > 0
+      ? enrollmentByClass
+          .filter((c) => teacherClassIds.includes(c.id))
+          .map((c) => ({
+            class: `${c.level} ${c.name}`,
+            count: c._count.students,
+            capacity: c.capacity,
+          }))
+      : enrollmentByClass.map((c) => ({
+          class: `${c.level} ${c.name}`,
+          count: c._count.students,
+          capacity: c.capacity,
+        }));
+
+    const subjectPerformance = userId && teacherSubjectIds.length > 0
+      ? averageBySubject
+          .filter((s) => teacherSubjectIds.includes(s.subjectId))
+          .map((s) => ({
+            subjectId: s.subjectId,
+            averageScore: s._avg.totalScore?.toFixed(2),
+            studentCount: s._count.id,
+          }))
+      : averageBySubject.map((s) => ({
+          subjectId: s.subjectId,
+          averageScore: s._avg.totalScore?.toFixed(2),
+          studentCount: s._count.id,
+        }));
+
     return {
-      enrollment: enrollmentByClass.map((c) => ({
-        class: `${c.level} ${c.name}`,
-        count: c._count.students,
-        capacity: c.capacity,
-      })),
-      subjectPerformance: averageBySubject.map((s) => ({
-        subjectId: s.subjectId,
-        averageScore: s._avg.totalScore?.toFixed(2),
-        studentCount: s._count.id,
-      })),
+      enrollment,
+      subjectPerformance,
       attendance: attendanceSummary._avg,
+      teacherAssignments: userId ? teacherAssignments.map((a) => ({
+        id: a.id,
+        subjectId: a.subjectId,
+        subjectName: a.subject.name,
+        classSectionId: a.classSectionId,
+        className: `${a.classSection.level} ${a.classSection.name}`,
+      })) : undefined,
     };
   }
 }

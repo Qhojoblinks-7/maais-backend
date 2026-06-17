@@ -27,8 +27,8 @@ let ArchiveController = class ArchiveController {
     runPromotion(dto, userId) {
         return this.archiveService.runPromotionCycle(dto.academicYearId, userId);
     }
-    searchVault(query) {
-        return this.archiveService.searchVault(query);
+    searchVault(query, userId, role) {
+        return this.archiveService.searchVault(query, userId, role);
     }
     lockTerm(id) {
         return this.archiveService.lockTerm(id);
@@ -55,8 +55,10 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Search The Vault for historical records' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], ArchiveController.prototype, "searchVault", null);
 __decorate([

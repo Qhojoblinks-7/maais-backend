@@ -37,8 +37,9 @@ let UsersController = class UsersController {
     getAllStudents(user) {
         return this.usersService.getAllStudents(user);
     }
-    getStudentProfile(id, role) {
-        return this.usersService.getStudentProfile(id, role);
+    getStudentProfile(id, role, user) {
+        const teacherStaffId = role === client_1.Role.TEACHER ? user?.staffProfile?.id : undefined;
+        return this.usersService.getStudentProfile(id, role, teacherStaffId);
     }
     updateStudentProfile(id, body, role) {
         return this.usersService.updateStudentProfile(id, body);
@@ -63,8 +64,7 @@ __decorate([
 ], UsersController.prototype, "createStaff", null);
 __decorate([
     (0, common_1.Post)('students'),
-    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.TEACHER, client_1.Role.STUDENT),
-    (0, swagger_1.ApiOperation)({ summary: 'Enrol a new student' }),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
     openapi.ApiResponse({ status: 201, type: Object }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -73,7 +73,7 @@ __decorate([
 ], UsersController.prototype, "createStudent", null);
 __decorate([
     (0, common_1.Post)('parents'),
-    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.TEACHER),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
     (0, swagger_1.ApiOperation)({ summary: 'Enrol a new parent' }),
     openapi.ApiResponse({ status: 201, type: Object }),
     __param(0, (0, common_1.Body)()),
@@ -97,8 +97,9 @@ __decorate([
     openapi.ApiResponse({ status: 200, type: Object }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, roles_decorator_1.CurrentUser)('role')),
+    __param(2, (0, roles_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getStudentProfile", null);
 __decorate([

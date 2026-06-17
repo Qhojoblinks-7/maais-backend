@@ -1,5 +1,6 @@
-﻿import { Injectable } from '@nestjs/common';
+﻿import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class BehaviorService {
@@ -17,33 +18,28 @@ export class BehaviorService {
         });
     }
 
-    async getStudentBehavior(studentId: string) {
-        const logs = this.prisma.studentBehavior.findMany({
-            where: {studentId},
-            orderBy: {
-                createdAt: 'desc'
+    async getStudentBehavior(studentId: string, requesterId?: string, requesterRole?: Role) {
+        if (requesterRole === Role.STUDENT && requesterId) {
+            const student = await this.prisma.studentProfile.findUnique({
+                where: { id: studentId },
+                select: { userId: true },
+            });
+
+            if (!student || student.userId !== requesterId) {
+                throw new ForbiddenException('You can only view your own behavior records');
             }
-        })
-        const traits =
-        await this.prisma.characterTrait.findFirst({
-            where:{
-                studentId,
-            },
-            orderBy: {
-                createdAt: 'desc',
-            },
+        }
+
+        const logs = await this.prisma.studentBehavior.findMany({
+            where: { studentId },
+            orderBy: { createdAt: 'desc' },
         });
 
-        return {
-            logs,
-            traits,
-        };
+        const traits = await this.prisma.characterTrait.findFirst({
+            where: { studentId },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return { logs, traits };
     }
-
-    /* async getTraits(studentId: string) {
-        return this.prisma.characterTrait.findMany({
-            where: { studentId},
-        })
-    } */
-
 }

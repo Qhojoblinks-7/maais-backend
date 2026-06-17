@@ -66,20 +66,21 @@ export class GradingController {
   }
 
   @Get('audit-tray')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations tray' })
-  getMissingObservations(@Query('termId') termId: string) {
-    return this.gradingService.getMissingObservationsTray(termId);
+  getMissingObservations(@Query('termId') termId: string, @CurrentUser('id') userId: string, @CurrentUser('role') role: Role) {
+    return this.gradingService.getMissingObservationsTray(termId, userId, role);
   }
 
   @Get('class-summary/:classId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
   @ApiOperation({ summary: 'Get class performance summary' })
-  getClassSummary(@Param('classId') classId: string, @Query('termId') termId: string) {
-    return this.gradingService.getClassPerformanceSummary(classId, termId);
+  getClassSummary(@Param('classId') classId: string, @Query('termId') termId: string, @CurrentUser('id') userId: string, @CurrentUser('role') role: Role) {
+    return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
   }
 
   @Get('students/:studentId/terms/:termId')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Get all grades for a student in a term' })
   getStudentTermGrades(
     @Param('studentId') studentId: string,

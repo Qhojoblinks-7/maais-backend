@@ -1,30 +1,44 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 import { BehaviorService } from './behavior.service'
+import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
 
 
+@ApiTags('Behavior')
 @Controller('students')
 export class BehaviorController {
     constructor(private readonly behaviorService: BehaviorService) {}
 
 @Post(':id/behavior')
+@Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+@ApiOperation({ summary: 'Create behavior observation for a student' })
 createBahavior(
     @Param('id')studentId: string,
     @Body() body: any,
+    @CurrentUser('id') userId: string
 ){
     return this.behaviorService.createBehavior({
         ...body,
         studentId,
+        teacherId: userId,
     })
 }
 
-@Get(':id/behavior')
-getBehavior(
-    @Param('id')studentId: string,
-) {
+  @Get(':id/behavior')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get behavior observations for a student' })
+  getBehavior(
+    @Param('id') studentId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
     return this.behaviorService.getStudentBehavior(
-        studentId,
+      studentId,
+      userId,
+      role,
     )
-}
+  }
 
   /* @Get(':id/traits')
   getTraits(

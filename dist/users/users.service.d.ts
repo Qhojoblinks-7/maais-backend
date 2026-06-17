@@ -44,7 +44,6 @@ export declare class UsersService {
         staffProfile: {
             id: string;
             phone: string | null;
-            userId: string;
             staffId: string;
             firstName: string;
             lastName: string;
@@ -54,6 +53,7 @@ export declare class UsersService {
             photoUrl: string | null;
             hiredAt: Date;
             departmentId: string | null;
+            userId: string;
         };
     } & {
         id: string;
@@ -69,22 +69,21 @@ export declare class UsersService {
     createStudent(dto: CreateStudentDto): Promise<{
         studentProfile: {
             department: {
-                name: string;
                 id: string;
                 createdAt: Date;
-                description: string | null;
+                name: string;
                 code: string;
+                description: string | null;
             };
             currentClass: {
                 level: import(".prisma/client").$Enums.ClassLevel;
-                name: string;
                 id: string;
+                name: string;
                 capacity: number;
                 classTeacherId: string | null;
             };
         } & {
             id: string;
-            userId: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
@@ -92,11 +91,12 @@ export declare class UsersService {
             dateOfBirth: Date | null;
             photoUrl: string | null;
             departmentId: string | null;
+            userId: string;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
-            currentClassId: string | null;
             archivedAt: Date | null;
+            currentClassId: string | null;
         };
     } & {
         id: string;
@@ -114,9 +114,9 @@ export declare class UsersService {
             id: string;
             email: string | null;
             phone: string;
-            userId: string;
             firstName: string;
             lastName: string;
+            userId: string;
             occupation: string | null;
         };
     } & {
@@ -134,27 +134,26 @@ export declare class UsersService {
         id: string;
         role: Role;
     }): Promise<({
+        department: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            code: string;
+            description: string | null;
+        };
         user: {
             email: string;
             isActive: boolean;
         };
-        department: {
-            name: string;
-            id: string;
-            createdAt: Date;
-            description: string | null;
-            code: string;
-        };
         currentClass: {
             level: import(".prisma/client").$Enums.ClassLevel;
-            name: string;
             id: string;
+            name: string;
             capacity: number;
             classTeacherId: string | null;
         };
     } & {
         id: string;
-        userId: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
@@ -162,67 +161,68 @@ export declare class UsersService {
         dateOfBirth: Date | null;
         photoUrl: string | null;
         departmentId: string | null;
+        userId: string;
         indexNumber: string;
         bio: string | null;
         admissionDate: Date;
-        currentClassId: string | null;
         archivedAt: Date | null;
+        currentClassId: string | null;
     })[]>;
-    getStudentProfile(studentId: string, requesterRole?: Role): Promise<{
+    getStudentProfile(studentId: string, requesterRole?: Role, teacherStaffId?: string): Promise<{
+        department: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            code: string;
+            description: string | null;
+        };
         user: {
             email: string;
             lastLoginAt: Date;
         };
-        department: {
-            name: string;
-            id: string;
-            createdAt: Date;
-            description: string | null;
-            code: string;
-        };
         currentClass: {
             level: import(".prisma/client").$Enums.ClassLevel;
-            name: string;
             id: string;
+            name: string;
             capacity: number;
             classTeacherId: string | null;
         };
         grades: ({
+            subject: {
+                id: string;
+                isActive: boolean;
+                createdAt: Date;
+                departmentId: string | null;
+                name: string;
+                code: string;
+                description: string | null;
+                type: import(".prisma/client").$Enums.SubjectType;
+            };
             term: {
                 academicYear: {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
-                    label: string;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
+                academicYearId: string;
                 isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
-                academicYearId: string;
-            };
-            subject: {
-                name: string;
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                type: import(".prisma/client").$Enums.SubjectType;
-                description: string | null;
-                departmentId: string | null;
-                code: string;
             };
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            studentId: string;
-            isApproved: boolean;
             subjectId: string;
+            isApproved: boolean;
+            studentId: string;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -246,18 +246,18 @@ export declare class UsersService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
-                    label: string;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
+                academicYearId: string;
                 isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
-                academicYearId: string;
             };
         } & {
             id: string;
@@ -285,9 +285,9 @@ export declare class UsersService {
                 id: string;
                 email: string | null;
                 phone: string;
-                userId: string;
                 firstName: string;
                 lastName: string;
+                userId: string;
                 occupation: string | null;
             };
         } & {
@@ -299,7 +299,6 @@ export declare class UsersService {
         })[];
     } & {
         id: string;
-        userId: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
@@ -307,57 +306,57 @@ export declare class UsersService {
         dateOfBirth: Date | null;
         photoUrl: string | null;
         departmentId: string | null;
+        userId: string;
         indexNumber: string;
         bio: string | null;
         admissionDate: Date;
-        currentClassId: string | null;
         archivedAt: Date | null;
+        currentClassId: string | null;
     }>;
     getAllStaff(user?: {
         id: string;
         role: Role;
     }): Promise<({
+        department: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            code: string;
+            description: string | null;
+        };
+        teachingAssignments: ({
+            classSection: {
+                level: import(".prisma/client").$Enums.ClassLevel;
+                id: string;
+                name: string;
+                capacity: number;
+                classTeacherId: string | null;
+            };
+            subject: {
+                id: string;
+                isActive: boolean;
+                createdAt: Date;
+                departmentId: string | null;
+                name: string;
+                code: string;
+                description: string | null;
+                type: import(".prisma/client").$Enums.SubjectType;
+            };
+        } & {
+            id: string;
+            teacherId: string;
+            subjectId: string;
+            classSectionId: string;
+            academicYearId: string;
+        })[];
         user: {
             email: string;
             role: import(".prisma/client").$Enums.Role;
             isActive: boolean;
         };
-        department: {
-            name: string;
-            id: string;
-            createdAt: Date;
-            description: string | null;
-            code: string;
-        };
-        teachingAssignments: ({
-            subject: {
-                name: string;
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                type: import(".prisma/client").$Enums.SubjectType;
-                description: string | null;
-                departmentId: string | null;
-                code: string;
-            };
-            classSection: {
-                level: import(".prisma/client").$Enums.ClassLevel;
-                name: string;
-                id: string;
-                capacity: number;
-                classTeacherId: string | null;
-            };
-        } & {
-            id: string;
-            subjectId: string;
-            academicYearId: string;
-            teacherId: string;
-            classSectionId: string;
-        })[];
     } & {
         id: string;
         phone: string | null;
-        userId: string;
         staffId: string;
         firstName: string;
         lastName: string;
@@ -367,6 +366,7 @@ export declare class UsersService {
         photoUrl: string | null;
         hiredAt: Date;
         departmentId: string | null;
+        userId: string;
     })[]>;
     deactivateUser(userId: string): Promise<{
         id: string;
@@ -387,27 +387,26 @@ export declare class UsersService {
         photoUrl?: string;
         dateOfBirth?: string;
     }): Promise<{
+        department: {
+            id: string;
+            createdAt: Date;
+            name: string;
+            code: string;
+            description: string | null;
+        };
         user: {
             email: string;
             lastLoginAt: Date;
         };
-        department: {
-            name: string;
-            id: string;
-            createdAt: Date;
-            description: string | null;
-            code: string;
-        };
         currentClass: {
             level: import(".prisma/client").$Enums.ClassLevel;
-            name: string;
             id: string;
+            name: string;
             capacity: number;
             classTeacherId: string | null;
         };
     } & {
         id: string;
-        userId: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
@@ -415,10 +414,11 @@ export declare class UsersService {
         dateOfBirth: Date | null;
         photoUrl: string | null;
         departmentId: string | null;
+        userId: string;
         indexNumber: string;
         bio: string | null;
         admissionDate: Date;
-        currentClassId: string | null;
         archivedAt: Date | null;
+        currentClassId: string | null;
     }>;
 }

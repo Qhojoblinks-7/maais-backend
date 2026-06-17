@@ -211,7 +211,24 @@ let GradingService = class GradingService {
             data: { isApproved: true, approvedById, approvedAt: new Date() },
         });
     }
-    async getClassPerformanceSummary(classId, termId) {
+    async getClassPerformanceSummary(classId, termId, userId, userRole) {
+        if (userRole === client_1.Role.TEACHER && userId) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+            });
+            if (!staffProfile) {
+                throw new common_1.ForbiddenException('Teacher profile not found');
+            }
+            const isAssigned = await this.prisma.teachingAssignment.findFirst({
+                where: {
+                    teacherId: staffProfile.id,
+                    classSectionId: classId,
+                },
+            });
+            if (!isAssigned) {
+                throw new common_1.ForbiddenException('You are not assigned to this class');
+            }
+        }
         const students = await this.prisma.studentProfile.findMany({
             where: { currentClassId: classId },
             include: {
@@ -221,9 +238,9 @@ let GradingService = class GradingService {
                 },
             },
         });
-        return students.map(s => {
+        return students.map((s) => {
             const totalGrades = s.grades.length;
-            const approvedGrades = s.grades.filter(g => g.isApproved).length;
+            const approvedGrades = s.grades.filter((g) => g.isApproved).length;
             const progress = totalGrades > 0 ? (approvedGrades / totalGrades) * 100 : 0;
             return {
                 id: s.id,
@@ -283,13 +300,30 @@ let GradingService = class GradingService {
             data: updateData,
         });
     }
-    async getMissingObservationsTray(termId) {
+    async getMissingObservationsTray(termId, userId, userRole) {
+        const whereClause = {
+            termId,
+            hasObservation: false,
+            OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
+        };
+        if (userRole === client_1.Role.TEACHER && userId) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+            });
+            if (!staffProfile) {
+                throw new common_1.ForbiddenException('Teacher profile not found');
+            }
+            const teacherAssignments = await this.prisma.teachingAssignment.findMany({
+                where: { teacherId: staffProfile.id },
+                select: { subjectId: true },
+            });
+            const subjectIds = teacherAssignments.map((a) => a.subjectId);
+            if (subjectIds.length > 0) {
+                whereClause.subjectId = { in: subjectIds };
+            }
+        }
         return this.prisma.gradeEntry.findMany({
-            where: {
-                termId,
-                hasObservation: false,
-                OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
-            },
+            where: whereClause,
             include: {
                 student: {
                     select: { indexNumber: true, firstName: true, lastName: true },

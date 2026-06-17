@@ -13,7 +13,7 @@ export class ReportsController {
   constructor(private reportsService: ReportsService) {}
 
   @Post('report-cards/generate')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.STUDENT)
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.STUDENT, Role.TEACHER)
   @ApiOperation({ summary: 'Generate report card for a single student' })
   generateOne(@Body() dto: GenerateReportCardDto) {
     return this.reportsService.generateReportCard(dto.studentId, dto.termId);

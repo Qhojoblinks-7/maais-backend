@@ -92,12 +92,19 @@ let CommsService = CommsService_1 = class CommsService {
     async broadcastEmergency(title, body, sentById) {
         return this.sendNotification({ title, body, channel: client_1.NotificationChannel.SMS, isEmergency: true }, sentById);
     }
-    async getStudentNotifications(studentId, unreadOnly = false) {
+    async getStudentNotifications(studentId, unreadOnly = false, requesterId, requesterRole) {
+        let where = { studentId };
+        if (requesterRole === client_1.Role.STUDENT && requesterId) {
+            const student = await this.prisma.studentProfile.findUnique({
+                where: { id: studentId },
+                select: { userId: true },
+            });
+            if (!student || student.userId !== requesterId) {
+                throw new common_1.ForbiddenException('You can only view your own notifications');
+            }
+        }
         return this.prisma.notification.findMany({
-            where: {
-                studentId,
-                ...(unreadOnly ? { isRead: false } : {}),
-            },
+            where,
             orderBy: { createdAt: 'desc' },
             take: 50,
         });
@@ -108,28 +115,30 @@ let CommsService = CommsService_1 = class CommsService {
             data: { isRead: true },
         });
     }
-    async createTicket(dto, studentId) {
-        const student = await this.prisma.studentProfile.findUnique({
-            where: { id: studentId },
+    async createTicket(dto, requesterId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: requesterId },
+            include: { studentProfile: true },
         });
-        if (!student) {
-            throw new Error('Student not found');
+        if (!user || !user.studentProfile) {
+            throw new common_1.ForbiddenException('Only students can create support tickets');
         }
+        const student = user.studentProfile;
         return this.prisma.supportTicket.create({
             data: {
-                studentId,
+                studentId: student.id,
                 title: dto.title,
                 description: dto.description,
                 category: dto.category || 'General',
                 priority: dto.priority || 'MEDIUM',
-                createdById: student.userId,
+                createdById: requesterId,
+                status: 'OPEN',
             },
             include: {
                 student: {
                     include: {
-                        user: {
-                            select: { email: true },
-                        },
+                        currentClass: true,
+                        user: { select: { email: true } },
                     },
                 },
             },
@@ -142,7 +151,112 @@ let CommsService = CommsService_1 = class CommsService {
             take: 50,
         });
     }
-    async getAnalyticsPulse(academicYearId) {
+    async listTickets(query, requesterId, role) {
+        const where = {};
+        if (query.status)
+            where.status = query.status;
+        if (query.category)
+            where.category = query.category;
+        if (query.priority)
+            where.priority = query.priority;
+        if (role === client_1.Role.STUDENT) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: requesterId },
+                include: { studentProfile: true },
+            });
+            if (!user?.studentProfile) {
+                throw new common_1.ForbiddenException('Only students can view their own tickets');
+            }
+            where.studentId = user.studentProfile.id;
+        }
+        else if (role === client_1.Role.TEACHER || role === client_1.Role.HOD) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId: requesterId },
+            });
+            if (!staffProfile) {
+                throw new common_1.ForbiddenException('Staff profile not found');
+            }
+            const assignments = await this.prisma.teachingAssignment.findMany({
+                where: { teacherId: staffProfile.id },
+                select: { classSectionId: true },
+            });
+            const classSectionIds = assignments.map((a) => a.classSectionId);
+            const students = await this.prisma.studentProfile.findMany({
+                where: { currentClassId: { in: classSectionIds } },
+                select: { id: true },
+            });
+            where.studentId = { in: students.map((s) => s.id) };
+        }
+        return this.prisma.supportTicket.findMany({
+            where,
+            include: {
+                student: {
+                    include: {
+                        currentClass: true,
+                        user: { select: { email: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100,
+        });
+    }
+    async updateTicketStatus(ticketId, dto, userId, role) {
+        if (role !== client_1.Role.SUPER_ADMIN && role !== client_1.Role.HEADMASTER && role !== client_1.Role.HOD) {
+            throw new common_1.ForbiddenException('Only administrators can update ticket status');
+        }
+        return this.prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: {
+                status: dto.status,
+                resolvedAt: dto.status === 'RESOLVED' ? new Date() : null,
+                assignedTo: userId,
+            },
+            include: {
+                student: {
+                    include: {
+                        user: { select: { email: true } },
+                    },
+                },
+            },
+        });
+    }
+    async addTicketReply(ticketId, dto, userId, role) {
+        if (role !== client_1.Role.SUPER_ADMIN &&
+            role !== client_1.Role.HEADMASTER &&
+            role !== client_1.Role.HOD &&
+            role !== client_1.Role.TEACHER) {
+            throw new common_1.ForbiddenException('Only staff can reply to tickets');
+        }
+        const updatedTicket = await this.prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: {
+                updatedAt: new Date(),
+                ...(dto.priority ? { priority: dto.priority } : {}),
+            },
+            include: {
+                student: {
+                    include: {
+                        user: { select: { email: true } },
+                    },
+                },
+            },
+        });
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { email: true },
+        });
+        return {
+            ...updatedTicket,
+            reply: {
+                message: dto.message,
+                repliedBy: user?.email || userId,
+                repliedAt: new Date(),
+                responderRole: role,
+            },
+        };
+    }
+    async getAnalyticsPulse(academicYearId, userId) {
         const [enrollmentByClass, averageBySubject, attendanceSummary] = await Promise.all([
             this.prisma.classSection.findMany({
                 include: { _count: { select: { students: true } } },
@@ -156,18 +270,57 @@ let CommsService = CommsService_1 = class CommsService {
                 _avg: { daysPresent: true, totalDays: true },
             }),
         ]);
-        return {
-            enrollment: enrollmentByClass.map((c) => ({
+        let teacherAssignments = [];
+        if (userId) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+            });
+            if (staffProfile) {
+                teacherAssignments = await this.prisma.teachingAssignment.findMany({
+                    where: { teacherId: staffProfile.id },
+                    include: { classSection: true, subject: true },
+                });
+            }
+        }
+        const teacherClassIds = teacherAssignments.map((a) => a.classSectionId);
+        const teacherSubjectIds = teacherAssignments.map((a) => a.subjectId);
+        const enrollment = userId && teacherClassIds.length > 0
+            ? enrollmentByClass
+                .filter((c) => teacherClassIds.includes(c.id))
+                .map((c) => ({
                 class: `${c.level} ${c.name}`,
                 count: c._count.students,
                 capacity: c.capacity,
-            })),
-            subjectPerformance: averageBySubject.map((s) => ({
+            }))
+            : enrollmentByClass.map((c) => ({
+                class: `${c.level} ${c.name}`,
+                count: c._count.students,
+                capacity: c.capacity,
+            }));
+        const subjectPerformance = userId && teacherSubjectIds.length > 0
+            ? averageBySubject
+                .filter((s) => teacherSubjectIds.includes(s.subjectId))
+                .map((s) => ({
                 subjectId: s.subjectId,
                 averageScore: s._avg.totalScore?.toFixed(2),
                 studentCount: s._count.id,
-            })),
+            }))
+            : averageBySubject.map((s) => ({
+                subjectId: s.subjectId,
+                averageScore: s._avg.totalScore?.toFixed(2),
+                studentCount: s._count.id,
+            }));
+        return {
+            enrollment,
+            subjectPerformance,
             attendance: attendanceSummary._avg,
+            teacherAssignments: userId ? teacherAssignments.map((a) => ({
+                id: a.id,
+                subjectId: a.subjectId,
+                subjectName: a.subject.name,
+                classSectionId: a.classSectionId,
+                className: `${a.classSection.level} ${a.classSection.name}`,
+            })) : undefined,
         };
     }
 };

@@ -42,11 +42,11 @@ let GradingController = class GradingController {
     correctGrade(dto, userId) {
         return this.gradingService.correctGrade(dto, userId);
     }
-    getMissingObservations(termId) {
-        return this.gradingService.getMissingObservationsTray(termId);
+    getMissingObservations(termId, userId, role) {
+        return this.gradingService.getMissingObservationsTray(termId, userId, role);
     }
-    getClassSummary(classId, termId) {
-        return this.gradingService.getClassPerformanceSummary(classId, termId);
+    getClassSummary(classId, termId, userId, role) {
+        return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
     }
     getStudentTermGrades(studentId, termId, role) {
         return this.gradingService.getStudentTermGrades(studentId, termId, role);
@@ -127,27 +127,32 @@ __decorate([
 ], GradingController.prototype, "correctGrade", null);
 __decorate([
     (0, common_1.Get)('audit-tray'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get missing observations tray' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, common_1.Query)('termId')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], GradingController.prototype, "getMissingObservations", null);
 __decorate([
     (0, common_1.Get)('class-summary/:classId'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get class performance summary' }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Param)('classId')),
     __param(1, (0, common_1.Query)('termId')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('role')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], GradingController.prototype, "getClassSummary", null);
 __decorate([
     (0, common_1.Get)('students/:studentId/terms/:termId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get all grades for a student in a term' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, common_1.Param)('studentId')),

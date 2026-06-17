@@ -41,7 +41,7 @@ let ReportsController = class ReportsController {
 exports.ReportsController = ReportsController;
 __decorate([
     (0, common_1.Post)('report-cards/generate'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD),
+    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD, client_1.Role.STUDENT, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Generate report card for a single student' }),
     openapi.ApiResponse({ status: 201 }),
     __param(0, (0, common_1.Body)()),
@@ -51,7 +51,7 @@ __decorate([
 ], ReportsController.prototype, "generateOne", null);
 __decorate([
     (0, common_1.Post)('report-cards/batch'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Batch generate report cards for entire class' }),
     openapi.ApiResponse({ status: 201 }),
     __param(0, (0, common_1.Body)()),
@@ -61,7 +61,7 @@ __decorate([
 ], ReportsController.prototype, "batchGenerate", null);
 __decorate([
     (0, common_1.Post)('transcripts/generate'),
-    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Build 3-year transcript' }),
     openapi.ApiResponse({ status: 201 }),
     __param(0, (0, common_1.Body)()),

@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { ClassLevel, PromotionStatus } from '@prisma/client';
+import { ClassLevel, PromotionStatus, Role } from '@prisma/client';
 
 const PROMOTION_MAP: Record<ClassLevel, ClassLevel | null> = {
   [ClassLevel.FORM_1]: ClassLevel.FORM_2,
@@ -112,16 +112,52 @@ export class ArchiveService {
   /**
    * Search The Vault - historical records for GES audits and transcript retrieval
    */
-  async searchVault(query: {
-    indexNumber?: string;
-    firstName?: string;
-    lastName?: string;
-    academicYearId?: string;
-    classLevel?: ClassLevel;
-  }) {
+  async searchVault(
+    query: {
+      indexNumber?: string;
+      firstName?: string;
+      lastName?: string;
+      academicYearId?: string;
+      classLevel?: ClassLevel;
+    },
+    userId?: string,
+    userRole?: Role,
+  ) {
+    const roleFilter: any = {};
+
+    if (userRole === Role.TEACHER && userId) {
+      const staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId },
+      });
+
+      if (staffProfile) {
+        const teacherGrades = await this.prisma.gradeEntry.findMany({
+          where: { submittedById: staffProfile.id },
+          select: { studentId: true },
+          distinct: ['studentId'],
+        });
+
+        const taughtStudentIds = teacherGrades.map((g) => g.studentId);
+        if (taughtStudentIds.length > 0) {
+          roleFilter.id = { in: taughtStudentIds };
+        } else {
+          roleFilter.id = '';
+        }
+      }
+    } else if (userRole === Role.HOD && userId) {
+      const staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId },
+      });
+
+      if (staffProfile) {
+        roleFilter.departmentId = staffProfile.departmentId;
+      }
+    }
+
     return this.prisma.studentProfile.findMany({
       where: {
         AND: [
+          roleFilter,
           query.indexNumber
             ? {
                 indexNumber: {

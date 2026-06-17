@@ -11,18 +11,18 @@ export declare class ReportsService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
-                    label: string;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
+                academicYearId: string;
                 isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
-                academicYearId: string;
             };
             student: {
                 id: string;
@@ -77,8 +77,8 @@ export declare class ReportsService {
             createdAt: Date;
             updatedAt: Date;
             studentId: string;
-            isApproved: boolean;
             subjectId: string;
+            isApproved: boolean;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -187,18 +187,18 @@ export declare class ReportsService {
                         id: string;
                         isActive: boolean;
                         createdAt: Date;
-                        label: string;
                         startDate: Date;
                         endDate: Date;
+                        label: string;
                     };
                 } & {
                     id: string;
                     isActive: boolean;
+                    academicYearId: string;
                     isLocked: boolean;
+                    termNumber: import(".prisma/client").$Enums.TermNumber;
                     startDate: Date;
                     endDate: Date;
-                    termNumber: import(".prisma/client").$Enums.TermNumber;
-                    academicYearId: string;
                 };
                 subject: {
                     name: string;
@@ -215,8 +215,8 @@ export declare class ReportsService {
                 createdAt: Date;
                 updatedAt: Date;
                 studentId: string;
-                isApproved: boolean;
                 subjectId: string;
+                isApproved: boolean;
                 termId: string;
                 classScore: number | null;
                 examScore: number | null;
@@ -240,18 +240,18 @@ export declare class ReportsService {
                         id: string;
                         isActive: boolean;
                         createdAt: Date;
-                        label: string;
                         startDate: Date;
                         endDate: Date;
+                        label: string;
                     };
                 } & {
                     id: string;
                     isActive: boolean;
+                    academicYearId: string;
                     isLocked: boolean;
+                    termNumber: import(".prisma/client").$Enums.TermNumber;
                     startDate: Date;
                     endDate: Date;
-                    termNumber: import(".prisma/client").$Enums.TermNumber;
-                    academicYearId: string;
                 };
             } & {
                 id: string;
@@ -305,18 +305,18 @@ export declare class ReportsService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
-                label: string;
                 startDate: Date;
                 endDate: Date;
+                label: string;
             };
         } & {
             id: string;
             isActive: boolean;
+            academicYearId: string;
             isLocked: boolean;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
-            academicYearId: string;
         };
         generatedAt: Date;
         indexNumber?: undefined;
