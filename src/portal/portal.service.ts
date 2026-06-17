@@ -55,52 +55,87 @@ export class PortalService {
   }
 
   private async getPortalDataInternal(studentId: string) {
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: studentId },
-      include: { currentClass: true },
+    console.log('[PortalService] getPortalData called with studentId:', studentId);
+    const studentProfile = await this.prisma.studentProfile.findUnique({
+      where: { userId: studentId },
+      include: { currentClass: true, user: true },
     });
 
+    console.log('[PortalService] studentProfile found:', studentProfile ? 'yes' : 'no', studentProfile?.id);
+
+    if (!studentProfile) {
+      console.log('[PortalService] No student profile found for userId:', studentId);
+      return {
+        student: null,
+        cgpa: 0,
+        classRank: null,
+        approvalStatus: 'PENDING',
+        attendancePercentage: 0,
+        lastSeen: null,
+        yearForm: '—',
+        semester: '—',
+        terminalResults: [],
+        coreResults: [],
+        technicalResults: [],
+        academicHistory: [],
+        behaviorRating: 0,
+        behaviorComments: '',
+        characterTraits: null,
+        notifications: [],
+        activeInterventions: [],
+      };
+    }
+
+    const profileId = studentProfile.id;
+
     const latestReport = await this.prisma.reportCard.findFirst({
-      where: { studentId },
+      where: { studentId: profileId },
       orderBy: { createdAt: 'desc' },
       include: { term: { include: { academicYear: true } } },
     });
 
     const allGrades = await this.prisma.gradeEntry.findMany({
-      where: { studentId },
+      where: { studentId: profileId },
       include: { subject: true, term: { include: { academicYear: true } } },
     });
 
     const behavior = await this.prisma.studentBehavior.findFirst({
-      where: { studentId },
+      where: { studentId: profileId },
       orderBy: { createdAt: 'desc' },
     });
 
     const characterTraits = await this.prisma.characterTrait.findFirst({
-      where: { studentId },
+      where: { studentId: profileId },
       orderBy: { createdAt: 'desc' },
     });
 
     const attendance = await this.prisma.attendanceRecord.findMany({
-      where: { studentId },
+      where: { studentId: profileId },
     });
 
     const notifications = await this.prisma.notification.findMany({
-      where: { studentId },
+      where: { studentId: profileId },
       orderBy: { createdAt: 'desc' },
       take: 10,
     });
 
     const interventions = await this.prisma.interventionAlert.findMany({
       where: {
-        studentId,
+        studentId: profileId,
         status: { in: ['ACTIVE', 'IN_PROGRESS'] },
       },
     });
 
+    const student = studentProfile;
+
     const attendancePercentage = this.calculateAttendance(attendance);
 
-    const terminalResults = allGrades.map(grade => ({
+    const currentTermId = latestReport?.termId;
+    const currentTermGrades = currentTermId
+      ? allGrades.filter(grade => grade.termId === currentTermId)
+      : [];
+
+    const terminalResults = currentTermGrades.map(grade => ({
       subject: grade.subject?.name || 'Unknown',
       caScore: grade.classScore ?? 0,
       examScore: grade.examScore ?? 0,
@@ -126,6 +161,7 @@ export class PortalService {
       ? (behavior.punctuality + behavior.attendance + behavior.attitude + behavior.conduct) / 4
       : 0;
 
+    console.log('[PortalService] Returning portal data for profileId:', profileId, 'student:', student?.firstName);
     return {
       student: {
         id: student?.id,
@@ -139,6 +175,7 @@ export class PortalService {
       classRank: latestReport?.classPosition,
       approvalStatus: latestReport?.releasedAt ? 'APPROVED' : 'PENDING',
       attendancePercentage,
+      lastSeen: student.user?.lastLoginAt ?? null,
       yearForm,
       semester,
       terminalResults,
@@ -187,7 +224,7 @@ export class PortalService {
     const historyMap = new Map<string, { year: string; term: string; subjects: any[] }>();
 
     grades.forEach(grade => {
-      const yearLabel = grade.term?.academicYear?.label || 'Unknown Year';
+      const yearLabel = (grade.term?.academicYear?.label || 'Unknown Year').replace('/', '-');
       const termLabel = this.formatTermNumber(grade.term?.termNumber);
       const key = `${yearLabel}|${termLabel}`;
 

@@ -15,6 +15,7 @@ export class PortalController {
     getPortalData(
         @Param('id') studentId: string,
     ) {
+        console.log('[PortalController] getPortalData called with studentId param:', studentId);
         return this.portalService.getPortalData(
             studentId,
         )

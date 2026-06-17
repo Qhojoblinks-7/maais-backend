@@ -40,7 +40,16 @@ let AuthService = class AuthService {
             this.signAccessToken(user.id, user.email, user.role),
             this.createRefreshToken(user.id),
         ]);
-        return { accessToken, refreshToken, user: this.sanitizeUser(user) };
+        const sanitized = this.sanitizeUser(user);
+        const fullUser = await this.prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+                studentProfile: { select: { id: true } },
+                staffProfile: { select: { id: true } },
+            },
+        });
+        const profileId = fullUser?.studentProfile?.id || fullUser?.staffProfile?.id || null;
+        return { accessToken, refreshToken, user: { ...sanitized, profileId } };
     }
     async refreshTokens(userId, token) {
         const stored = await this.prisma.refreshToken.findUnique({
@@ -60,7 +69,18 @@ let AuthService = class AuthService {
         return { success: true };
     }
     async signAccessToken(id, email, role) {
-        return this.jwt.signAsync({ sub: id, email, role }, {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            select: {
+                email: true,
+                role: true,
+                studentProfile: { select: { firstName: true, lastName: true } },
+                staffProfile: { select: { firstName: true, lastName: true } },
+            },
+        });
+        const name = (user?.studentProfile ? `${user.studentProfile.firstName} ${user.studentProfile.lastName}` : '') ||
+            (user?.staffProfile ? `${user.staffProfile.firstName} ${user.staffProfile.lastName}` : '');
+        return this.jwt.signAsync({ sub: id, id: id, email, role, name }, {
             secret: this.config.get('JWT_ACCESS_SECRET'),
             expiresIn: this.config.get('JWT_ACCESS_EXPIRES_IN', '15m'),
         });

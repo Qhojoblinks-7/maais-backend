@@ -11,33 +11,33 @@ export declare class ReportsService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
+                    label: string;
                     startDate: Date;
                     endDate: Date;
-                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 isLocked: boolean;
-                academicYearId: string;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
+                academicYearId: string;
             };
             student: {
                 id: string;
                 userId: string;
+                indexNumber: string;
                 firstName: string;
                 lastName: string;
                 middleName: string | null;
+                bio: string | null;
                 gender: import(".prisma/client").$Enums.Gender;
                 dateOfBirth: Date | null;
                 photoUrl: string | null;
-                departmentId: string | null;
-                indexNumber: string;
-                bio: string | null;
                 admissionDate: Date;
                 currentClassId: string | null;
+                departmentId: string | null;
                 archivedAt: Date | null;
             };
         } & {
@@ -67,9 +67,9 @@ export declare class ReportsService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                departmentId: string | null;
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
-                departmentId: string | null;
                 code: string;
             };
         } & {
@@ -126,17 +126,17 @@ export declare class ReportsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
         statistics: {
@@ -187,27 +187,27 @@ export declare class ReportsService {
                         id: string;
                         isActive: boolean;
                         createdAt: Date;
+                        label: string;
                         startDate: Date;
                         endDate: Date;
-                        label: string;
                     };
                 } & {
                     id: string;
                     isActive: boolean;
                     isLocked: boolean;
-                    academicYearId: string;
-                    termNumber: import(".prisma/client").$Enums.TermNumber;
                     startDate: Date;
                     endDate: Date;
+                    termNumber: import(".prisma/client").$Enums.TermNumber;
+                    academicYearId: string;
                 };
                 subject: {
                     name: string;
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
+                    departmentId: string | null;
                     type: import(".prisma/client").$Enums.SubjectType;
                     description: string | null;
-                    departmentId: string | null;
                     code: string;
                 };
             } & {
@@ -240,18 +240,18 @@ export declare class ReportsService {
                         id: string;
                         isActive: boolean;
                         createdAt: Date;
+                        label: string;
                         startDate: Date;
                         endDate: Date;
-                        label: string;
                     };
                 } & {
                     id: string;
                     isActive: boolean;
                     isLocked: boolean;
-                    academicYearId: string;
-                    termNumber: import(".prisma/client").$Enums.TermNumber;
                     startDate: Date;
                     endDate: Date;
+                    termNumber: import(".prisma/client").$Enums.TermNumber;
+                    academicYearId: string;
                 };
             } & {
                 id: string;
@@ -277,17 +277,17 @@ export declare class ReportsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
         verificationUrl: string;
@@ -296,27 +296,27 @@ export declare class ReportsService {
         valid: boolean;
         documentType: string;
         student: {
+            indexNumber: string;
             firstName: string;
             lastName: string;
-            indexNumber: string;
         };
         term: {
             academicYear: {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                label: string;
                 startDate: Date;
                 endDate: Date;
-                label: string;
             };
         } & {
             id: string;
             isActive: boolean;
             isLocked: boolean;
-            academicYearId: string;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
+            academicYearId: string;
         };
         generatedAt: Date;
         indexNumber?: undefined;

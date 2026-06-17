@@ -16,30 +16,30 @@ export declare class JwtStrategy extends JwtStrategy_base {
             id: string;
             phone: string | null;
             userId: string;
-            staffId: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            hiredAt: Date;
             departmentId: string | null;
+            staffId: string;
+            hiredAt: Date;
         };
         studentProfile: {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
         parentProfile: {

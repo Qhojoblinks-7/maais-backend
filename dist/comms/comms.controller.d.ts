@@ -64,17 +64,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -84,10 +84,10 @@ export declare class CommsController {
         description: string;
         title: string;
         studentId: string;
-        status: string;
         category: string;
         priority: string;
         createdById: string | null;
+        status: string;
         assignedTo: string | null;
         resolvedAt: Date | null;
     }>;
@@ -98,10 +98,10 @@ export declare class CommsController {
         description: string;
         title: string;
         studentId: string;
-        status: string;
         category: string;
         priority: string;
         createdById: string | null;
+        status: string;
         assignedTo: string | null;
         resolvedAt: Date | null;
     }[]>;

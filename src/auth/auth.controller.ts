@@ -34,7 +34,9 @@ export class AuthController {
   async login(@Body() dto: LoginDto) {
     const user = await this.authService.validateUser(dto.email, dto.password);
     if (!user) throw new UnauthorizedException('Invalid credentials');
-    return this.authService.login(user);
+    const result = await this.authService.login(user);
+    console.log('[AuthController] login response - userId:', result.user?.id, 'role:', result.user?.role);
+    return result;
   }
 
   @Public()
@@ -69,6 +71,7 @@ export class AuthController {
     });
 
     const { passwordHash: __, ...fullRest } = fullUser as any;
+    console.log('[AuthController] /me response - userId:', fullRest.id, 'role:', fullRest.role, 'studentProfileId:', fullRest.studentProfile?.id);
     return fullRest;
   }
 }

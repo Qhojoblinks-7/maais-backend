@@ -31,7 +31,9 @@ let AuthController = class AuthController {
         const user = await this.authService.validateUser(dto.email, dto.password);
         if (!user)
             throw new common_1.UnauthorizedException('Invalid credentials');
-        return this.authService.login(user);
+        const result = await this.authService.login(user);
+        console.log('[AuthController] login response - userId:', result.user?.id, 'role:', result.user?.role);
+        return result;
     }
     async refresh(dto) {
         return this.authService.refreshTokens(dto.userId, dto.refreshToken);
@@ -50,6 +52,7 @@ let AuthController = class AuthController {
             },
         });
         const { passwordHash: __, ...fullRest } = fullUser;
+        console.log('[AuthController] /me response - userId:', fullRest.id, 'role:', fullRest.role, 'studentProfileId:', fullRest.studentProfile?.id);
         return fullRest;
     }
 };
