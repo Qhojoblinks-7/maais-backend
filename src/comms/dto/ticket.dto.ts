@@ -2,7 +2,10 @@ import { IsString, IsOptional } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateTicketStatusDto {
-  @ApiProperty({ example: 'RESOLVED', enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED'] })
+  @ApiProperty({
+    example: 'RESOLVED',
+    enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED'],
+  })
   @IsString()
   status: string;
 

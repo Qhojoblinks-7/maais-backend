@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, Patch, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { UsersService, CreateParentDto } from './users.service';
@@ -35,28 +45,37 @@ export class UsersController {
   @Get('students')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'List all active students' })
-  getAllStudents(@CurrentUser() user: { id: string, role: Role }) {
+  getAllStudents(@CurrentUser() user: { id: string; role: Role }) {
     return this.usersService.getAllStudents(user);
   }
 
   @Get('students/:id')
   @ApiOperation({ summary: 'Get full student profile' })
-  getStudentProfile(@Param('id') id: string, @CurrentUser('role') role: Role, @CurrentUser() user: { id: string; staffProfile?: { id: string } }) {
-    const teacherStaffId = role === Role.TEACHER ? user?.staffProfile?.id : undefined;
+  getStudentProfile(
+    @Param('id') id: string,
+    @CurrentUser('role') role: Role,
+    @CurrentUser() user: { id: string; staffProfile?: { id: string } },
+  ) {
+    const teacherStaffId =
+      role === Role.TEACHER ? user?.staffProfile?.id : undefined;
     return this.usersService.getStudentProfile(id, role, teacherStaffId);
   }
 
   @Patch('students/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update student profile (name, bio, DOB, photo)' })
-  updateStudentProfile(@Param('id') id: string, @Body() body: any, @CurrentUser('role') role: Role) {
+  updateStudentProfile(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser('role') role: Role,
+  ) {
     return this.usersService.updateStudentProfile(id, body);
   }
 
   @Get('staff')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   @ApiOperation({ summary: 'List all staff members' })
-  getAllStaff(@CurrentUser() user: { id: string, role: Role }) {
+  getAllStaff(@CurrentUser() user: { id: string; role: Role }) {
     return this.usersService.getAllStaff(user);
   }
 

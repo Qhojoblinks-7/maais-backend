@@ -23,7 +23,11 @@ export class AcademicArchitectController {
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a new academic year' })
   createYear(@Body() dto: CreateAcademicYearDto) {
-    return this.service.createAcademicYear(dto.label, new Date(dto.startDate), new Date(dto.endDate));
+    return this.service.createAcademicYear(
+      dto.label,
+      new Date(dto.startDate),
+      new Date(dto.endDate),
+    );
   }
 
   @Patch('years/:id/activate')
@@ -43,7 +47,12 @@ export class AcademicArchitectController {
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a term' })
   createTerm(@Body() dto: CreateTermDto) {
-    return this.service.createTerm(dto.academicYearId, dto.termNumber, new Date(dto.startDate), new Date(dto.endDate));
+    return this.service.createTerm(
+      dto.academicYearId,
+      dto.termNumber,
+      new Date(dto.startDate),
+      new Date(dto.endDate),
+    );
   }
 
   @Patch('terms/:id/activate')
@@ -95,7 +104,10 @@ export class AcademicArchitectController {
   @Patch('classes/:id/teacher')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Assign class teacher' })
-  assignClassTeacher(@Param('id') id: string, @Body() dto: AssignClassTeacherDto) {
+  assignClassTeacher(
+    @Param('id') id: string,
+    @Body() dto: AssignClassTeacherDto,
+  ) {
     return this.service.assignClassTeacher(id, dto.staffId);
   }
 

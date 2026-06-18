@@ -21,7 +21,10 @@ class SendNotificationDto {
 }
 exports.SendNotificationDto = SendNotificationDto;
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ type: [String], description: 'Leave empty to notify all students' }),
+    (0, swagger_1.ApiPropertyOptional)({
+        type: [String],
+        description: 'Leave empty to notify all students',
+    }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
     __metadata("design:type", Array)

@@ -52,7 +52,10 @@ class BuildTranscriptDto {
 }
 exports.BuildTranscriptDto = BuildTranscriptDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'MSHTS/2024/001', description: 'Student ID or index number' }),
+    (0, swagger_1.ApiProperty)({
+        example: 'MSHTS/2024/001',
+        description: 'Student ID or index number',
+    }),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], BuildTranscriptDto.prototype, "studentIdOrIndex", void 0);

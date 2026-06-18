@@ -6,7 +6,11 @@ import { Role } from '@prisma/client';
 export class InterventionsService {
   constructor(private prisma: PrismaService) {}
 
-async getStudentInterventions(studentId: string, requesterId?: string, requesterRole?: Role) {
+  async getStudentInterventions(
+    studentId: string,
+    requesterId?: string,
+    requesterRole?: Role,
+  ) {
     let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {

@@ -22,7 +22,10 @@ export class BatchGenerateDto {
 }
 
 export class BuildTranscriptDto {
-  @ApiProperty({ example: 'MSHTS/2024/001', description: 'Student ID or index number' })
+  @ApiProperty({
+    example: 'MSHTS/2024/001',
+    description: 'Student ID or index number',
+  })
   @IsString()
   studentIdOrIndex: string;
 }

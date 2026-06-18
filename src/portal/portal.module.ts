@@ -4,6 +4,6 @@ import { PortalService } from './portal.service';
 
 @Module({
   controllers: [PortalController],
-  providers: [PortalService]
+  providers: [PortalService],
 })
 export class PortalModule {}

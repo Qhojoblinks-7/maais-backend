@@ -4,21 +4,25 @@ import { Role } from '@prisma/client';
 
 @Injectable()
 export class BehaviorService {
-    constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-    async createBehavior(data:any) {
-        return this.prisma.studentBehavior.create({
-            data,
-        });
-    }
+  async createBehavior(data: any) {
+    return this.prisma.studentBehavior.create({
+      data,
+    });
+  }
 
-    async createTrait(data:any) {
-        return this.prisma.characterTrait.create({
-            data,
-        });
-    }
+  async createTrait(data: any) {
+    return this.prisma.characterTrait.create({
+      data,
+    });
+  }
 
-async getStudentBehavior(studentId: string, requesterId?: string, requesterRole?: Role) {
+  async getStudentBehavior(
+    studentId: string,
+    requesterId?: string,
+    requesterRole?: Role,
+  ) {
     let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {

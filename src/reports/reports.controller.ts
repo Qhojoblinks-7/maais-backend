@@ -4,7 +4,11 @@ import { Role } from '@prisma/client';
 import { ReportsService } from './reports.service';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import { GenerateReportCardDto, BatchGenerateDto, BuildTranscriptDto } from './dto/reports.dto';
+import {
+  GenerateReportCardDto,
+  BatchGenerateDto,
+  BuildTranscriptDto,
+} from './dto/reports.dto';
 
 @ApiTags('Reports')
 @ApiBearerAuth()
@@ -13,7 +17,13 @@ export class ReportsController {
   constructor(private reportsService: ReportsService) {}
 
   @Post('report-cards/generate')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.STUDENT, Role.TEACHER)
+  @Roles(
+    Role.HEADMASTER,
+    Role.SUPER_ADMIN,
+    Role.HOD,
+    Role.STUDENT,
+    Role.TEACHER,
+  )
   @ApiOperation({ summary: 'Generate report card for a single student' })
   generateOne(@Body() dto: GenerateReportCardDto) {
     return this.reportsService.generateReportCard(dto.studentId, dto.termId);
@@ -23,7 +33,10 @@ export class ReportsController {
   @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
   @ApiOperation({ summary: 'Batch generate report cards for entire class' })
   batchGenerate(@Body() dto: BatchGenerateDto) {
-    return this.reportsService.batchGenerateReportCards(dto.classSectionId, dto.termId);
+    return this.reportsService.batchGenerateReportCards(
+      dto.classSectionId,
+      dto.termId,
+    );
   }
 
   @Post('transcripts/generate')

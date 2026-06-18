@@ -110,7 +110,12 @@ export class CommsService {
     );
   }
 
-async getStudentNotifications(studentId: string, unreadOnly = false, requesterId?: string, requesterRole?: Role) {
+  async getStudentNotifications(
+    studentId: string,
+    unreadOnly = false,
+    requesterId?: string,
+    requesterRole?: Role,
+  ) {
     let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {
@@ -198,7 +203,9 @@ async getStudentNotifications(studentId: string, unreadOnly = false, requesterId
       });
 
       if (!user?.studentProfile) {
-        throw new ForbiddenException('Only students can view their own tickets');
+        throw new ForbiddenException(
+          'Only students can view their own tickets',
+        );
       }
 
       where.studentId = user.studentProfile.id;
@@ -246,8 +253,14 @@ async getStudentNotifications(studentId: string, unreadOnly = false, requesterId
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
-      throw new ForbiddenException('Only administrators can update ticket status');
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD
+    ) {
+      throw new ForbiddenException(
+        'Only administrators can update ticket status',
+      );
     }
 
     return this.prisma.supportTicket.update({
@@ -346,45 +359,49 @@ async getStudentNotifications(studentId: string, unreadOnly = false, requesterId
     const teacherClassIds = teacherAssignments.map((a) => a.classSectionId);
     const teacherSubjectIds = teacherAssignments.map((a) => a.subjectId);
 
-    const enrollment = userId && teacherClassIds.length > 0
-      ? enrollmentByClass
-          .filter((c) => teacherClassIds.includes(c.id))
-          .map((c) => ({
+    const enrollment =
+      userId && teacherClassIds.length > 0
+        ? enrollmentByClass
+            .filter((c) => teacherClassIds.includes(c.id))
+            .map((c) => ({
+              class: `${c.level} ${c.name}`,
+              count: c._count.students,
+              capacity: c.capacity,
+            }))
+        : enrollmentByClass.map((c) => ({
             class: `${c.level} ${c.name}`,
             count: c._count.students,
             capacity: c.capacity,
-          }))
-      : enrollmentByClass.map((c) => ({
-          class: `${c.level} ${c.name}`,
-          count: c._count.students,
-          capacity: c.capacity,
-        }));
+          }));
 
-    const subjectPerformance = userId && teacherSubjectIds.length > 0
-      ? averageBySubject
-          .filter((s) => teacherSubjectIds.includes(s.subjectId))
-          .map((s) => ({
+    const subjectPerformance =
+      userId && teacherSubjectIds.length > 0
+        ? averageBySubject
+            .filter((s) => teacherSubjectIds.includes(s.subjectId))
+            .map((s) => ({
+              subjectId: s.subjectId,
+              averageScore: s._avg.totalScore?.toFixed(2),
+              studentCount: s._count.id,
+            }))
+        : averageBySubject.map((s) => ({
             subjectId: s.subjectId,
             averageScore: s._avg.totalScore?.toFixed(2),
             studentCount: s._count.id,
-          }))
-      : averageBySubject.map((s) => ({
-          subjectId: s.subjectId,
-          averageScore: s._avg.totalScore?.toFixed(2),
-          studentCount: s._count.id,
-        }));
+          }));
 
     return {
       enrollment,
       subjectPerformance,
       attendance: attendanceSummary._avg,
-      teacherAssignments: userId ? teacherAssignments.map((a) => ({
-        id: a.id,
-        subjectId: a.subjectId,
-        subjectName: a.subject.name,
-        classSectionId: a.classSectionId,
-        className: `${a.classSection.level} ${a.classSection.name}`,
-      })) : undefined,
+      teacherAssignments: userId
+        ? teacherAssignments.map((a) => ({
+            id: a.id,
+            subjectId: a.subjectId,
+            subjectName: a.subject.name,
+            classSectionId: a.classSectionId,
+            className: `${a.classSection.level} ${a.classSection.name}`,
+          }))
+        : undefined,
     };
   }
 }

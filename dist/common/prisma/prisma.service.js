@@ -39,11 +39,21 @@ let PrismaService = class PrismaService extends client_1.PrismaClient {
             throw new Error('cleanDatabase() cannot be called in production!');
         }
         const tables = [
-            'audit_logs', 'grade_corrections', 'grade_entries',
-            'attendance_records', 'promotion_records', 'report_cards',
-            'transcripts', 'notifications', 'refresh_tokens',
-            'teaching_assignments', 'student_parent_links',
-            'student_profiles', 'parent_profiles', 'staff_profiles', 'users',
+            'audit_logs',
+            'grade_corrections',
+            'grade_entries',
+            'attendance_records',
+            'promotion_records',
+            'report_cards',
+            'transcripts',
+            'notifications',
+            'refresh_tokens',
+            'teaching_assignments',
+            'student_parent_links',
+            'student_profiles',
+            'parent_profiles',
+            'staff_profiles',
+            'users',
         ];
         for (const t of tables) {
             await this.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`);

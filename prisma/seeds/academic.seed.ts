@@ -13,22 +13,21 @@ export async function seedAcademic(prisma: PrismaClient) {
     },
   });
 
-  // Terms
-  const termsData = [
-    { termNumber: TermNumber.TERM_1, startDate: new Date('2024-09-02'), endDate: new Date('2024-12-20') },
-    { termNumber: TermNumber.TERM_2, startDate: new Date('2025-01-13'), endDate: new Date('2025-04-11') },
-    { termNumber: TermNumber.TERM_3, startDate: new Date('2025-05-05'), endDate: new Date('2025-07-25') },
-  ];
+// Terms
+   const termsData = [
+     { termNumber: TermNumber.SEMESTER_1, startDate: new Date('2024-09-02'), endDate: new Date('2025-01-15') },
+     { termNumber: TermNumber.SEMESTER_2, startDate: new Date('2025-02-01'), endDate: new Date('2025-06-30') },
+   ];
 
-  const terms = [];
-  for (const t of termsData) {
-    const term = await prisma.term.upsert({
-      where: { academicYearId_termNumber: { academicYearId: year.id, termNumber: t.termNumber } },
-      update: {},
-      create: { academicYearId: year.id, ...t, isActive: t.termNumber === TermNumber.TERM_1 },
-    });
-    terms.push(term);
-  }
+   const terms = [];
+   for (const t of termsData) {
+     const term = await prisma.term.upsert({
+       where: { academicYearId_termNumber: { academicYearId: year.id, termNumber: t.termNumber } },
+       update: {},
+       create: { academicYearId: year.id, ...t, isActive: t.termNumber === TermNumber.SEMESTER_1 },
+     });
+     terms.push(term);
+   }
 
   // Class Sections
   const classSectionsData = [

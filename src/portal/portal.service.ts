@@ -6,7 +6,11 @@ import { Role } from '@prisma/client';
 export class PortalService {
   constructor(private prisma: PrismaService) {}
 
-async getPortalData(studentId: string, requesterId?: string, requesterRole?: Role) {
+  async getPortalData(
+    studentId: string,
+    requesterId?: string,
+    requesterRole?: Role,
+  ) {
     let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {
@@ -24,7 +28,11 @@ async getPortalData(studentId: string, requesterId?: string, requesterRole?: Rol
 
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: targetStudentId },
-      include: { currentClass: true, department: true, user: { select: { lastLoginAt: true } } },
+      include: {
+        currentClass: true,
+        department: true,
+        user: { select: { lastLoginAt: true } },
+      },
     });
 
     const latestReport = await this.prisma.reportCard.findFirst({
@@ -55,7 +63,12 @@ async getPortalData(studentId: string, requesterId?: string, requesterRole?: Rol
       },
     });
 
-const attendancePercentage = this.calculateAttendance(attendance);
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      include: { academicYear: true },
+    });
+
+    const attendancePercentage = this.calculateAttendance(attendance);
 
     const latestBehavior = await this.prisma.studentBehavior.findFirst({
       where: { studentId: targetStudentId },
@@ -67,18 +80,19 @@ const attendancePercentage = this.calculateAttendance(attendance);
       orderBy: { createdAt: 'desc' },
     });
 
-    const cgpa = latestReport?.averageScore != null
-      ? this.percentageToGpa(latestReport.averageScore)
-      : 0;
+    const cgpa =
+      latestReport?.averageScore != null
+        ? this.percentageToGpa(latestReport.averageScore)
+        : 0;
 
-    const yearForm = latestReport?.term?.academicYear?.label || '—';
-    const semester = latestReport?.term?.termNumber || '—';
+    const yearForm = latestReport?.term?.academicYear?.label || activeTerm?.academicYear?.label || '—';
+    const semester = latestReport?.term?.termNumber || activeTerm?.termNumber || '—';
 
     const currentTermGrades = latestReport
-      ? gradeEntries.filter(g => g.termId === latestReport.termId)
-      : [];
+      ? gradeEntries.filter((g) => g.termId === latestReport.termId)
+      : activeTerm ? gradeEntries.filter((g) => g.termId === activeTerm.id) : [];
 
-    const terminalResults = currentTermGrades.map(g => ({
+    const terminalResults = currentTermGrades.map((g) => ({
       subject: g.subject?.name || 'Unknown',
       caScore: g.classScore ?? 0,
       examScore: g.examScore ?? 0,
@@ -89,7 +103,10 @@ const attendancePercentage = this.calculateAttendance(attendance);
       finalScore: g.totalScore ?? (g.classScore ?? 0) + (g.examScore ?? 0),
     }));
 
-    const academicHistory = await this.buildAcademicHistory(targetStudentId, gradeEntries);
+    const academicHistory = await this.buildAcademicHistory(
+      targetStudentId,
+      gradeEntries,
+    );
 
     return {
       student: {
@@ -97,7 +114,9 @@ const attendancePercentage = this.calculateAttendance(attendance);
         firstName: student?.firstName,
         lastName: student?.lastName,
         middleName: student?.middleName,
-        fullName: `${student?.firstName ?? ''} ${student?.lastName ?? ''}`.trim() || undefined,
+        fullName:
+          `${student?.firstName ?? ''} ${student?.lastName ?? ''}`.trim() ||
+          undefined,
         dateOfBirth: student?.dateOfBirth,
         gender: student?.gender,
         indexNumber: student?.indexNumber,
@@ -112,41 +131,62 @@ const attendancePercentage = this.calculateAttendance(attendance);
       attendancePercentage,
       yearForm,
       semester,
-      sbaScore: (latestReport?.averageScore ?? 0),
+      sbaScore: latestReport?.averageScore ?? 0,
       waecExamScore: 0,
       finalScore: latestReport?.averageScore ?? 0,
       grade: undefined,
       gpaPerTerm: cgpa,
       terminalResults,
-      coreResults: terminalResults.filter(r =>
-        ['Core Mathematics', 'English Language', 'Integrated Science', 'Social Studies'].includes(r.subject)
+      coreResults: terminalResults.filter((r) =>
+        [
+          'Core Mathematics',
+          'English Language',
+          'Integrated Science',
+          'Social Studies',
+        ].includes(r.subject),
       ),
-      technicalResults: terminalResults.filter(r =>
-        !['Core Mathematics', 'English Language', 'Integrated Science', 'Social Studies'].includes(r.subject)
+      technicalResults: terminalResults.filter(
+        (r) =>
+          ![
+            'Core Mathematics',
+            'English Language',
+            'Integrated Science',
+            'Social Studies',
+          ].includes(r.subject),
       ),
       academicHistory,
       behaviorRating: latestBehavior?.attitude ?? 0,
       behaviorComments: latestBehavior?.remarks || '',
       behavioralLogs: latestBehavior ? [latestBehavior] : [],
-      characterTraits: characterTraits ? {
-        characterQualities: ((characterTraits.leadership + characterTraits.discipline + characterTraits.teamwork + characterTraits.ethics) / 4) || 0,
-        leadership: characterTraits.leadership,
-        discipline: characterTraits.discipline,
-        teamwork: characterTraits.teamwork,
-        ethics: characterTraits.ethics,
-        communication: characterTraits.communication ?? 0,
-        responsibility: characterTraits.responsibility ?? 0,
-      } : null,
+      characterTraits: characterTraits
+        ? {
+            characterQualities:
+              (characterTraits.leadership +
+                characterTraits.discipline +
+                characterTraits.teamwork +
+                characterTraits.ethics) /
+                4 || 0,
+            leadership: characterTraits.leadership,
+            discipline: characterTraits.discipline,
+            teamwork: characterTraits.teamwork,
+            ethics: characterTraits.ethics,
+            communication: characterTraits.communication ?? 0,
+            responsibility: characterTraits.responsibility ?? 0,
+          }
+        : null,
       notifications,
       activeInterventions: interventions,
       wassceResults: [],
       enrollmentDate: student?.admissionDate,
       completionDate: undefined,
       house: undefined,
-      terminalExamDate: latestReport?.generatedAt,
+      terminalExamDate:
+        latestReport?.term?.endDate?.toISOString() ??
+        activeTerm?.endDate?.toISOString() ??
+        latestReport?.generatedAt?.toISOString(),
       learningArea: student?.department?.name || '—',
       programName: student?.currentClass?.name || '—',
-      program: student?.currentClass?.name || '—',
+      program: student?.department?.name || '—',
       recentResults: gradeEntries,
     };
   }
@@ -171,13 +211,13 @@ const attendancePercentage = this.calculateAttendance(attendance);
       grouped.get(key)!.push(entry);
     }
 
-    return reportCards.map(report => {
+    return reportCards.map((report) => {
       const termGrades = grouped.get(report.termId) || [];
       return {
         id: report.id,
         year: report.term?.academicYear?.label || '—',
         term: report.term?.termNumber || '—',
-        subjects: termGrades.map(g => ({
+        subjects: termGrades.map((g) => ({
           name: g.subject?.name || 'Unknown',
           score: g.totalScore ?? (g.classScore ?? 0) + (g.examScore ?? 0),
           grade: g.grade || '-',

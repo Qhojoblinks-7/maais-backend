@@ -51,7 +51,12 @@ describe('CommsService (Support Tickets)', () => {
 
     await expect(
       service.createTicket(
-        { title: 'Test', description: 'Desc', category: 'General', priority: 'MEDIUM' },
+        {
+          title: 'Test',
+          description: 'Desc',
+          category: 'General',
+          priority: 'MEDIUM',
+        },
         'user-1',
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -70,7 +75,12 @@ describe('CommsService (Support Tickets)', () => {
     });
 
     const result = await service.createTicket(
-      { title: 'Help', description: 'Pls', category: 'General', priority: 'HIGH' },
+      {
+        title: 'Help',
+        description: 'Pls',
+        category: 'General',
+        priority: 'HIGH',
+      },
       'user-1',
     );
 
@@ -85,7 +95,11 @@ describe('CommsService (Support Tickets)', () => {
 
     mockPrisma.supportTicket.findMany = jest.fn().mockReturnValue([]);
 
-    await service.listTickets({ status: 'OPEN', category: 'Academic' }, 'user-1', Role.STUDENT);
+    await service.listTickets(
+      { status: 'OPEN', category: 'Academic' },
+      'user-1',
+      Role.STUDENT,
+    );
 
     expect(mockPrisma.supportTicket.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -96,26 +110,28 @@ describe('CommsService (Support Tickets)', () => {
   });
 
   it('listTickets filters by classSectionIds for TEACHER', async () => {
-    mockPrisma.staffProfile.findUnique = jest.fn().mockResolvedValue({ id: 'staff-1' });
-    mockPrisma.teachingAssignment.findMany = jest.fn().mockResolvedValue([
-      { classSectionId: 'class-A' },
-      { classSectionId: 'class-B' },
-    ]);
-    mockPrisma.studentProfile.findMany = jest.fn().mockResolvedValue([
-      { id: 'student-1' },
-      { id: 'student-2' },
-    ]);
+    mockPrisma.staffProfile.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 'staff-1' });
+    mockPrisma.teachingAssignment.findMany = jest
+      .fn()
+      .mockResolvedValue([
+        { classSectionId: 'class-A' },
+        { classSectionId: 'class-B' },
+      ]);
+    mockPrisma.studentProfile.findMany = jest
+      .fn()
+      .mockResolvedValue([{ id: 'student-1' }, { id: 'student-2' }]);
     mockPrisma.supportTicket.findMany = jest.fn().mockReturnValue([]);
 
-    await service.listTickets(
-      { category: 'General' },
-      'user-1',
-      Role.TEACHER,
-    );
+    await service.listTickets({ category: 'General' }, 'user-1', Role.TEACHER);
 
     expect(mockPrisma.supportTicket.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { studentId: { in: ['student-1', 'student-2'] }, category: 'General' },
+        where: {
+          studentId: { in: ['student-1', 'student-2'] },
+          category: 'General',
+        },
       }),
       undefined,
     );
@@ -130,18 +146,34 @@ describe('CommsService (Support Tickets)', () => {
   });
 
   it('updateTicketStatus throws for non-admin roles', async () => {
-    mockPrisma.supportTicket.findUnique = jest.fn().mockResolvedValue({ id: 'ticket-1' });
+    mockPrisma.supportTicket.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1' });
 
     await expect(
-      service.updateTicketStatus('ticket-1', { status: 'OPEN' }, 'user-1', Role.TEACHER),
+      service.updateTicketStatus(
+        'ticket-1',
+        { status: 'OPEN' },
+        'user-1',
+        Role.TEACHER,
+      ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('updateTicketStatus updates ticket for HOD and sets resolvedAt', async () => {
-    mockPrisma.supportTicket.findUnique = jest.fn().mockResolvedValue({ id: 'ticket-1' });
-    mockPrisma.supportTicket.update = jest.fn().mockResolvedValue({ id: 'ticket-1', status: 'RESOLVED' });
+    mockPrisma.supportTicket.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1' });
+    mockPrisma.supportTicket.update = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1', status: 'RESOLVED' });
 
-    await service.updateTicketStatus('ticket-1', { status: 'RESOLVED', notes: 'Done' }, 'user-1', Role.HOD);
+    await service.updateTicketStatus(
+      'ticket-1',
+      { status: 'RESOLVED', notes: 'Done' },
+      'user-1',
+      Role.HOD,
+    );
 
     expect(mockPrisma.supportTicket.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -157,7 +189,9 @@ describe('CommsService (Support Tickets)', () => {
   });
 
   it('addTicketReply throws for students', async () => {
-    mockPrisma.supportTicket.findUnique = jest.fn().mockResolvedValue({ id: 'ticket-1' });
+    mockPrisma.supportTicket.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1' });
 
     await expect(
       service.addTicketReply(
@@ -170,9 +204,15 @@ describe('CommsService (Support Tickets)', () => {
   });
 
   it('addTicketReply returns reply for teacher', async () => {
-    mockPrisma.supportTicket.findUnique = jest.fn().mockResolvedValue({ id: 'ticket-1' });
-    mockPrisma.supportTicket.update = jest.fn().mockResolvedValue({ id: 'ticket-1', title: 'Help' });
-    mockPrisma.user.findUnique = jest.fn().mockResolvedValue({ email: 't@example.com' });
+    mockPrisma.supportTicket.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1' });
+    mockPrisma.supportTicket.update = jest
+      .fn()
+      .mockResolvedValue({ id: 'ticket-1', title: 'Help' });
+    mockPrisma.user.findUnique = jest
+      .fn()
+      .mockResolvedValue({ email: 't@example.com' });
 
     const result = await service.addTicketReply(
       'ticket-1',

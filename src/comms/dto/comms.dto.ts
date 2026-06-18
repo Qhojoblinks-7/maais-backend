@@ -1,9 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsArray, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
 import { NotificationChannel } from '@prisma/client';
 
 export class SendNotificationDto {
-  @ApiPropertyOptional({ type: [String], description: 'Leave empty to notify all students' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Leave empty to notify all students',
+  })
   @IsOptional()
   @IsArray()
   studentIds?: string[];

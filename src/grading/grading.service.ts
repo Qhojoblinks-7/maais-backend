@@ -211,13 +211,19 @@ export class GradingService {
     return entry;
   }
 
-  async approveGrade(gradeEntryId: string, approvedById: string, userRole: Role) {
+  async approveGrade(
+    gradeEntryId: string,
+    approvedById: string,
+    userRole: Role,
+  ) {
     if (
       userRole !== Role.HOD &&
       userRole !== Role.HEADMASTER &&
       userRole !== Role.SUPER_ADMIN
     ) {
-      throw new ForbiddenException('Only HODs or above can approve grade entries');
+      throw new ForbiddenException(
+        'Only HODs or above can approve grade entries',
+      );
     }
 
     return this.prisma.gradeEntry.update({
@@ -232,7 +238,9 @@ export class GradingService {
       userRole !== Role.HEADMASTER &&
       userRole !== Role.SUPER_ADMIN
     ) {
-      throw new ForbiddenException('Only HODs or above can approve grade entries');
+      throw new ForbiddenException(
+        'Only HODs or above can approve grade entries',
+      );
     }
 
     return this.prisma.gradeEntry.updateMany({
@@ -241,7 +249,12 @@ export class GradingService {
     });
   }
 
-  async getClassPerformanceSummary(classId: string, termId: string, userId?: string, userRole?: Role) {
+  async getClassPerformanceSummary(
+    classId: string,
+    termId: string,
+    userId?: string,
+    userRole?: Role,
+  ) {
     if (userRole === Role.TEACHER && userId) {
       const staffProfile = await this.prisma.staffProfile.findUnique({
         where: { userId },
@@ -276,7 +289,8 @@ export class GradingService {
     return students.map((s) => {
       const totalGrades = s.grades.length;
       const approvedGrades = s.grades.filter((g) => g.isApproved).length;
-      const progress = totalGrades > 0 ? (approvedGrades / totalGrades) * 100 : 0;
+      const progress =
+        totalGrades > 0 ? (approvedGrades / totalGrades) * 100 : 0;
 
       return {
         id: s.id,
@@ -353,7 +367,11 @@ export class GradingService {
     });
   }
 
-  async getMissingObservationsTray(termId: string, userId?: string, userRole?: Role) {
+  async getMissingObservationsTray(
+    termId: string,
+    userId?: string,
+    userRole?: Role,
+  ) {
     const whereClause: any = {
       termId,
       hasObservation: false,
@@ -392,7 +410,11 @@ export class GradingService {
     });
   }
 
-  async getStudentTermGrades(studentId: string, termId: string, userRole?: Role) {
+  async getStudentTermGrades(
+    studentId: string,
+    termId: string,
+    userRole?: Role,
+  ) {
     const where: any = { studentId, termId };
 
     if (userRole === Role.STUDENT) {

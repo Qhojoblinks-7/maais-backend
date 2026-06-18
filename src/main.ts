@@ -30,7 +30,6 @@ async function bootstrap() {
     ].filter(Boolean),
     credentials: true,
   });
-  
 
   // Swagger
   const config = new DocumentBuilder()
@@ -50,7 +49,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: { persistAuthorization: true },
-  })
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

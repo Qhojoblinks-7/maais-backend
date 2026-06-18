@@ -71,7 +71,9 @@ let UsersService = class UsersService {
                     },
                 },
             },
-            include: { studentProfile: { include: { currentClass: true, department: true } } },
+            include: {
+                studentProfile: { include: { currentClass: true, department: true } },
+            },
         });
         if (dto.parentFirstName && dto.parentLastName && dto.parentPhone) {
             const parentEmail = dto.parentEmail || `${dto.parentPhone}@parent.com`;
@@ -165,7 +167,7 @@ let UsersService = class UsersService {
                 where: { teacherId: staff.id },
                 select: { classSectionId: true },
             });
-            const classSectionIds = teacherAssignments.map(a => a.classSectionId);
+            const classSectionIds = teacherAssignments.map((a) => a.classSectionId);
             return this.prisma.studentProfile.findMany({
                 where: {
                     archivedAt: null,
@@ -220,7 +222,7 @@ let UsersService = class UsersService {
                 },
             });
             if (!isAssigned) {
-                throw new common_1.ForbiddenException('You are not assigned to this student\'s class');
+                throw new common_1.ForbiddenException("You are not assigned to this student's class");
             }
         }
         return baseProfile;
@@ -268,7 +270,9 @@ let UsersService = class UsersService {
         if (dto.photoUrl !== undefined)
             updateData.photoUrl = dto.photoUrl;
         if (dto.dateOfBirth !== undefined)
-            updateData.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null;
+            updateData.dateOfBirth = dto.dateOfBirth
+                ? new Date(dto.dateOfBirth)
+                : null;
         const updatedProfile = await this.prisma.studentProfile.update({
             where: { id: studentId },
             data: updateData,

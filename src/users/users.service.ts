@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, Gender } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -106,7 +110,9 @@ export class UsersService {
           },
         },
       },
-      include: { studentProfile: { include: { currentClass: true, department: true } } },
+      include: {
+        studentProfile: { include: { currentClass: true, department: true } },
+      },
     });
 
     // Handle parent creation if info provided
@@ -165,7 +171,8 @@ export class UsersService {
     const exists = await this.prisma.user.findUnique({
       where: { email },
     });
-    if (exists) throw new ConflictException('Parent email/phone already in use');
+    if (exists)
+      throw new ConflictException('Parent email/phone already in use');
 
     const passwordHash = await argon2.hash(dto.password || 'Parent@123!');
 
@@ -213,7 +220,7 @@ export class UsersService {
         select: { classSectionId: true },
       });
 
-      const classSectionIds = teacherAssignments.map(a => a.classSectionId);
+      const classSectionIds = teacherAssignments.map((a) => a.classSectionId);
 
       return this.prisma.studentProfile.findMany({
         where: {
@@ -243,7 +250,11 @@ export class UsersService {
     });
   }
 
-  async getStudentProfile(studentId: string, requesterRole?: Role, teacherStaffId?: string) {
+  async getStudentProfile(
+    studentId: string,
+    requesterRole?: Role,
+    teacherStaffId?: string,
+  ) {
     const baseProfile = await this.prisma.studentProfile.findUniqueOrThrow({
       where: { id: studentId },
       include: {
@@ -273,7 +284,9 @@ export class UsersService {
       });
 
       if (!isAssigned) {
-        throw new ForbiddenException('You are not assigned to this student\'s class');
+        throw new ForbiddenException(
+          "You are not assigned to this student's class",
+        );
       }
     }
 
@@ -310,14 +323,17 @@ export class UsersService {
     });
   }
 
-  async updateStudentProfile(studentId: string, dto: {
-    firstName?: string;
-    lastName?: string;
-    middleName?: string;
-    bio?: string;
-    photoUrl?: string;
-    dateOfBirth?: string;
-  }) {
+  async updateStudentProfile(
+    studentId: string,
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      middleName?: string;
+      bio?: string;
+      photoUrl?: string;
+      dateOfBirth?: string;
+    },
+  ) {
     const profile = await this.prisma.studentProfile.findUniqueOrThrow({
       where: { id: studentId },
       include: { user: true },
@@ -329,7 +345,10 @@ export class UsersService {
     if (dto.middleName !== undefined) updateData.middleName = dto.middleName;
     if (dto.bio !== undefined) updateData.bio = dto.bio;
     if (dto.photoUrl !== undefined) updateData.photoUrl = dto.photoUrl;
-    if (dto.dateOfBirth !== undefined) updateData.dateOfBirth = dto.dateOfBirth ? new Date(dto.dateOfBirth) : null;
+    if (dto.dateOfBirth !== undefined)
+      updateData.dateOfBirth = dto.dateOfBirth
+        ? new Date(dto.dateOfBirth)
+        : null;
 
     const updatedProfile = await this.prisma.studentProfile.update({
       where: { id: studentId },

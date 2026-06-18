@@ -18,6 +18,8 @@ export declare class CommsController {
     }>;
     getNotifications(studentId: string, unreadOnly: boolean, userId: string, role: Role): Promise<{
         id: string;
+        createdAt: Date;
+        studentId: string | null;
         title: string;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
@@ -25,12 +27,12 @@ export declare class CommsController {
         deliveredAt: Date | null;
         failedAt: Date | null;
         errorMsg: string | null;
-        createdAt: Date;
         createdById: string | null;
-        studentId: string | null;
     }[]>;
     markRead(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        studentId: string | null;
         title: string;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
@@ -38,9 +40,7 @@ export declare class CommsController {
         deliveredAt: Date | null;
         failedAt: Date | null;
         errorMsg: string | null;
-        createdAt: Date;
         createdById: string | null;
-        studentId: string | null;
     }>;
     getPulse(academicYearId?: string, userId?: string): Promise<{
         enrollment: {
@@ -79,33 +79,33 @@ export declare class CommsController {
             };
         } & {
             id: string;
+            departmentId: string | null;
             userId: string;
-            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            indexNumber: string;
+            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
-            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
         id: string;
-        title: string;
         createdAt: Date;
-        createdById: string | null;
-        studentId: string;
         updatedAt: Date;
         description: string;
+        studentId: string;
+        status: string;
+        resolvedAt: Date | null;
+        title: string;
+        createdById: string | null;
         category: string;
         priority: string;
-        status: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
     getMyTickets(userId: string, role: Role): Promise<({
         student: {
@@ -121,33 +121,33 @@ export declare class CommsController {
             };
         } & {
             id: string;
+            departmentId: string | null;
             userId: string;
-            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            indexNumber: string;
+            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
-            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
         id: string;
-        title: string;
         createdAt: Date;
-        createdById: string | null;
-        studentId: string;
         updatedAt: Date;
         description: string;
+        studentId: string;
+        status: string;
+        resolvedAt: Date | null;
+        title: string;
+        createdById: string | null;
         category: string;
         priority: string;
-        status: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     })[]>;
     listTickets(query: TicketQueryDto, userId: string, role: Role): Promise<({
         student: {
@@ -163,33 +163,33 @@ export declare class CommsController {
             };
         } & {
             id: string;
+            departmentId: string | null;
             userId: string;
-            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            indexNumber: string;
+            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
-            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
         id: string;
-        title: string;
         createdAt: Date;
-        createdById: string | null;
-        studentId: string;
         updatedAt: Date;
         description: string;
+        studentId: string;
+        status: string;
+        resolvedAt: Date | null;
+        title: string;
+        createdById: string | null;
         category: string;
         priority: string;
-        status: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     })[]>;
     updateTicketStatus(id: string, dto: UpdateTicketStatusDto, userId: string, role: Role): Promise<{
         student: {
@@ -198,33 +198,33 @@ export declare class CommsController {
             };
         } & {
             id: string;
+            departmentId: string | null;
             userId: string;
-            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            indexNumber: string;
+            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
-            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
         id: string;
-        title: string;
         createdAt: Date;
-        createdById: string | null;
-        studentId: string;
         updatedAt: Date;
         description: string;
+        studentId: string;
+        status: string;
+        resolvedAt: Date | null;
+        title: string;
+        createdById: string | null;
         category: string;
         priority: string;
-        status: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
     addReply(id: string, dto: AddTicketReplyDto, userId: string, role: Role): Promise<{
         reply: {
@@ -239,31 +239,31 @@ export declare class CommsController {
             };
         } & {
             id: string;
+            departmentId: string | null;
             userId: string;
-            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            indexNumber: string;
+            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
-            departmentId: string | null;
             archivedAt: Date | null;
         };
         id: string;
-        title: string;
         createdAt: Date;
-        createdById: string | null;
-        studentId: string;
         updatedAt: Date;
         description: string;
+        studentId: string;
+        status: string;
+        resolvedAt: Date | null;
+        title: string;
+        createdById: string | null;
         category: string;
         priority: string;
-        status: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
 }

@@ -4,6 +4,6 @@ import { BehaviorService } from './behavior.service';
 
 @Module({
   controllers: [BehaviorController],
-  providers: [BehaviorService]
+  providers: [BehaviorService],
 })
 export class BehaviorModule {}

@@ -17,73 +17,73 @@ export declare class ArchiveService {
         classLevel?: ClassLevel;
     }, userId?: string, userRole?: Role): Promise<({
         grades: ({
+            subject: {
+                id: string;
+                createdAt: Date;
+                isActive: boolean;
+                name: string;
+                code: string;
+                type: import(".prisma/client").$Enums.SubjectType;
+                departmentId: string | null;
+                description: string | null;
+            };
             term: {
                 academicYear: {
                     id: string;
-                    isActive: boolean;
                     createdAt: Date;
-                    label: string;
+                    isActive: boolean;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
-                isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
-            };
-            subject: {
-                name: string;
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                type: import(".prisma/client").$Enums.SubjectType;
-                description: string | null;
-                departmentId: string | null;
-                code: string;
+                isLocked: boolean;
             };
         } & {
             id: string;
             createdAt: Date;
+            subjectId: string;
             updatedAt: Date;
             studentId: string;
-            subjectId: string;
-            isApproved: boolean;
             termId: string;
+            totalScore: number | null;
+            isLocked: boolean;
             classScore: number | null;
             examScore: number | null;
-            totalScore: number | null;
             grade: string | null;
             remark: string | null;
             position: number | null;
             hasObservation: boolean;
             observationText: string | null;
-            isLocked: boolean;
             lockedById: string | null;
             lockedAt: Date | null;
             submittedById: string | null;
             submittedAt: Date | null;
+            isApproved: boolean;
             approvedById: string | null;
             approvedAt: Date | null;
         })[];
         promotions: ({
             academicYear: {
                 id: string;
-                isActive: boolean;
                 createdAt: Date;
-                label: string;
+                isActive: boolean;
                 startDate: Date;
                 endDate: Date;
+                label: string;
             };
         } & {
             id: string;
             studentId: string;
-            academicYearId: string;
             status: import(".prisma/client").$Enums.PromotionStatus;
             notes: string | null;
+            academicYearId: string;
             fromClass: import(".prisma/client").$Enums.ClassLevel;
             toClass: import(".prisma/client").$Enums.ClassLevel | null;
             performedById: string;
@@ -93,20 +93,20 @@ export declare class ArchiveService {
             term: {
                 academicYear: {
                     id: string;
-                    isActive: boolean;
                     createdAt: Date;
-                    label: string;
+                    isActive: boolean;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
-                isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
+                isLocked: boolean;
             };
         } & {
             id: string;
@@ -114,11 +114,11 @@ export declare class ArchiveService {
             updatedAt: Date;
             studentId: string;
             termId: string;
-            totalScore: number | null;
             documentType: import(".prisma/client").$Enums.DocumentType;
             systemHash: string;
             qrCodeUrl: string | null;
             verificationUrl: string | null;
+            totalScore: number | null;
             averageScore: number | null;
             classPosition: number | null;
             classSize: number | null;
@@ -131,6 +131,7 @@ export declare class ArchiveService {
         })[];
     } & {
         id: string;
+        departmentId: string | null;
         userId: string;
         firstName: string;
         lastName: string;
@@ -138,7 +139,6 @@ export declare class ArchiveService {
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        departmentId: string | null;
         indexNumber: string;
         bio: string | null;
         admissionDate: Date;
@@ -149,10 +149,10 @@ export declare class ArchiveService {
         id: string;
         isActive: boolean;
         academicYearId: string;
-        isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
+        isLocked: boolean;
     }>;
     getDatabaseHealth(): Promise<{
         status: string;

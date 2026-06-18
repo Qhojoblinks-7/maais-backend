@@ -4,6 +4,6 @@ import { InterventionsService } from './interventions.service';
 
 @Module({
   controllers: [InterventionController],
-  providers: [InterventionsService]
+  providers: [InterventionsService],
 })
 export class InterventionsModule {}

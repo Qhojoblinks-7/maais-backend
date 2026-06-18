@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { ArchiveService } from './archive.service';
@@ -21,7 +29,11 @@ export class ArchiveController {
   @Get('vault/search')
   @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Search The Vault for historical records' })
-  searchVault(@Query() query: any, @CurrentUser('id') userId: string, @CurrentUser('role') role: Role) {
+  searchVault(
+    @Query() query: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
     return this.archiveService.searchVault(query, userId, role);
   }
 
@@ -33,7 +45,7 @@ export class ArchiveController {
   }
 
   @Get('health')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER,Role.HOD, Role.TEACHER)
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Database health check' })
   health() {
     return this.archiveService.getDatabaseHealth();

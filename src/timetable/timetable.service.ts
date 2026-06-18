@@ -39,9 +39,9 @@ export class TimetableService {
       },
     });
 
-    if(clash) {
+    if (clash) {
       throw new Error(
-        'Teacher already has a timetable entry during this time slot'
+        'Teacher already has a timetable entry during this time slot',
       );
     }
     return this.prisma.timetableEntry.create({
@@ -122,9 +122,13 @@ export class TimetableService {
   async getWeeklySchedule(teacherId: string) {
     const entries = await this.findByTeacher(teacherId);
     const days: Record<string, typeof entries> = {
-      MONDAY: [], TUESDAY: [], WEDNESDAY: [], THURSDAY: [], FRIDAY: [],
+      MONDAY: [],
+      TUESDAY: [],
+      WEDNESDAY: [],
+      THURSDAY: [],
+      FRIDAY: [],
     };
-    entries.forEach(e => {
+    entries.forEach((e) => {
       if (days[e.dayOfWeek]) days[e.dayOfWeek].push(e);
     });
     return days;
@@ -139,8 +143,7 @@ export class TimetableService {
         const a = entries[i];
         const b = entries[j];
         if (a.dayOfWeek !== b.dayOfWeek) continue;
-        const overlaps =
-          a.startTime < b.endTime && a.endTime > b.startTime;
+        const overlaps = a.startTime < b.endTime && a.endTime > b.startTime;
         if (overlaps) clashes.push({ a, b });
       }
     }

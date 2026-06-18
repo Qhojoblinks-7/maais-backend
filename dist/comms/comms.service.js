@@ -203,7 +203,9 @@ let CommsService = CommsService_1 = class CommsService {
         });
     }
     async updateTicketStatus(ticketId, dto, userId, role) {
-        if (role !== client_1.Role.SUPER_ADMIN && role !== client_1.Role.HEADMASTER && role !== client_1.Role.HOD) {
+        if (role !== client_1.Role.SUPER_ADMIN &&
+            role !== client_1.Role.HEADMASTER &&
+            role !== client_1.Role.HOD) {
             throw new common_1.ForbiddenException('Only administrators can update ticket status');
         }
         return this.prisma.supportTicket.update({
@@ -315,13 +317,15 @@ let CommsService = CommsService_1 = class CommsService {
             enrollment,
             subjectPerformance,
             attendance: attendanceSummary._avg,
-            teacherAssignments: userId ? teacherAssignments.map((a) => ({
-                id: a.id,
-                subjectId: a.subjectId,
-                subjectName: a.subject.name,
-                classSectionId: a.classSectionId,
-                className: `${a.classSection.level} ${a.classSection.name}`,
-            })) : undefined,
+            teacherAssignments: userId
+                ? teacherAssignments.map((a) => ({
+                    id: a.id,
+                    subjectId: a.subjectId,
+                    subjectName: a.subject.name,
+                    classSectionId: a.classSectionId,
+                    className: `${a.classSection.level} ${a.classSection.name}`,
+                }))
+                : undefined,
         };
     }
 };

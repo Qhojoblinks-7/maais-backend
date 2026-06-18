@@ -10,7 +10,10 @@ export class CreateSupportTicketDto {
   @IsString()
   description: string;
 
-  @ApiPropertyOptional({ enum: ['Academic', 'Technical', 'Finance', 'General'], default: 'General' })
+  @ApiPropertyOptional({
+    enum: ['Academic', 'Technical', 'Finance', 'General'],
+    default: 'General',
+  })
   @IsOptional()
   @IsString()
   category?: string;

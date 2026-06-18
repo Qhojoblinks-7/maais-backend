@@ -15,6 +15,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         staffProfile: {
             id: string;
             phone: string | null;
+            departmentId: string | null;
             userId: string;
             staffId: string;
             firstName: string;
@@ -24,10 +25,10 @@ export declare class JwtStrategy extends JwtStrategy_base {
             dateOfBirth: Date | null;
             photoUrl: string | null;
             hiredAt: Date;
-            departmentId: string | null;
         };
         studentProfile: {
             id: string;
+            departmentId: string | null;
             userId: string;
             firstName: string;
             lastName: string;
@@ -35,7 +36,6 @@ export declare class JwtStrategy extends JwtStrategy_base {
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
@@ -53,13 +53,13 @@ export declare class JwtStrategy extends JwtStrategy_base {
         };
     } & {
         id: string;
+        createdAt: Date;
         email: string;
         phone: string | null;
         passwordHash: string;
         role: import(".prisma/client").$Enums.Role;
         isActive: boolean;
         lastLoginAt: Date | null;
-        createdAt: Date;
         updatedAt: Date;
     }>;
 }
