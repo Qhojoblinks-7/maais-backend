@@ -55,7 +55,7 @@ async getPortalData(studentId: string, requesterId?: string, requesterRole?: Rol
       },
     });
 
-    const attendancePercentage = this.calculateAttendance(attendance);
+const attendancePercentage = this.calculateAttendance(attendance);
 
     const latestBehavior = await this.prisma.studentBehavior.findFirst({
       where: { studentId: targetStudentId },
@@ -74,7 +74,7 @@ async getPortalData(studentId: string, requesterId?: string, requesterRole?: Rol
     const yearForm = latestReport?.term?.academicYear?.label || '—';
     const semester = latestReport?.term?.termNumber || '—';
 
-const currentTermGrades = latestReport
+    const currentTermGrades = latestReport
       ? gradeEntries.filter(g => g.termId === latestReport.termId)
       : [];
 
