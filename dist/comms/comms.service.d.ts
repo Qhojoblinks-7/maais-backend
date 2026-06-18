@@ -28,8 +28,8 @@ export declare class CommsService {
     getStudentNotifications(studentId: string, unreadOnly?: boolean, requesterId?: string, requesterRole?: Role): Promise<{
         id: string;
         createdAt: Date;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -41,8 +41,8 @@ export declare class CommsService {
     markAsRead(notificationId: string): Promise<{
         id: string;
         createdAt: Date;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -58,14 +58,13 @@ export declare class CommsService {
             };
             currentClass: {
                 level: import(".prisma/client").$Enums.ClassLevel;
-                id: string;
                 name: string;
+                id: string;
                 capacity: number;
                 classTeacherId: string | null;
             };
         } & {
             id: string;
-            departmentId: string | null;
             userId: string;
             firstName: string;
             lastName: string;
@@ -73,6 +72,7 @@ export declare class CommsService {
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            departmentId: string | null;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
@@ -84,28 +84,28 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
-        status: string;
-        resolvedAt: Date | null;
         title: string;
-        createdById: string | null;
+        studentId: string;
         category: string;
         priority: string;
+        createdById: string | null;
+        status: string;
         assignedTo: string | null;
+        resolvedAt: Date | null;
     }>;
     getStudentTickets(studentId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
-        status: string;
-        resolvedAt: Date | null;
         title: string;
-        createdById: string | null;
+        studentId: string;
         category: string;
         priority: string;
+        createdById: string | null;
+        status: string;
         assignedTo: string | null;
+        resolvedAt: Date | null;
     }[]>;
     listTickets(query: {
         status?: string;
@@ -118,14 +118,13 @@ export declare class CommsService {
             };
             currentClass: {
                 level: import(".prisma/client").$Enums.ClassLevel;
-                id: string;
                 name: string;
+                id: string;
                 capacity: number;
                 classTeacherId: string | null;
             };
         } & {
             id: string;
-            departmentId: string | null;
             userId: string;
             firstName: string;
             lastName: string;
@@ -133,6 +132,7 @@ export declare class CommsService {
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            departmentId: string | null;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
@@ -144,14 +144,14 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
-        status: string;
-        resolvedAt: Date | null;
         title: string;
-        createdById: string | null;
+        studentId: string;
         category: string;
         priority: string;
+        createdById: string | null;
+        status: string;
         assignedTo: string | null;
+        resolvedAt: Date | null;
     })[]>;
     updateTicketStatus(ticketId: string, dto: {
         status: string;
@@ -163,7 +163,6 @@ export declare class CommsService {
             };
         } & {
             id: string;
-            departmentId: string | null;
             userId: string;
             firstName: string;
             lastName: string;
@@ -171,6 +170,7 @@ export declare class CommsService {
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            departmentId: string | null;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
@@ -182,14 +182,14 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
-        status: string;
-        resolvedAt: Date | null;
         title: string;
-        createdById: string | null;
+        studentId: string;
         category: string;
         priority: string;
+        createdById: string | null;
+        status: string;
         assignedTo: string | null;
+        resolvedAt: Date | null;
     }>;
     addTicketReply(ticketId: string, dto: {
         message: string;
@@ -207,7 +207,6 @@ export declare class CommsService {
             };
         } & {
             id: string;
-            departmentId: string | null;
             userId: string;
             firstName: string;
             lastName: string;
@@ -215,6 +214,7 @@ export declare class CommsService {
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
+            departmentId: string | null;
             indexNumber: string;
             bio: string | null;
             admissionDate: Date;
@@ -225,14 +225,14 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
-        status: string;
-        resolvedAt: Date | null;
         title: string;
-        createdById: string | null;
+        studentId: string;
         category: string;
         priority: string;
+        createdById: string | null;
+        status: string;
         assignedTo: string | null;
+        resolvedAt: Date | null;
     }>;
     getAnalyticsPulse(academicYearId?: string, userId?: string): Promise<{
         enrollment: {

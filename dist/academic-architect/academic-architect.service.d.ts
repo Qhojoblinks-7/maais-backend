@@ -5,83 +5,83 @@ export declare class AcademicArchitectService {
     constructor(prisma: PrismaService);
     createAcademicYear(label: string, startDate: Date, endDate: Date): Promise<{
         id: string;
-        createdAt: Date;
         isActive: boolean;
+        createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     setActiveYear(yearId: string): Promise<{
         id: string;
-        createdAt: Date;
         isActive: boolean;
+        createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     getActiveYear(): Promise<{
         terms: {
             id: string;
             isActive: boolean;
             academicYearId: string;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
+            isLocked: boolean;
             startDate: Date;
             endDate: Date;
-            isLocked: boolean;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
         }[];
     } & {
         id: string;
-        createdAt: Date;
         isActive: boolean;
+        createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     createTerm(academicYearId: string, termNumber: TermNumber, startDate: Date, endDate: Date): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
+        isLocked: boolean;
         startDate: Date;
         endDate: Date;
-        isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     setActiveTerm(termId: string): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
+        isLocked: boolean;
         startDate: Date;
         endDate: Date;
-        isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     createDepartment(name: string, code: string, description?: string): Promise<{
+        name: string;
         id: string;
         createdAt: Date;
-        name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     getAllDepartments(): Promise<({
         _count: {
             staff: number;
         };
         subjects: {
-            id: string;
-            createdAt: Date;
-            isActive: boolean;
             name: string;
-            code: string;
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
             type: import(".prisma/client").$Enums.SubjectType;
-            departmentId: string | null;
             description: string | null;
+            departmentId: string | null;
+            code: string;
         }[];
     } & {
+        name: string;
         id: string;
         createdAt: Date;
-        name: string;
-        code: string;
         description: string | null;
+        code: string;
     })[]>;
     createSubject(dto: {
         name: string;
@@ -90,48 +90,44 @@ export declare class AcademicArchitectService {
         departmentId?: string;
         description?: string;
     }): Promise<{
-        id: string;
-        createdAt: Date;
-        isActive: boolean;
         name: string;
-        code: string;
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.SubjectType;
-        departmentId: string | null;
         description: string | null;
+        departmentId: string | null;
+        code: string;
     }>;
     getAllSubjects(): Promise<({
         department: {
+            name: string;
             id: string;
             createdAt: Date;
-            name: string;
-            code: string;
             description: string | null;
+            code: string;
         };
     } & {
-        id: string;
-        createdAt: Date;
-        isActive: boolean;
         name: string;
-        code: string;
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
         type: import(".prisma/client").$Enums.SubjectType;
-        departmentId: string | null;
         description: string | null;
+        departmentId: string | null;
+        code: string;
     })[]>;
     createClassSection(name: string, level: ClassLevel, capacity?: number): Promise<{
         level: import(".prisma/client").$Enums.ClassLevel;
-        id: string;
         name: string;
+        id: string;
         capacity: number;
         classTeacherId: string | null;
     }>;
     getAllClassSections(): Promise<({
-        _count: {
-            students: number;
-        };
         classTeacher: {
             id: string;
             phone: string | null;
-            departmentId: string | null;
             userId: string;
             staffId: string;
             firstName: string;
@@ -141,18 +137,22 @@ export declare class AcademicArchitectService {
             dateOfBirth: Date | null;
             photoUrl: string | null;
             hiredAt: Date;
+            departmentId: string | null;
+        };
+        _count: {
+            students: number;
         };
     } & {
         level: import(".prisma/client").$Enums.ClassLevel;
-        id: string;
         name: string;
+        id: string;
         capacity: number;
         classTeacherId: string | null;
     })[]>;
     assignClassTeacher(classSectionId: string, staffId: string): Promise<{
         level: import(".prisma/client").$Enums.ClassLevel;
-        id: string;
         name: string;
+        id: string;
         capacity: number;
         classTeacherId: string | null;
     }>;
@@ -163,34 +163,34 @@ export declare class AcademicArchitectService {
         academicYearId: string;
     }): Promise<{
         id: string;
-        subjectId: string;
         teacherId: string;
-        academicYearId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     }>;
     getTeacherAssignments(teacherId: string): Promise<({
+        subject: {
+            name: string;
+            id: string;
+            isActive: boolean;
+            createdAt: Date;
+            type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
+            departmentId: string | null;
+            code: string;
+        };
         classSection: {
             level: import(".prisma/client").$Enums.ClassLevel;
-            id: string;
             name: string;
+            id: string;
             capacity: number;
             classTeacherId: string | null;
         };
-        subject: {
-            id: string;
-            createdAt: Date;
-            isActive: boolean;
-            name: string;
-            code: string;
-            type: import(".prisma/client").$Enums.SubjectType;
-            departmentId: string | null;
-            description: string | null;
-        };
     } & {
         id: string;
-        subjectId: string;
         teacherId: string;
-        academicYearId: string;
+        subjectId: string;
         classSectionId: string;
+        academicYearId: string;
     })[]>;
 }
