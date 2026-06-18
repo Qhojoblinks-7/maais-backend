@@ -106,6 +106,7 @@ __decorate([
     openapi.ApiQuery({ name: "academicYearId", required: false }),
     (0, common_1.Get)('analytics/pulse'),
     (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get academic pulse dashboard data' }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Query)('academicYearId')),

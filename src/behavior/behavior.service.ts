@@ -18,28 +18,31 @@ export class BehaviorService {
         });
     }
 
-    async getStudentBehavior(studentId: string, requesterId?: string, requesterRole?: Role) {
-        if (requesterRole === Role.STUDENT && requesterId) {
-            const student = await this.prisma.studentProfile.findUnique({
-                where: { id: studentId },
-                select: { userId: true },
-            });
+async getStudentBehavior(studentId: string, requesterId?: string, requesterRole?: Role) {
+    let targetStudentId = studentId;
 
-            if (!student || student.userId !== requesterId) {
-                throw new ForbiddenException('You can only view your own behavior records');
-            }
-        }
+    if (requesterRole === Role.STUDENT && requesterId) {
+      const lookupStudent = await this.prisma.studentProfile.findUnique({
+        where: { userId: requesterId },
+        select: { id: true },
+      });
 
-        const logs = await this.prisma.studentBehavior.findMany({
-            where: { studentId },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        const traits = await this.prisma.characterTrait.findFirst({
-            where: { studentId },
-            orderBy: { createdAt: 'desc' },
-        });
-
-        return { logs, traits };
+      if (!lookupStudent) {
+        throw new ForbiddenException('Student profile not found');
+      }
+      targetStudentId = lookupStudent.id;
     }
+
+    const logs = await this.prisma.studentBehavior.findMany({
+      where: { studentId: targetStudentId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const traits = await this.prisma.characterTrait.findFirst({
+      where: { studentId: targetStudentId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { logs, traits };
+  }
 }

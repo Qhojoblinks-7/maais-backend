@@ -93,18 +93,19 @@ let CommsService = CommsService_1 = class CommsService {
         return this.sendNotification({ title, body, channel: client_1.NotificationChannel.SMS, isEmergency: true }, sentById);
     }
     async getStudentNotifications(studentId, unreadOnly = false, requesterId, requesterRole) {
-        let where = { studentId };
+        let targetStudentId = studentId;
         if (requesterRole === client_1.Role.STUDENT && requesterId) {
-            const student = await this.prisma.studentProfile.findUnique({
-                where: { id: studentId },
-                select: { userId: true },
+            const lookupStudent = await this.prisma.studentProfile.findUnique({
+                where: { userId: requesterId },
+                select: { id: true },
             });
-            if (!student || student.userId !== requesterId) {
-                throw new common_1.ForbiddenException('You can only view your own notifications');
+            if (!lookupStudent) {
+                throw new common_1.ForbiddenException('Student profile not found');
             }
+            targetStudentId = lookupStudent.id;
         }
         return this.prisma.notification.findMany({
-            where,
+            where: { studentId: targetStudentId },
             orderBy: { createdAt: 'desc' },
             take: 50,
         });

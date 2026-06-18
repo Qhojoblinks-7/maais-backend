@@ -39,18 +39,19 @@ export class CommsController {
     return this.commsService.getStudentNotifications(studentId, unreadOnly, userId, role);
   }
 
-  @Patch('notifications/:id/read')
-  @ApiOperation({ summary: 'Mark notification as read' })
-  markRead(@Param('id') id: string) {
-    return this.commsService.markAsRead(id);
-  }
+@Patch('notifications/:id/read')
+   @ApiOperation({ summary: 'Mark notification as read' })
+   markRead(@Param('id') id: string) {
+     return this.commsService.markAsRead(id);
+   }
 
-  @Get('analytics/pulse')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
-  @ApiOperation({ summary: 'Get academic pulse dashboard data' })
-  getPulse(@Query('academicYearId') academicYearId?: string, @CurrentUser('id') userId?: string) {
-    return this.commsService.getAnalyticsPulse(academicYearId, userId);
-  }
+   @Get('analytics/pulse')
+   @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
+   @ApiBearerAuth()
+   @ApiOperation({ summary: 'Get academic pulse dashboard data' })
+   getPulse(@Query('academicYearId') academicYearId?: string, @CurrentUser('id') userId?: string) {
+     return this.commsService.getAnalyticsPulse(academicYearId, userId);
+   }
 
   @Post('tickets')
   @Roles(Role.STUDENT)

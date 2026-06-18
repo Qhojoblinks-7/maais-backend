@@ -6,22 +6,23 @@ import { Role } from '@prisma/client';
 export class InterventionsService {
   constructor(private prisma: PrismaService) {}
 
-  async getStudentInterventions(studentId: string, requesterId?: string, requesterRole?: Role) {
-    const where: any = { studentId };
+async getStudentInterventions(studentId: string, requesterId?: string, requesterRole?: Role) {
+    let targetStudentId = studentId;
 
-    if (requesterRole === Role.STUDENT) {
-      const student = await this.prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        select: { userId: true },
+    if (requesterRole === Role.STUDENT && requesterId) {
+      const lookupStudent = await this.prisma.studentProfile.findUnique({
+        where: { userId: requesterId },
+        select: { id: true },
       });
 
-      if (!student || student.userId !== requesterId) {
-        throw new ForbiddenException('You can only view your own interventions');
+      if (!lookupStudent) {
+        throw new ForbiddenException('Student profile not found');
       }
+      targetStudentId = lookupStudent.id;
     }
 
     return this.prisma.interventionAlert.findMany({
-      where,
+      where: { studentId: targetStudentId },
       orderBy: { createdAt: 'desc' },
     });
   }

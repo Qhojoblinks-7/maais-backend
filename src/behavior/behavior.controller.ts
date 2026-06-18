@@ -1,12 +1,15 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { BehaviorService } from './behavior.service'
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 
 @ApiTags('Behavior')
 @Controller('students')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class BehaviorController {
     constructor(private readonly behaviorService: BehaviorService) {}
 

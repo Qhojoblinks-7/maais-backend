@@ -11,60 +11,42 @@ export declare class ArchiveController {
         graduated: number;
     }>;
     searchVault(query: any, userId: string, role: Role): Promise<({
-        promotions: ({
-            academicYear: {
-                id: string;
-                label: string;
-                startDate: Date;
-                endDate: Date;
-                isActive: boolean;
-                createdAt: Date;
-            };
-        } & {
-            id: string;
-            studentId: string;
-            academicYearId: string;
-            fromClass: import(".prisma/client").$Enums.ClassLevel;
-            toClass: import(".prisma/client").$Enums.ClassLevel | null;
-            status: import(".prisma/client").$Enums.PromotionStatus;
-            notes: string | null;
-            performedById: string;
-            performedAt: Date;
-        })[];
         grades: ({
-            subject: {
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                name: string;
-                departmentId: string | null;
-                code: string;
-                type: import(".prisma/client").$Enums.SubjectType;
-                description: string | null;
-            };
             term: {
                 academicYear: {
                     id: string;
+                    isActive: boolean;
+                    createdAt: Date;
                     label: string;
                     startDate: Date;
                     endDate: Date;
-                    isActive: boolean;
-                    createdAt: Date;
                 };
             } & {
                 id: string;
-                startDate: Date;
-                endDate: Date;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
+                startDate: Date;
+                endDate: Date;
                 termNumber: import(".prisma/client").$Enums.TermNumber;
+            };
+            subject: {
+                name: string;
+                id: string;
+                isActive: boolean;
+                createdAt: Date;
+                type: import(".prisma/client").$Enums.SubjectType;
+                description: string | null;
+                departmentId: string | null;
+                code: string;
             };
         } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             studentId: string;
             subjectId: string;
+            isApproved: boolean;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -79,37 +61,55 @@ export declare class ArchiveController {
             lockedAt: Date | null;
             submittedById: string | null;
             submittedAt: Date | null;
-            isApproved: boolean;
             approvedById: string | null;
             approvedAt: Date | null;
-            updatedAt: Date;
+        })[];
+        promotions: ({
+            academicYear: {
+                id: string;
+                isActive: boolean;
+                createdAt: Date;
+                label: string;
+                startDate: Date;
+                endDate: Date;
+            };
+        } & {
+            id: string;
+            studentId: string;
+            academicYearId: string;
+            status: import(".prisma/client").$Enums.PromotionStatus;
+            notes: string | null;
+            fromClass: import(".prisma/client").$Enums.ClassLevel;
+            toClass: import(".prisma/client").$Enums.ClassLevel | null;
+            performedById: string;
+            performedAt: Date;
         })[];
         reportCards: ({
             term: {
                 academicYear: {
                     id: string;
+                    isActive: boolean;
+                    createdAt: Date;
                     label: string;
                     startDate: Date;
                     endDate: Date;
-                    isActive: boolean;
-                    createdAt: Date;
                 };
             } & {
                 id: string;
-                startDate: Date;
-                endDate: Date;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
+                startDate: Date;
+                endDate: Date;
                 termNumber: import(".prisma/client").$Enums.TermNumber;
             };
         } & {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             studentId: string;
             termId: string;
             totalScore: number | null;
-            updatedAt: Date;
             documentType: import(".prisma/client").$Enums.DocumentType;
             systemHash: string;
             qrCodeUrl: string | null;
@@ -127,26 +127,26 @@ export declare class ArchiveController {
     } & {
         id: string;
         userId: string;
-        indexNumber: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
-        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
+        departmentId: string | null;
+        indexNumber: string;
+        bio: string | null;
         admissionDate: Date;
         currentClassId: string | null;
-        departmentId: string | null;
         archivedAt: Date | null;
     })[]>;
     lockTerm(id: string): Promise<{
         id: string;
-        startDate: Date;
-        endDate: Date;
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
+        startDate: Date;
+        endDate: Date;
         termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     health(): Promise<{

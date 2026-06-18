@@ -110,22 +110,23 @@ export class CommsService {
     );
   }
 
-  async getStudentNotifications(studentId: string, unreadOnly = false, requesterId?: string, requesterRole?: Role) {
-    let where: any = { studentId };
+async getStudentNotifications(studentId: string, unreadOnly = false, requesterId?: string, requesterRole?: Role) {
+    let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {
-      const student = await this.prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        select: { userId: true },
+      const lookupStudent = await this.prisma.studentProfile.findUnique({
+        where: { userId: requesterId },
+        select: { id: true },
       });
 
-      if (!student || student.userId !== requesterId) {
-        throw new ForbiddenException('You can only view your own notifications');
+      if (!lookupStudent) {
+        throw new ForbiddenException('Student profile not found');
       }
+      targetStudentId = lookupStudent.id;
     }
 
     return this.prisma.notification.findMany({
-      where,
+      where: { studentId: targetStudentId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

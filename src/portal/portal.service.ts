@@ -6,7 +6,7 @@ import { Role } from '@prisma/client';
 export class PortalService {
   constructor(private prisma: PrismaService) {}
 
-  async getPortalData(studentId: string, requesterId?: string, requesterRole?: Role) {
+async getPortalData(studentId: string, requesterId?: string, requesterRole?: Role) {
     let targetStudentId = studentId;
 
     if (requesterRole === Role.STUDENT && requesterId) {
@@ -24,7 +24,7 @@ export class PortalService {
 
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: targetStudentId },
-      include: { currentClass: true, user: true, department: true },
+      include: { currentClass: true, department: true, user: { select: { lastLoginAt: true } } },
     });
 
     const latestReport = await this.prisma.reportCard.findFirst({
@@ -74,7 +74,7 @@ export class PortalService {
     const yearForm = latestReport?.term?.academicYear?.label || '—';
     const semester = latestReport?.term?.termNumber || '—';
 
-    const currentTermGrades = latestReport
+const currentTermGrades = latestReport
       ? gradeEntries.filter(g => g.termId === latestReport.termId)
       : [];
 
@@ -104,6 +104,7 @@ export class PortalService {
         currentClassId: student?.currentClassId,
         currentClass: student?.currentClass,
         department: student?.department,
+        user: student?.user,
       },
       cgpa,
       classRank: latestReport?.classPosition,
