@@ -10,11 +10,13 @@ export declare class AuthController {
     login(dto: LoginDto): Promise<{
         accessToken: string;
         refreshToken: string;
+        userId: string;
         user: any;
     }>;
     refresh(dto: RefreshDto): Promise<{
         accessToken: string;
         refreshToken: string;
+        userId: string;
         user: any;
     }>;
     logout(user: User, token: string): Promise<{

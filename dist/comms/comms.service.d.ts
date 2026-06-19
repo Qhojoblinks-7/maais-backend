@@ -25,9 +25,10 @@ export declare class CommsService {
         delivered: number;
         failed: number;
     }>;
-    getStudentNotifications(studentId: string, unreadOnly?: boolean, requesterId?: string, requesterRole?: Role): Promise<{
+    getStudentNotifications(studentId: string, requesterId?: string, requesterRole?: Role): Promise<{
         id: string;
         createdAt: Date;
+        staffId: string | null;
         title: string;
         studentId: string | null;
         body: string;
@@ -41,6 +42,7 @@ export declare class CommsService {
     markAsRead(notificationId: string): Promise<{
         id: string;
         createdAt: Date;
+        staffId: string | null;
         title: string;
         studentId: string | null;
         body: string;
@@ -51,6 +53,42 @@ export declare class CommsService {
         errorMsg: string | null;
         createdById: string | null;
     }>;
+    getUnreadForStaff(userId: string, role: Role): Promise<{
+        id: string;
+        createdAt: Date;
+        staffId: string | null;
+        title: string;
+        studentId: string | null;
+        body: string;
+        channel: import(".prisma/client").$Enums.NotificationChannel;
+        isRead: boolean;
+        deliveredAt: Date | null;
+        failedAt: Date | null;
+        errorMsg: string | null;
+        createdById: string | null;
+    }[]>;
+    private getHODUserIdsForTeacher;
+    sendHODAction(targetTeacherId: string, action: string, details: Record<string, any>, senderUserId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        staffId: string | null;
+        title: string;
+        studentId: string | null;
+        body: string;
+        channel: import(".prisma/client").$Enums.NotificationChannel;
+        isRead: boolean;
+        deliveredAt: Date | null;
+        failedAt: Date | null;
+        errorMsg: string | null;
+        createdById: string | null;
+    }>;
+    sendTeacherAction(recordId: string, action: string, message: string, className: string, senderUserId: string): Promise<{
+        sent: number;
+    }>;
+    private getNotificationTitle;
+    private getNotificationMessage;
+    private getNotificationTitleForHOD;
+    private getNotificationMessageForHOD;
     createTicket(dto: CreateSupportTicketDto, requesterId: string): Promise<{
         student: {
             user: {
@@ -66,17 +104,17 @@ export declare class CommsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -126,17 +164,17 @@ export declare class CommsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -164,17 +202,17 @@ export declare class CommsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -208,17 +246,17 @@ export declare class CommsService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
         id: string;

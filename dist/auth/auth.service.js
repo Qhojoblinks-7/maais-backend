@@ -40,7 +40,7 @@ let AuthService = class AuthService {
             this.signAccessToken(user.id, user.email, user.role),
             this.createRefreshToken(user.id),
         ]);
-        return { accessToken, refreshToken, user: this.sanitizeUser(user) };
+        return { accessToken, refreshToken, userId: user.id, user: await this.sanitizeUser(user) };
     }
     async refreshTokens(userId, token) {
         const stored = await this.prisma.refreshToken.findUnique({
@@ -74,9 +74,51 @@ let AuthService = class AuthService {
         });
         return token;
     }
-    sanitizeUser(user) {
-        const userDto = { ...user };
-        delete userDto.passwordHash;
+    async sanitizeUser(user) {
+        const fullUser = await this.prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+                studentProfile: {
+                    select: {
+                        id: true,
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        middleName: true,
+                        gender: true,
+                        dateOfBirth: true,
+                        photoUrl: true,
+                        admissionDate: true,
+                        currentClassId: true,
+                        departmentId: true,
+                    },
+                },
+                staffProfile: {
+                    select: {
+                        id: true,
+                        staffId: true,
+                        firstName: true,
+                        lastName: true,
+                        middleName: true,
+                        gender: true,
+                        dateOfBirth: true,
+                        photoUrl: true,
+                        departmentId: true,
+                    },
+                },
+                parentProfile: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        phone: true,
+                        email: true,
+                        occupation: true,
+                    },
+                },
+            },
+        });
+        const { passwordHash: _, ...userDto } = fullUser;
         return userDto;
     }
 };

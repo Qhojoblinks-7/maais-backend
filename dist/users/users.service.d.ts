@@ -45,15 +45,15 @@ export declare class UsersService {
             id: string;
             phone: string | null;
             userId: string;
-            staffId: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            hiredAt: Date;
             departmentId: string | null;
+            staffId: string;
+            hiredAt: Date;
         };
     } & {
         id: string;
@@ -85,17 +85,17 @@ export declare class UsersService {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -155,17 +155,17 @@ export declare class UsersService {
     } & {
         id: string;
         userId: string;
+        indexNumber: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
+        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        departmentId: string | null;
-        indexNumber: string;
-        bio: string | null;
         admissionDate: Date;
         currentClassId: string | null;
+        departmentId: string | null;
         archivedAt: Date | null;
     })[]>;
     getStudentProfile(studentId: string, requesterRole?: Role, teacherStaffId?: string): Promise<{
@@ -211,9 +211,9 @@ export declare class UsersService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                departmentId: string | null;
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
-                departmentId: string | null;
                 code: string;
             };
         } & {
@@ -300,17 +300,17 @@ export declare class UsersService {
     } & {
         id: string;
         userId: string;
+        indexNumber: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
+        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        departmentId: string | null;
-        indexNumber: string;
-        bio: string | null;
         admissionDate: Date;
         currentClassId: string | null;
+        departmentId: string | null;
         archivedAt: Date | null;
     }>;
     getAllStaff(user?: {
@@ -335,9 +335,9 @@ export declare class UsersService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                departmentId: string | null;
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
-                departmentId: string | null;
                 code: string;
             };
             classSection: {
@@ -358,15 +358,15 @@ export declare class UsersService {
         id: string;
         phone: string | null;
         userId: string;
-        staffId: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        hiredAt: Date;
         departmentId: string | null;
+        staffId: string;
+        hiredAt: Date;
     })[]>;
     deactivateUser(userId: string): Promise<{
         id: string;
@@ -408,17 +408,17 @@ export declare class UsersService {
     } & {
         id: string;
         userId: string;
+        indexNumber: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
+        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        departmentId: string | null;
-        indexNumber: string;
-        bio: string | null;
         admissionDate: Date;
         currentClassId: string | null;
+        departmentId: string | null;
         archivedAt: Date | null;
     }>;
 }

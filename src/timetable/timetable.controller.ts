@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role, DayOfWeek } from '@prisma/client';
@@ -31,6 +32,7 @@ export class TimetableController {
   }
 
   @Get()
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,
@@ -41,36 +43,61 @@ export class TimetableController {
   }
 
   @Get('my-schedule')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Get current teacher weekly schedule' })
-  getMySchedule(@CurrentUser('id') userId: string) {
-    return this.timetableService.getWeeklySchedule(userId);
+  getMySchedule(@CurrentUser() user: { staffProfile?: { id: string } }) {
+    if (!user?.staffProfile?.id) return [];
+    return this.timetableService.getWeeklySchedule(user.staffProfile.id);
   }
 
   @Get('teacher/:teacherId')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Get timetable for a specific teacher' })
-  getByTeacher(@Param('teacherId') teacherId: string) {
+  getByTeacher(
+    @Param('teacherId') teacherId: string,
+    @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
+  ) {
+    if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
+      throw new ForbiddenException('Teachers can only access their own timetable');
+    }
     return this.timetableService.findByTeacher(teacherId);
   }
 
   @Get('class/:classId')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
   @ApiOperation({ summary: 'Get timetable for a specific class' })
   getByClass(@Param('classId') classId: string) {
     return this.timetableService.findByClass(classId);
   }
 
   @Get('weekly/:teacherId')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Get weekly schedule grouped by day' })
-  getWeekly(@Param('teacherId') teacherId: string) {
+  getWeekly(
+    @Param('teacherId') teacherId: string,
+    @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
+  ) {
+    if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
+      throw new ForbiddenException('Teachers can only access their own timetable');
+    }
     return this.timetableService.getWeeklySchedule(teacherId);
   }
 
   @Get('clashes/:teacherId')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Detect scheduling clashes for a teacher' })
-  getClashes(@Param('teacherId') teacherId: string) {
+  getClashes(
+    @Param('teacherId') teacherId: string,
+    @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
+  ) {
+    if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
+      throw new ForbiddenException('Teachers can only access their own timetable');
+    }
     return this.timetableService.detectClashes(teacherId);
   }
 
   @Get(':id')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'Get a timetable entry by ID' })
   findOne(@Param('id') id: string) {
     return this.timetableService.findOne(id);

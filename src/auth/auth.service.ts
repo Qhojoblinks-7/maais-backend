@@ -35,7 +35,7 @@ export class AuthService {
       this.signAccessToken(user.id, user.email, user.role),
       this.createRefreshToken(user.id),
     ]);
-    return { accessToken, refreshToken, user: this.sanitizeUser(user) };
+    return { accessToken, refreshToken, userId: user.id, user: await this.sanitizeUser(user) };
   }
 
   async refreshTokens(userId: string, token: string) {
@@ -84,9 +84,51 @@ export class AuthService {
     return token;
   }
 
-  private sanitizeUser(user: User) {
-    const userDto = { ...user } as any;
-    delete userDto.passwordHash;
+  private async sanitizeUser(user: User) {
+    const fullUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        studentProfile: {
+          select: {
+            id: true,
+            indexNumber: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            gender: true,
+            dateOfBirth: true,
+            photoUrl: true,
+            admissionDate: true,
+            currentClassId: true,
+            departmentId: true,
+          },
+        },
+        staffProfile: {
+          select: {
+            id: true,
+            staffId: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            gender: true,
+            dateOfBirth: true,
+            photoUrl: true,
+            departmentId: true,
+          },
+        },
+        parentProfile: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+            occupation: true,
+          },
+        },
+      },
+    });
+    const { passwordHash: _, ...userDto } = fullUser as any;
     return userDto;
   }
 }

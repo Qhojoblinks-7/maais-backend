@@ -14,42 +14,35 @@ export declare class JwtStrategy extends JwtStrategy_base {
     }): Promise<{
         staffProfile: {
             id: string;
-            phone: string | null;
-            userId: string;
-            staffId: string;
             firstName: string;
             lastName: string;
-            middleName: string | null;
+            middleName: string;
             gender: import(".prisma/client").$Enums.Gender;
-            dateOfBirth: Date | null;
-            photoUrl: string | null;
-            hiredAt: Date;
-            departmentId: string | null;
+            dateOfBirth: Date;
+            photoUrl: string;
+            departmentId: string;
+            staffId: string;
         };
         studentProfile: {
             id: string;
-            userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
-            middleName: string | null;
+            middleName: string;
             gender: import(".prisma/client").$Enums.Gender;
-            dateOfBirth: Date | null;
-            photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
+            dateOfBirth: Date;
+            photoUrl: string;
             admissionDate: Date;
-            currentClassId: string | null;
-            archivedAt: Date | null;
+            currentClassId: string;
+            departmentId: string;
         };
         parentProfile: {
             id: string;
-            email: string | null;
+            email: string;
             phone: string;
-            userId: string;
             firstName: string;
             lastName: string;
-            occupation: string | null;
+            occupation: string;
         };
     } & {
         id: string;

@@ -43,9 +43,9 @@ enum GradeRemark {
 }
 
 enum TermNumber {
-  SEMESTER_1
-  SEMESTER_2
-}
+   SEMESTER_1
+   SEMESTER_2
+ }
 
 enum ClassLevel {
   FORM_1
@@ -159,6 +159,9 @@ model StaffProfile {
   classTeacher        ClassSection?        @relation("ClassTeacher")
   timetableEntries    TimetableEntry[]
   behaviorsRecorded   StudentBehavior[]
+
+  // Notifications
+  notifications       Notification[]
 
   @@map("staff_profiles")
 }
@@ -484,9 +487,11 @@ model Notification {
   id          String              @id @default(uuid())
   studentId   String?
   student     StudentProfile?     @relation(fields: [studentId], references: [id])
+  staffId     String?
+  staff       StaffProfile?       @relation(fields: [staffId], references: [id])
   title       String
   body        String
-  channel     NotificationChannel
+  channel     NotificationChannel @default(APP)
   isRead      Boolean             @default(false)
   deliveredAt DateTime?
   failedAt    DateTime?

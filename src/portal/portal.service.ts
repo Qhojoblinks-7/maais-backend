@@ -13,6 +13,7 @@ export class PortalService {
   ) {
     let targetStudentId = studentId;
 
+    // If requester is a student, resolve their profile ID
     if (requesterRole === Role.STUDENT && requesterId) {
       const student = await this.prisma.studentProfile.findFirst({
         where: { userId: requesterId },
@@ -26,14 +27,57 @@ export class PortalService {
       targetStudentId = student.id;
     }
 
-    const student = await this.prisma.studentProfile.findUnique({
+    // Try to find student by profile ID first, then by userId if not found
+    let student = await this.prisma.studentProfile.findUnique({
       where: { id: targetStudentId },
-      include: {
-        currentClass: true,
-        department: true,
-        user: { select: { lastLoginAt: true } },
+      select: {
+        id: true,
+        indexNumber: true,
+        firstName: true,
+        lastName: true,
+        middleName: true,
+        gender: true,
+        dateOfBirth: true,
+        admissionDate: true,
+        currentClassId: true,
+        departmentId: true,
       },
     });
+
+    // If not found by profile ID, try looking up by userId (for backward compatibility)
+    if (!student) {
+      student = await this.prisma.studentProfile.findFirst({
+        where: { userId: targetStudentId },
+        select: {
+          id: true,
+          indexNumber: true,
+          firstName: true,
+          lastName: true,
+          middleName: true,
+          gender: true,
+          dateOfBirth: true,
+          admissionDate: true,
+          currentClassId: true,
+          departmentId: true,
+        },
+      });
+      if (!student) {
+        throw new Error('Student profile not found');
+      }
+      targetStudentId = student.id;
+    }
+
+    // Fetch related data separately to avoid column issues
+    const [currentClass, department] = await Promise.all([
+      student.currentClassId ? this.prisma.classSection.findUnique({
+        where: { id: student.currentClassId },
+        select: { id: true, name: true },
+      }) : null,
+      student.departmentId ? this.prisma.department.findUnique({
+        where: { id: student.departmentId },
+        select: { id: true, name: true },
+      }) : null,
+    ]);
 
     const latestReport = await this.prisma.reportCard.findFirst({
       where: { studentId: targetStudentId },
@@ -85,12 +129,18 @@ export class PortalService {
         ? this.percentageToGpa(latestReport.averageScore)
         : 0;
 
-    const yearForm = latestReport?.term?.academicYear?.label || activeTerm?.academicYear?.label || '—';
-    const semester = latestReport?.term?.termNumber || activeTerm?.termNumber || '—';
+    const yearForm =
+      latestReport?.term?.academicYear?.label ||
+      activeTerm?.academicYear?.label ||
+      '—';
+    const semester =
+      latestReport?.term?.termNumber || activeTerm?.termNumber || '—';
 
     const currentTermGrades = latestReport
       ? gradeEntries.filter((g) => g.termId === latestReport.termId)
-      : activeTerm ? gradeEntries.filter((g) => g.termId === activeTerm.id) : [];
+      : activeTerm
+        ? gradeEntries.filter((g) => g.termId === activeTerm.id)
+        : [];
 
     const terminalResults = currentTermGrades.map((g) => ({
       subject: g.subject?.name || 'Unknown',
@@ -121,9 +171,9 @@ export class PortalService {
         gender: student?.gender,
         indexNumber: student?.indexNumber,
         currentClassId: student?.currentClassId,
-        currentClass: student?.currentClass,
-        department: student?.department,
-        user: student?.user,
+        currentClass,
+        department,
+        user: null,
       },
       cgpa,
       classRank: latestReport?.classPosition,
@@ -184,9 +234,9 @@ export class PortalService {
         latestReport?.term?.endDate?.toISOString() ??
         activeTerm?.endDate?.toISOString() ??
         latestReport?.generatedAt?.toISOString(),
-      learningArea: student?.department?.name || '—',
-      programName: student?.currentClass?.name || '—',
-      program: student?.department?.name || '—',
+      learningArea: department?.name || '—',
+      programName: currentClass?.name || '—',
+      program: department?.name || '—',
       recentResults: gradeEntries,
     };
   }

@@ -92,7 +92,7 @@ let CommsService = CommsService_1 = class CommsService {
     async broadcastEmergency(title, body, sentById) {
         return this.sendNotification({ title, body, channel: client_1.NotificationChannel.SMS, isEmergency: true }, sentById);
     }
-    async getStudentNotifications(studentId, unreadOnly = false, requesterId, requesterRole) {
+    async getStudentNotifications(studentId, requesterId, requesterRole) {
         let targetStudentId = studentId;
         if (requesterRole === client_1.Role.STUDENT && requesterId) {
             const lookupStudent = await this.prisma.studentProfile.findUnique({
@@ -115,6 +115,151 @@ let CommsService = CommsService_1 = class CommsService {
             where: { id: notificationId },
             data: { isRead: true },
         });
+    }
+    async getUnreadForStaff(userId, role) {
+        this.logger.log(`getUnreadForStaff: userId=${userId}, role=${role}`);
+        const staffProfile = await this.prisma.staffProfile.findUnique({
+            where: { userId },
+            select: { id: true, departmentId: true },
+        });
+        if (!staffProfile) {
+            this.logger.warn(`No staff profile found for userId=${userId}`);
+            return [];
+        }
+        this.logger.log(`Found staffProfile: id=${staffProfile.id}, departmentId=${staffProfile.departmentId}`);
+        const where = {
+            staffId: staffProfile.id,
+            isRead: false,
+        };
+        if (role === client_1.Role.TEACHER) {
+            const hodUserIds = await this.getHODUserIdsForTeacher(staffProfile.id);
+            this.logger.log(`HOD userIds for teacher: ${hodUserIds.join(', ')}`);
+            where.OR = [
+                { staffId: staffProfile.id },
+                {
+                    createdById: {
+                        in: hodUserIds,
+                    },
+                    isRead: false,
+                },
+            ];
+        }
+        const results = await this.prisma.notification.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            take: 50,
+        });
+        this.logger.log(`Found ${results.length} unread notifications`);
+        return results;
+    }
+    async getHODUserIdsForTeacher(staffId) {
+        const assignments = await this.prisma.teachingAssignment.findMany({
+            where: { teacherId: staffId },
+            select: { subjectId: true },
+        });
+        const subjects = await this.prisma.subject.findMany({
+            where: { id: { in: assignments.map((a) => a.subjectId) } },
+            select: { departmentId: true },
+        });
+        const departmentIds = [
+            ...new Set(subjects.map((s) => s.departmentId).filter(Boolean)),
+        ];
+        const hodStaffIds = await this.prisma.staffProfile.findMany({
+            where: {
+                departmentId: { in: departmentIds },
+                user: { role: client_1.Role.HOD },
+            },
+            select: { userId: true },
+        });
+        return hodStaffIds.map((s) => s.userId);
+    }
+    async sendHODAction(targetTeacherId, action, details, senderUserId) {
+        const senderStaff = await this.prisma.staffProfile.findUnique({
+            where: { userId: senderUserId },
+        });
+        const targetStaff = await this.prisma.staffProfile.findFirst({
+            where: { OR: [{ id: targetTeacherId }, { staffId: targetTeacherId }] },
+        });
+        const title = this.getNotificationTitle(action);
+        const body = this.getNotificationMessage(action, details);
+        const notification = await this.prisma.notification.create({
+            data: {
+                staffId: targetStaff?.id,
+                title,
+                body,
+                channel: client_1.NotificationChannel.APP,
+                createdById: senderStaff?.userId || senderUserId,
+            },
+        });
+        return notification;
+    }
+    async sendTeacherAction(recordId, action, message, className, senderUserId) {
+        const senderStaff = await this.prisma.staffProfile.findUnique({
+            where: { userId: senderUserId },
+            select: { departmentId: true },
+        });
+        const teachers = await this.prisma.staffProfile.findMany({
+            where: {
+                departmentId: senderStaff?.departmentId,
+                user: { role: client_1.Role.TEACHER },
+            },
+            select: { id: true },
+        });
+        const title = this.getNotificationTitleForHOD(action);
+        const body = this.getNotificationMessageForHOD(action, {
+            message,
+            className,
+        });
+        const notifications = await Promise.all(teachers.map((teacher) => this.prisma.notification.create({
+            data: {
+                staffId: teacher.id,
+                title,
+                body,
+                channel: client_1.NotificationChannel.APP,
+                createdById: senderUserId,
+            },
+        })));
+        return { sent: notifications.length };
+    }
+    getNotificationTitle(action) {
+        const titles = {
+            GRADE_DRAFT_SAVED: 'Grade Draft Saved',
+            GRADE_SUBMITTED_TO_HOD: 'Grade Submitted for Review',
+            GRADE_REVISION_REQUESTED: 'Grade Revision Requested',
+            HOD_COMMENT_ADDED: 'HOD Feedback Added',
+            GRADE_REVISION_REJECTED: 'Grade Revision Rejected',
+            DIRECT_MESSAGE: 'New Direct Message',
+        };
+        return titles[action] || 'Notification';
+    }
+    getNotificationMessage(action, details) {
+        const messages = {
+            GRADE_DRAFT_SAVED: `A grade draft has been saved for ${details?.className || 'a class'}`,
+            GRADE_SUBMITTED_TO_HOD: `Grades have been submitted for review for ${details?.className || 'a class'}`,
+            GRADE_REVISION_REQUESTED: `A grade revision has been requested for ${details?.className || 'a class'}`,
+            HOD_COMMENT_ADDED: `HOD feedback has been added: ${details?.message || ''}`,
+            GRADE_REVISION_REJECTED: `Grade revision rejected: ${details?.reason || ''}`,
+            DIRECT_MESSAGE: details?.message || 'You have a new direct message',
+        };
+        return messages[action] || 'You have a new notification';
+    }
+    getNotificationTitleForHOD(action) {
+        const titles = {
+            GRADE_DRAFT_SAVED: 'Teacher Saved Grade Draft',
+            GRADE_SUBMITTED_TO_HOD: 'Teacher Submitted Grades for Review',
+            GRADE_REVISION_REQUESTED: 'Teacher Requested Grade Revision',
+            DIRECT_MESSAGE: 'New Direct Message from Teacher',
+        };
+        return titles[action] || 'Notification';
+    }
+    getNotificationMessageForHOD(action, details) {
+        const messages = {
+            GRADE_DRAFT_SAVED: `Teacher has saved a draft for ${details?.className || 'a class'}`,
+            GRADE_SUBMITTED_TO_HOD: `Teacher has submitted grades for review for ${details?.className || 'a class'}`,
+            GRADE_REVISION_REQUESTED: `Teacher has requested a grade revision for ${details?.className || 'a class'}`,
+            DIRECT_MESSAGE: details?.message || 'You have received a direct message from a teacher',
+        };
+        return messages[action] || 'You have a new notification';
     }
     async createTicket(dto, requesterId) {
         const user = await this.prisma.user.findUnique({

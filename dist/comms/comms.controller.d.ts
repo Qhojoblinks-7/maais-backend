@@ -1,6 +1,6 @@
 import { Role } from '@prisma/client';
 import { CommsService } from './comms.service';
-import { SendNotificationDto, EmergencyNotificationDto } from './dto/comms.dto';
+import { SendNotificationDto, EmergencyNotificationDto, HODActionDto, TeacherActionDto } from './dto/comms.dto';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketStatusDto, AddTicketReplyDto, TicketQueryDto } from './dto/ticket.dto';
 export declare class CommsController {
@@ -16,9 +16,10 @@ export declare class CommsController {
         delivered: number;
         failed: number;
     }>;
-    getNotifications(studentId: string, unreadOnly: boolean, userId: string, role: Role): Promise<{
+    getNotifications(studentId: string, _unreadOnly: boolean, userId: string, role: Role): Promise<{
         id: string;
         createdAt: Date;
+        staffId: string | null;
         title: string;
         studentId: string | null;
         body: string;
@@ -32,6 +33,7 @@ export declare class CommsController {
     markRead(id: string): Promise<{
         id: string;
         createdAt: Date;
+        staffId: string | null;
         title: string;
         studentId: string | null;
         body: string;
@@ -41,6 +43,37 @@ export declare class CommsController {
         failedAt: Date | null;
         errorMsg: string | null;
         createdById: string | null;
+    }>;
+    getUnread(userId: string, role: Role): Promise<{
+        id: string;
+        createdAt: Date;
+        staffId: string | null;
+        title: string;
+        studentId: string | null;
+        body: string;
+        channel: import(".prisma/client").$Enums.NotificationChannel;
+        isRead: boolean;
+        deliveredAt: Date | null;
+        failedAt: Date | null;
+        errorMsg: string | null;
+        createdById: string | null;
+    }[]>;
+    sendHODAction(dto: HODActionDto, userId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        staffId: string | null;
+        title: string;
+        studentId: string | null;
+        body: string;
+        channel: import(".prisma/client").$Enums.NotificationChannel;
+        isRead: boolean;
+        deliveredAt: Date | null;
+        failedAt: Date | null;
+        errorMsg: string | null;
+        createdById: string | null;
+    }>;
+    sendTeacherAction(dto: TeacherActionDto, userId: string): Promise<{
+        sent: number;
     }>;
     getPulse(academicYearId?: string, userId?: string): Promise<{
         enrollment: {
@@ -80,17 +113,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -122,17 +155,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -164,17 +197,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -199,17 +232,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
     } & {
@@ -240,17 +273,17 @@ export declare class CommsController {
         } & {
             id: string;
             userId: string;
+            indexNumber: string;
             firstName: string;
             lastName: string;
             middleName: string | null;
+            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
-            departmentId: string | null;
-            indexNumber: string;
-            bio: string | null;
             admissionDate: Date;
             currentClassId: string | null;
+            departmentId: string | null;
             archivedAt: Date | null;
         };
         id: string;

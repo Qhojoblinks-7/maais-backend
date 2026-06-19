@@ -40,9 +40,9 @@ export declare class ArchiveService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                departmentId: string | null;
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
-                departmentId: string | null;
                 code: string;
             };
         } & {
@@ -132,17 +132,17 @@ export declare class ArchiveService {
     } & {
         id: string;
         userId: string;
+        indexNumber: string;
         firstName: string;
         lastName: string;
         middleName: string | null;
+        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
-        departmentId: string | null;
-        indexNumber: string;
-        bio: string | null;
         admissionDate: Date;
         currentClassId: string | null;
+        departmentId: string | null;
         archivedAt: Date | null;
     })[]>;
     lockTerm(termId: string): Promise<{

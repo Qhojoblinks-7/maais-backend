@@ -93,6 +93,7 @@ __decorate([
 ], UsersController.prototype, "getAllStudents", null);
 __decorate([
     (0, common_1.Get)('students/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get full student profile' }),
     openapi.ApiResponse({ status: 200, type: Object }),
     __param(0, (0, common_1.Param)('id')),
@@ -104,6 +105,7 @@ __decorate([
 ], UsersController.prototype, "getStudentProfile", null);
 __decorate([
     (0, common_1.Patch)('students/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
     (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Update student profile (name, bio, DOB, photo)' }),
     openapi.ApiResponse({ status: 200, type: Object }),

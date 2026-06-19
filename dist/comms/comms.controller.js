@@ -32,11 +32,20 @@ let CommsController = class CommsController {
     emergency(dto, userId) {
         return this.commsService.broadcastEmergency(dto.title, dto.message, userId);
     }
-    getNotifications(studentId, unreadOnly, userId, role) {
-        return this.commsService.getStudentNotifications(studentId, unreadOnly, userId, role);
+    getNotifications(studentId, _unreadOnly, userId, role) {
+        return this.commsService.getStudentNotifications(studentId, userId, role);
     }
     markRead(id) {
         return this.commsService.markAsRead(id);
+    }
+    getUnread(userId, role) {
+        return this.commsService.getUnreadForStaff(userId, role);
+    }
+    sendHODAction(dto, userId) {
+        return this.commsService.sendHODAction(dto.teacherId, dto.action, dto.details, userId);
+    }
+    sendTeacherAction(dto, userId) {
+        return this.commsService.sendTeacherAction(dto.recordId, dto.action, dto.message, dto.className, userId);
     }
     getPulse(academicYearId, userId) {
         return this.commsService.getAnalyticsPulse(academicYearId, userId);
@@ -95,6 +104,7 @@ __decorate([
 ], CommsController.prototype, "getNotifications", null);
 __decorate([
     (0, common_1.Patch)('notifications/:id/read'),
+    (0, roles_decorator_1.Roles)(client_1.Role.STUDENT, client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Mark notification as read' }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Param)('id')),
@@ -102,6 +112,39 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CommsController.prototype, "markRead", null);
+__decorate([
+    (0, common_1.Get)('notifications/unread'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get unread notifications for staff user' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "getUnread", null);
+__decorate([
+    (0, common_1.Post)('notifications/hod-action'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Send HOD action notification' }),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [comms_dto_1.HODActionDto, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "sendHODAction", null);
+__decorate([
+    (0, common_1.Post)('notifications/teacher-action'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Send teacher action notification' }),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [comms_dto_1.TeacherActionDto, String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "sendTeacherAction", null);
 __decorate([
     openapi.ApiQuery({ name: "academicYearId", required: false }),
     (0, common_1.Get)('analytics/pulse'),

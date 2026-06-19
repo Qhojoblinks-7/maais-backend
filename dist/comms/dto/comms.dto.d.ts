@@ -12,3 +12,14 @@ export declare class EmergencyNotificationDto {
 export declare class PromotionDto {
     academicYearId: string;
 }
+export declare class HODActionDto {
+    teacherId: string;
+    action: string;
+    details?: Record<string, any>;
+}
+export declare class TeacherActionDto {
+    recordId: string;
+    action: string;
+    message?: string;
+    className?: string;
+}

@@ -11,7 +11,12 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CommsService } from './comms.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
-import { SendNotificationDto, EmergencyNotificationDto } from './dto/comms.dto';
+import {
+  SendNotificationDto,
+  EmergencyNotificationDto,
+  HODActionDto,
+  TeacherActionDto,
+} from './dto/comms.dto';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
 import {
   UpdateTicketStatusDto,
@@ -56,22 +61,56 @@ export class CommsController {
   @ApiOperation({ summary: "Get student's notification inbox" })
   getNotifications(
     @Param('studentId') studentId: string,
-    @Query('unreadOnly') unreadOnly: boolean,
+    @Query('unreadOnly') _unreadOnly: boolean,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.commsService.getStudentNotifications(
-      studentId,
-      unreadOnly,
-      userId,
-      role,
-    );
+    return this.commsService.getStudentNotifications(studentId, userId, role);
   }
 
   @Patch('notifications/:id/read')
+  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Mark notification as read' })
   markRead(@Param('id') id: string) {
     return this.commsService.markAsRead(id);
+  }
+
+  @Get('notifications/unread')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get unread notifications for staff user' })
+  getUnread(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.commsService.getUnreadForStaff(userId, role);
+  }
+
+  @Post('notifications/hod-action')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Send HOD action notification' })
+  sendHODAction(@Body() dto: HODActionDto, @CurrentUser('id') userId: string) {
+    return this.commsService.sendHODAction(
+      dto.teacherId,
+      dto.action,
+      dto.details,
+      userId,
+    );
+  }
+
+  @Post('notifications/teacher-action')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Send teacher action notification' })
+  sendTeacherAction(
+    @Body() dto: TeacherActionDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.commsService.sendTeacherAction(
+      dto.recordId,
+      dto.action,
+      dto.message,
+      dto.className,
+      userId,
+    );
   }
 
   @Get('analytics/pulse')

@@ -11,11 +11,13 @@ export declare class AuthService {
     login(user: User): Promise<{
         accessToken: string;
         refreshToken: string;
+        userId: string;
         user: any;
     }>;
     refreshTokens(userId: string, token: string): Promise<{
         accessToken: string;
         refreshToken: string;
+        userId: string;
         user: any;
     }>;
     logout(userId: string, token: string): Promise<{

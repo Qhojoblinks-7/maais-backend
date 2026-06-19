@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PromotionDto = exports.EmergencyNotificationDto = exports.SendNotificationDto = void 0;
+exports.TeacherActionDto = exports.HODActionDto = exports.PromotionDto = exports.EmergencyNotificationDto = exports.SendNotificationDto = void 0;
 const openapi = require("@nestjs/swagger");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
@@ -71,4 +71,52 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], PromotionDto.prototype, "academicYearId", void 0);
+class HODActionDto {
+    static _OPENAPI_METADATA_FACTORY() {
+        return { teacherId: { required: true, type: () => String }, action: { required: true, type: () => String }, details: { required: false, type: () => Object } };
+    }
+}
+exports.HODActionDto = HODActionDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'TCH-2024-001' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], HODActionDto.prototype, "teacherId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'GRADE_SUBMITTED_TO_HOD' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], HODActionDto.prototype, "action", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], HODActionDto.prototype, "details", void 0);
+class TeacherActionDto {
+    static _OPENAPI_METADATA_FACTORY() {
+        return { recordId: { required: true, type: () => String }, action: { required: true, type: () => String }, message: { required: false, type: () => String }, className: { required: false, type: () => String } };
+    }
+}
+exports.TeacherActionDto = TeacherActionDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'uuid-of-record' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TeacherActionDto.prototype, "recordId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'GRADE_REVISION_REQUESTED' }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TeacherActionDto.prototype, "action", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], TeacherActionDto.prototype, "message", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], TeacherActionDto.prototype, "className", void 0);
 //# sourceMappingURL=comms.dto.js.map

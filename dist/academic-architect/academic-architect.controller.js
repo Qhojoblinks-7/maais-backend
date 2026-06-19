@@ -63,7 +63,10 @@ let AcademicArchitectController = class AcademicArchitectController {
     assignTeacher(dto) {
         return this.service.assignTeacher(dto);
     }
-    getTeacherAssignments(teacherId) {
+    getTeacherAssignments(teacherId, user) {
+        if (user.role === client_1.Role.TEACHER && user.staffProfile?.id !== teacherId) {
+            return [];
+        }
         return this.service.getTeacherAssignments(teacherId);
     }
     getMyAssignments(user) {
@@ -95,6 +98,7 @@ __decorate([
 ], AcademicArchitectController.prototype, "activateYear", null);
 __decorate([
     (0, common_1.Get)('years/active'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get current active academic year' }),
     openapi.ApiResponse({ status: 200, type: Object }),
     __metadata("design:type", Function),
@@ -133,6 +137,7 @@ __decorate([
 ], AcademicArchitectController.prototype, "createDepartment", null);
 __decorate([
     (0, common_1.Get)('departments'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get all departments' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __metadata("design:type", Function),
@@ -151,6 +156,7 @@ __decorate([
 ], AcademicArchitectController.prototype, "createSubject", null);
 __decorate([
     (0, common_1.Get)('subjects'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get all active subjects' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __metadata("design:type", Function),
@@ -169,6 +175,7 @@ __decorate([
 ], AcademicArchitectController.prototype, "createClass", null);
 __decorate([
     (0, common_1.Get)('classes'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get all class sections' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __metadata("design:type", Function),
@@ -198,15 +205,17 @@ __decorate([
 ], AcademicArchitectController.prototype, "assignTeacher", null);
 __decorate([
     (0, common_1.Get)('assignments/teacher/:teacherId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get teacher assignments' }),
-    openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, common_1.Param)('teacherId')),
+    __param(1, (0, roles_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getTeacherAssignments", null);
 __decorate([
     (0, common_1.Get)('my-assignments'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
     (0, swagger_1.ApiOperation)({ summary: 'Get current teacher assignments' }),
     __param(0, (0, roles_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),

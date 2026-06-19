@@ -1,11 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsEnum,
-  IsOptional,
-  IsArray,
-  IsBoolean,
-} from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray } from 'class-validator';
 import { NotificationChannel } from '@prisma/client';
 
 export class SendNotificationDto {
@@ -44,4 +38,37 @@ export class PromotionDto {
   @ApiProperty()
   @IsString()
   academicYearId: string;
+}
+
+export class HODActionDto {
+  @ApiProperty({ example: 'TCH-2024-001' })
+  @IsString()
+  teacherId: string;
+
+  @ApiProperty({ example: 'GRADE_SUBMITTED_TO_HOD' })
+  @IsString()
+  action: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  details?: Record<string, any>;
+}
+
+export class TeacherActionDto {
+  @ApiProperty({ example: 'uuid-of-record' })
+  @IsString()
+  recordId: string;
+
+  @ApiProperty({ example: 'GRADE_REVISION_REQUESTED' })
+  @IsString()
+  action: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  message?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  className?: string;
 }
