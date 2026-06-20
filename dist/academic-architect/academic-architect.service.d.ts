@@ -7,17 +7,17 @@ export declare class AcademicArchitectService {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     setActiveYear(yearId: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     getActiveYear(): Promise<{
         terms: {
@@ -25,35 +25,35 @@ export declare class AcademicArchitectService {
             isActive: boolean;
             academicYearId: string;
             isLocked: boolean;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
         }[];
     } & {
         id: string;
         isActive: boolean;
         createdAt: Date;
-        label: string;
         startDate: Date;
         endDate: Date;
+        label: string;
     }>;
     createTerm(academicYearId: string, termNumber: TermNumber, startDate: Date, endDate: Date): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     setActiveTerm(termId: string): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     createDepartment(name: string, code: string, description?: string): Promise<{
         name: string;

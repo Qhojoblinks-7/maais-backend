@@ -23,92 +23,92 @@ export class TeacherService {
         where: { id: teacherId },
       });
 
-    if (!staffProfile) {
-      throw new NotFoundException('Teacher profile not found');
-    }
+      if (!staffProfile) {
+        throw new NotFoundException('Teacher profile not found');
+      }
 
-    if (
-      requester.role === Role.TEACHER &&
-      requester.staffProfile?.id !== teacherId &&
-      requester.id !== staffProfile.userId
-    ) {
-      throw new ForbiddenException('You can only access your own classes');
-    }
+      if (
+        requester.role === Role.TEACHER &&
+        requester.staffProfile?.id !== teacherId &&
+        requester.id !== staffProfile.userId
+      ) {
+        throw new ForbiddenException('You can only access your own classes');
+      }
 
-    const activeTerm = await this.prisma.term.findFirst({
-      where: { isActive: true },
-      orderBy: { startDate: 'desc' },
-    });
+      const activeTerm = await this.prisma.term.findFirst({
+        where: { isActive: true },
+        orderBy: { startDate: 'desc' },
+      });
 
-    const assignments = await this.prisma.teachingAssignment.findMany({
-      where: { teacherId },
-      include: {
-        subject: { include: { department: true } },
-        classSection: {
-          include: {
-            classTeacher: true,
+      const assignments = await this.prisma.teachingAssignment.findMany({
+        where: { teacherId },
+        include: {
+          subject: { include: { department: true } },
+          classSection: {
+            include: {
+              classTeacher: true,
+            },
           },
         },
-      },
-      orderBy: [
-        { classSection: { level: 'asc' } },
-        { classSection: { name: 'asc' } },
-        { subject: { name: 'asc' } },
-      ],
-    });
+        orderBy: [
+          { classSection: { level: 'asc' } },
+          { classSection: { name: 'asc' } },
+          { subject: { name: 'asc' } },
+        ],
+      });
 
-    return Promise.all(
-      assignments.map(async (assignment) => {
-        const students = await this.prisma.studentProfile.findMany({
-          where: {
-            currentClassId: assignment.classSectionId,
-            archivedAt: null,
-          },
-          select: { id: true },
-        });
+      return Promise.all(
+        assignments.map(async (assignment) => {
+          const students = await this.prisma.studentProfile.findMany({
+            where: {
+              currentClassId: assignment.classSectionId,
+              archivedAt: null,
+            },
+            select: { id: true },
+          });
 
-        const studentIds = students.map((student) => student.id);
-        const grades = activeTerm
-          ? await this.prisma.gradeEntry.findMany({
-              where: {
-                studentId: { in: studentIds },
-                subjectId: assignment.subjectId,
-                termId: activeTerm.id,
-              },
-              select: { totalScore: true },
-            })
-          : [];
+          const studentIds = students.map((student) => student.id);
+          const grades = activeTerm
+            ? await this.prisma.gradeEntry.findMany({
+                where: {
+                  studentId: { in: studentIds },
+                  subjectId: assignment.subjectId,
+                  termId: activeTerm.id,
+                },
+                select: { totalScore: true },
+              })
+            : [];
 
         const completed = grades.filter(
-          (grade) => grade.totalScore !== null,
+          (grade) => typeof grade.totalScore === 'number',
         ).length;
-        const studentCount = studentIds.length;
-        const progress =
-          studentCount > 0 ? Math.round((completed / studentCount) * 100) : 0;
+          const studentCount = studentIds.length;
+          const progress =
+            studentCount > 0 ? Math.round((completed / studentCount) * 100) : 0;
 
-        return {
-          id: assignment.id,
-          subject: assignment.subject.name,
-          subjectCode: assignment.subject.code,
-          className: assignment.classSection.name,
-          classId: assignment.classSection.id,
-          level: assignment.classSection.level,
-          studentCount,
-          progress,
-          status:
-            progress === 100
-              ? 'COMPLETE'
-              : progress > 0
-                ? 'IN PROGRESS'
-                : 'NOT STARTED',
-          color: this.getColor(
-            assignment.subject.code || assignment.subject.name,
-          ),
-          department: assignment.subject.department?.name || null,
-          academicYearId: assignment.academicYearId,
-        };
-      }),
-    );
+          return {
+            id: assignment.id,
+            subject: assignment.subject.name,
+            subjectCode: assignment.subject.code,
+            className: assignment.classSection.name,
+            classId: assignment.classSection.id,
+            level: assignment.classSection.level,
+            studentCount,
+            progress,
+            status:
+              progress === 100
+                ? 'COMPLETE'
+                : progress > 0
+                  ? 'IN PROGRESS'
+                  : 'NOT STARTED',
+            color: this.getColor(
+              assignment.subject.code || assignment.subject.name,
+            ),
+            department: assignment.subject.department?.name || null,
+            academicYearId: assignment.academicYearId,
+          };
+        }),
+      );
     } catch (error) {
       console.error('[TeacherService] getClasses error:', error);
       throw error;
@@ -242,7 +242,9 @@ export class TeacherService {
           grades.forEach((grade) => {
             const student = grade.student;
             const score =
-              typeof grade.totalScore === 'number' ? Math.round(grade.totalScore) : 0;
+              typeof grade.totalScore === 'number'
+                ? Math.round(grade.totalScore)
+                : 0;
             const studentName = [student.firstName, student.lastName]
               .filter(Boolean)
               .join(' ');
@@ -255,7 +257,10 @@ export class TeacherService {
               class: assignment.classSection.name,
               index: student.indexNumber,
               type: assignment.subject.name,
-              comment: grade.remark || grade.observationText || 'Grade entry pending observation',
+              comment:
+                grade.remark ||
+                grade.observationText ||
+                'Grade entry pending observation',
               date,
               status,
             };
@@ -305,5 +310,105 @@ export class TeacherService {
 
     const hue = Math.abs(hash) % 360;
     return `hsl(${hue} 78% 41%)`;
+  }
+
+  async getGradeRevisions(teacherId: string) {
+    const revisions = await this.prisma.gradeRevision.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const transformed = await Promise.all(
+      revisions.map(async (r) => {
+        const student = await this.prisma.studentProfile.findUnique({
+          where: { id: r.studentId },
+          select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+        });
+        const subject = await this.prisma.subject.findUnique({
+          where: { id: r.subjectId },
+          select: { name: true },
+        });
+        return {
+          id: r.id,
+          student: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
+          index: student?.indexNumber || '',
+          class: student?.currentClass?.name || 'Unknown',
+          subject: subject?.name || 'Unknown',
+          issue: r.issue,
+          severity: r.severity,
+          status: r.status,
+          time: r.createdAt.toISOString(),
+          history: r.history || [],
+        };
+      })
+    );
+
+    return transformed;
+  }
+
+  async submitGradeRevision(body: { gradeEntryId: string; issue: string; severity: string }, teacherId: string) {
+    const gradeEntry = await this.prisma.gradeEntry.findUnique({
+      where: { id: body.gradeEntryId },
+      include: { student: { include: { currentClass: true } }, subject: true },
+    });
+
+    if (!gradeEntry) {
+      throw new Error('Grade entry not found');
+    }
+
+    return this.prisma.gradeRevision.create({
+      data: {
+        teacherId,
+        studentId: gradeEntry.studentId,
+        subjectId: gradeEntry.subjectId,
+        gradeEntryId: body.gradeEntryId,
+        className: gradeEntry.student.currentClass?.name,
+        issue: body.issue,
+        severity: body.severity,
+        status: 'AWAITING_APPROVAL',
+        history: [],
+      },
+    });
+  }
+
+  async updateGradeRevision(revisionId: string, body: { status?: string; history?: any }, teacherId: string) {
+    const revision = await this.prisma.gradeRevision.findUnique({
+      where: { id: revisionId },
+    });
+
+    if (!revision) {
+      throw new Error('Revision not found');
+    }
+
+    const updated = await this.prisma.gradeRevision.update({
+      where: { id: revisionId },
+      data: {
+        status: body.status || revision.status,
+        history: body.history !== undefined ? body.history : revision.history,
+      },
+    });
+
+    // Return transformed data like getGradeRevisions
+    const student = await this.prisma.studentProfile.findUnique({
+      where: { id: updated.studentId },
+      select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+    });
+    const subject = await this.prisma.subject.findUnique({
+      where: { id: updated.subjectId },
+      select: { name: true },
+    });
+
+    return {
+      id: updated.id,
+      student: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
+      index: student?.indexNumber || '',
+      class: updated.className || student?.currentClass?.name || 'Unknown',
+      subject: subject?.name || 'Unknown',
+      issue: updated.issue,
+      severity: updated.severity,
+      status: updated.status,
+      time: updated.createdAt.toISOString(),
+      history: updated.history || [],
+    };
   }
 }

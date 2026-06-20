@@ -359,61 +359,81 @@ model GradeBoundary {
 }
 
 model GradeEntry {
-  id        String         @id @default(uuid())
-  studentId String
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subjectId String
-  subject   Subject        @relation(fields: [subjectId], references: [id])
-  termId    String
-  term      Term           @relation(fields: [termId], references: [id])
+   id        String         @id @default(uuid())
+   studentId String
+   student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+   subjectId String
+   subject   Subject        @relation(fields: [subjectId], references: [id])
+   termId    String
+   term      Term           @relation(fields: [termId], references: [id])
 
-  // Score breakdown (GH SHS standard)
-  classScore Float? // Out of 30 (continuous assessment)
-  examScore  Float? // Out of 70
-  totalScore Float? // Computed: classScore + examScore
-  grade      String? // A1-F9
-  remark     String? // Selected from smart remarks pool
-  position   Int? // Position in class for this subject
+   // Score breakdown (GH SHS standard)
+   classScore Float? // Out of 30 (continuous assessment)
+   examScore  Float? // Out of 70
+   totalScore Float? // Computed: classScore + examScore
+   grade      String? // A1-F9
+   remark     String? // Selected from smart remarks pool
+   position   Int? // Position in class for this subject
 
-  // Observations (missing = flagged)
-  hasObservation  Boolean @default(false)
-  observationText String?
+   // Observations (missing = flagged)
+   hasObservation  Boolean @default(false)
+   observationText String?
 
-  // Locking & audit
-  isLocked      Boolean   @default(false)
-  lockedById    String?
-  lockedAt      DateTime?
-  submittedById String?
-  submittedAt   DateTime?
+   // Locking & audit
+   isLocked      Boolean   @default(false)
+   lockedById    String?
+   lockedAt      DateTime?
+   submittedById String?
+   submittedAt   DateTime?
 
-  // Approval
-  isApproved   Boolean   @default(false)
-  approvedById String?
-  approvedAt   DateTime?
+   // Approval
+   isApproved   Boolean   @default(false)
+   approvedById String?
+   approvedAt   DateTime?
 
-  // Corrections tracked
-  corrections GradeCorrection[]
+   // Corrections tracked
+   corrections GradeCorrection[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
 
-  @@unique([studentId, subjectId, termId])
-  @@map("grade_entries")
+   @@unique([studentId, subjectId, termId])
+   @@map("grade_entries")
 }
 
 model GradeCorrection {
-  id           String     @id @default(uuid())
-  gradeEntryId String
-  gradeEntry   GradeEntry @relation(fields: [gradeEntryId], references: [id], onDelete: Cascade)
-  changedById  String
-  fieldChanged String // "classScore" | "examScore" | "remark"
-  oldValue     String?
-  newValue     String
-  reason       String
-  createdAt    DateTime   @default(now())
+   id           String     @id @default(uuid())
+   gradeEntryId String
+   gradeEntry   GradeEntry @relation(fields: [gradeEntryId], references: [id], onDelete: Cascade)
+   changedById  String
+   fieldChanged String // "classScore" | "examScore" | "remark"
+   oldValue     String?
+   newValue     String
+   reason       String
+   createdAt    DateTime   @default(now())
 
-  @@map("grade_corrections")
+   @@map("grade_corrections")
 }
+
+model GradeRevision {
+   id           String   @id @default(uuid())
+   teacherId    String
+   studentId    String
+   subjectId    String
+   gradeEntryId String
+   className    String?
+   
+   issue        String
+   severity     String
+   status       String
+   
+   history      Json? 
+   
+   createdAt    DateTime @default(now())
+   updatedAt    DateTime @updatedAt
+   
+   @@map("grade_revisions")
+ }
 
 model AttendanceRecord {
   id          String         @id @default(uuid())

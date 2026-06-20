@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Post, Patch, Body } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
@@ -41,5 +41,54 @@ export class TeacherController {
     },
   ) {
     return this.teacherService.getAnalytics(teacherId, user);
+  }
+
+  @Get('grade-revisions')
+  @Roles(Role.TEACHER, Role.HOD)
+  @ApiOperation({ summary: 'Get grade revision requests for a teacher' })
+  getGradeRevisions(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getGradeRevisions(user.staffProfile?.id || user.id);
+  }
+
+  @Post('grade-revisions')
+  @Roles(Role.TEACHER, Role.HOD)
+  @ApiOperation({ summary: 'Submit a grade revision request' })
+  submitGradeRevision(
+    @Body() body: {
+      gradeEntryId: string;
+      issue: string;
+      severity: string;
+    },
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.submitGradeRevision(body, user.staffProfile?.id || user.id);
+  }
+
+  @Patch('grade-revisions/:revisionId')
+  @Roles(Role.TEACHER, Role.HOD)
+  @ApiOperation({ summary: 'Update a grade revision request' })
+  updateGradeRevision(
+    @Param('revisionId') revisionId: string,
+    @Body() body: { status?: string; history?: any },
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.updateGradeRevision(revisionId, body, user.staffProfile?.id || user.id);
   }
 }
