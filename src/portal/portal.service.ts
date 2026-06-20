@@ -69,14 +69,18 @@ export class PortalService {
 
     // Fetch related data separately to avoid column issues
     const [currentClass, department] = await Promise.all([
-      student.currentClassId ? this.prisma.classSection.findUnique({
-        where: { id: student.currentClassId },
-        select: { id: true, name: true },
-      }) : null,
-      student.departmentId ? this.prisma.department.findUnique({
-        where: { id: student.departmentId },
-        select: { id: true, name: true },
-      }) : null,
+      student.currentClassId
+        ? this.prisma.classSection.findUnique({
+            where: { id: student.currentClassId },
+            select: { id: true, name: true },
+          })
+        : null,
+      student.departmentId
+        ? this.prisma.department.findUnique({
+            where: { id: student.departmentId },
+            select: { id: true, name: true },
+          })
+        : null,
     ]);
 
     const latestReport = await this.prisma.reportCard.findFirst({

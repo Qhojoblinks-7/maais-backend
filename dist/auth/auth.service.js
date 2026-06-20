@@ -40,7 +40,12 @@ let AuthService = class AuthService {
             this.signAccessToken(user.id, user.email, user.role),
             this.createRefreshToken(user.id),
         ]);
-        return { accessToken, refreshToken, userId: user.id, user: await this.sanitizeUser(user) };
+        return {
+            accessToken,
+            refreshToken,
+            userId: user.id,
+            user: await this.sanitizeUser(user),
+        };
     }
     async refreshTokens(userId, token) {
         const stored = await this.prisma.refreshToken.findUnique({

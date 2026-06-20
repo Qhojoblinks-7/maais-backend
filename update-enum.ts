@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 async function main() {
-  const prisma = new PrismaClient();
+    const prisma = new PrismaClient({});
   try {
     await prisma.$executeRawUnsafe(`ALTER TYPE "TermNumber" RENAME VALUE 'TERM_1' TO 'SEMESTER_1'`);
     await prisma.$executeRawUnsafe(`ALTER TYPE "TermNumber" RENAME VALUE 'TERM_2' TO 'SEMESTER_2'`);

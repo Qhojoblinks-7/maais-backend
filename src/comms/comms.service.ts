@@ -155,7 +155,9 @@ export class CommsService {
       return [];
     }
 
-    this.logger.log(`Found staffProfile: id=${staffProfile.id}, departmentId=${staffProfile.departmentId}`);
+    this.logger.log(
+      `Found staffProfile: id=${staffProfile.id}, departmentId=${staffProfile.departmentId}`,
+    );
 
     const where: any = {
       staffId: staffProfile.id,

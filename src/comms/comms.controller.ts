@@ -69,7 +69,13 @@ export class CommsController {
   }
 
   @Patch('notifications/:id/read')
-  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(
+    Role.STUDENT,
+    Role.TEACHER,
+    Role.HOD,
+    Role.HEADMASTER,
+    Role.SUPER_ADMIN,
+  )
   @ApiOperation({ summary: 'Mark notification as read' })
   markRead(@Param('id') id: string) {
     return this.commsService.markAsRead(id);

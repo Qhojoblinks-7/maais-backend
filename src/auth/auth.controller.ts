@@ -6,7 +6,6 @@ import {
   HttpCode,
   HttpStatus,
   UnauthorizedException,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -16,7 +15,6 @@ import { RefreshDto } from './dto/refresh.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -56,19 +54,52 @@ export class AuthController {
   @Get('me')
   @ApiOperation({ summary: 'Get current authenticated user with profile' })
   async getMe(@CurrentUser() user: User) {
-    const { passwordHash: _, ...rest } = user as any;
-
-    // Fetch with profile included
     const fullUser = await this.prisma.user.findUnique({
       where: { id: user.id },
       include: {
-        staffProfile: true,
-        studentProfile: true,
-        parentProfile: true,
+        studentProfile: {
+          select: {
+            id: true,
+            indexNumber: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            gender: true,
+            dateOfBirth: true,
+            photoUrl: true,
+            admissionDate: true,
+            currentClassId: true,
+            departmentId: true,
+            archivedAt: true,
+          },
+        },
+        staffProfile: {
+          select: {
+            id: true,
+            staffId: true,
+            firstName: true,
+            lastName: true,
+            middleName: true,
+            gender: true,
+            dateOfBirth: true,
+            photoUrl: true,
+            departmentId: true,
+          },
+        },
+        parentProfile: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+            occupation: true,
+          },
+        },
       },
     });
 
-    const { passwordHash: __, ...fullRest } = fullUser as any;
+    const { passwordHash: _, ...fullRest } = fullUser as any;
     return fullRest;
   }
 }

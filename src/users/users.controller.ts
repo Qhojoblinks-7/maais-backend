@@ -50,12 +50,19 @@ export class UsersController {
   }
 
   @Get('students/:id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get full student profile' })
   getStudentProfile(
     @Param('id') id: string,
     @CurrentUser('role') role: Role,
-    @CurrentUser() user: { id: string; role: Role; staffProfile?: { id: string } },
+    @CurrentUser()
+    user: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
     const teacherStaffId =
       role === Role.TEACHER ? user?.staffProfile?.id : undefined;

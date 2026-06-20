@@ -32,14 +32,26 @@ export class TimetableController {
   }
 
   @Get()
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,
+    @Query('teacher_id') teacherIdSnake?: string,
     @Query('classId') classId?: string,
+    @Query('class_id') classIdSnake?: string,
     @Query('dayOfWeek') dayOfWeek?: DayOfWeek,
   ) {
-    return this.timetableService.findAll({ teacherId, classId, dayOfWeek });
+    return this.timetableService.findAll({
+      teacherId: teacherId || teacherIdSnake,
+      classId: classId || classIdSnake,
+      dayOfWeek,
+    });
   }
 
   @Get('my-schedule')
@@ -58,13 +70,21 @@ export class TimetableController {
     @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
   ) {
     if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
-      throw new ForbiddenException('Teachers can only access their own timetable');
+      throw new ForbiddenException(
+        'Teachers can only access their own timetable',
+      );
     }
     return this.timetableService.findByTeacher(teacherId);
   }
 
   @Get('class/:classId')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get timetable for a specific class' })
   getByClass(@Param('classId') classId: string) {
     return this.timetableService.findByClass(classId);
@@ -78,7 +98,9 @@ export class TimetableController {
     @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
   ) {
     if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
-      throw new ForbiddenException('Teachers can only access their own timetable');
+      throw new ForbiddenException(
+        'Teachers can only access their own timetable',
+      );
     }
     return this.timetableService.getWeeklySchedule(teacherId);
   }
@@ -91,7 +113,9 @@ export class TimetableController {
     @CurrentUser() user: { role: Role; staffProfile?: { id: string } },
   ) {
     if (user.role === Role.TEACHER && user.staffProfile?.id !== teacherId) {
-      throw new ForbiddenException('Teachers can only access their own timetable');
+      throw new ForbiddenException(
+        'Teachers can only access their own timetable',
+      );
     }
     return this.timetableService.detectClashes(teacherId);
   }

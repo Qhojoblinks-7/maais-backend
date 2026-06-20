@@ -38,7 +38,13 @@ export class AcademicArchitectController {
   }
 
   @Get('years/active')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get current active academic year' })
   getActiveYear() {
     return this.service.getActiveYear();
@@ -71,7 +77,13 @@ export class AcademicArchitectController {
   }
 
   @Get('departments')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get all departments' })
   getAllDepartments() {
     return this.service.getAllDepartments();
@@ -85,7 +97,13 @@ export class AcademicArchitectController {
   }
 
   @Get('subjects')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get all active subjects' })
   getAllSubjects() {
     return this.service.getAllSubjects();
@@ -99,7 +117,13 @@ export class AcademicArchitectController {
   }
 
   @Get('classes')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+    Role.STUDENT,
+  )
   @ApiOperation({ summary: 'Get all class sections' })
   getAllClasses() {
     return this.service.getAllClassSections();

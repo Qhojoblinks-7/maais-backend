@@ -27,4 +27,19 @@ export class TeacherController {
   ) {
     return this.teacherService.getClasses(teacherId, user);
   }
+
+  @Get('classes/:teacherId/analytics')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get teacher analytics dashboard data' })
+  getAnalytics(
+    @Param('teacherId') teacherId: string,
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getAnalytics(teacherId, user);
+  }
 }

@@ -59,19 +59,24 @@ export class TimetableService {
     classId?: string;
     dayOfWeek?: DayOfWeek;
   }) {
-    return this.prisma.timetableEntry.findMany({
-      where: {
-        ...(filters?.teacherId && { teacherId: filters.teacherId }),
-        ...(filters?.classId && { classId: filters.classId }),
-        ...(filters?.dayOfWeek && { dayOfWeek: filters.dayOfWeek }),
-      },
-      include: {
-        classSection: true,
-        subject: { include: { department: true } },
-        teacher: true,
-      },
-      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
-    });
+    try {
+      return await this.prisma.timetableEntry.findMany({
+        where: {
+          ...(filters?.teacherId && { teacherId: filters.teacherId }),
+          ...(filters?.classId && { classId: filters.classId }),
+          ...(filters?.dayOfWeek && { dayOfWeek: filters.dayOfWeek }),
+        },
+        include: {
+          classSection: true,
+          subject: { include: { department: true } },
+          teacher: true,
+        },
+        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      });
+    } catch (error) {
+      console.error('[TimetableService] findAll error:', error);
+      throw error;
+    }
   }
 
   async findByTeacher(teacherId: string) {
