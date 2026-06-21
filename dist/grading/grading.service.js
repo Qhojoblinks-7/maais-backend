@@ -300,38 +300,314 @@ let GradingService = class GradingService {
             data: updateData,
         });
     }
+    async getTeacherSubjectIds(userId) {
+        if (!userId)
+            return [];
+        const staffProfile = await this.prisma.staffProfile.findUnique({
+            where: { userId },
+            select: { id: true },
+        });
+        if (!staffProfile) {
+            throw new common_1.ForbiddenException('Teacher profile not found');
+        }
+        const assignments = await this.prisma.teachingAssignment.findMany({
+            where: { teacherId: staffProfile.id },
+            select: { subjectId: true },
+        });
+        return assignments.map((assignment) => assignment.subjectId);
+    }
+    async getEffectiveTermId(termId) {
+        if (termId)
+            return termId;
+        const activeTerm = await this.prisma.term.findFirst({
+            where: { isActive: true },
+            orderBy: { startDate: 'desc' },
+            select: { id: true },
+        });
+        if (activeTerm)
+            return activeTerm.id;
+        const latestTerm = await this.prisma.term.findFirst({
+            orderBy: { startDate: 'desc' },
+            select: { id: true },
+        });
+        return latestTerm?.id;
+    }
+    async getTeacherNameMap(userIds) {
+        const ids = [...new Set(userIds.filter(Boolean))];
+        if (ids.length === 0)
+            return new Map();
+        const staffProfiles = await this.prisma.staffProfile.findMany({
+            where: { userId: { in: ids } },
+            select: { userId: true, firstName: true, lastName: true },
+        });
+        return new Map(staffProfiles.map((staff) => [
+            staff.userId,
+            `${staff.firstName || ''} ${staff.lastName || ''}`.trim(),
+        ]));
+    }
+    toObservation(entry, teacher = 'Unknown') {
+        return {
+            id: entry.id,
+            student: entry.student
+                ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
+                : 'Unknown',
+            index: entry.student?.indexNumber || '',
+            class: entry.student?.currentClass?.name || 'Unknown Class',
+            teacher,
+            type: entry.subject?.name || 'Unknown Subject',
+            comment: entry.observationText || entry.remark || '',
+            status: entry.hasObservation ? 'Logged' : 'Missing',
+            date: entry.updatedAt
+                ? entry.updatedAt.toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0],
+        };
+    }
     async getMissingObservationsTray(termId, userId, userRole) {
+        const effectiveTermId = await this.getEffectiveTermId(termId);
+        if (!effectiveTermId)
+            return [];
         const whereClause = {
-            termId,
+            termId: effectiveTermId,
             hasObservation: false,
             OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
         };
         if (userRole === client_1.Role.TEACHER && userId) {
-            const staffProfile = await this.prisma.staffProfile.findUnique({
-                where: { userId },
-            });
-            if (!staffProfile) {
-                throw new common_1.ForbiddenException('Teacher profile not found');
-            }
-            const teacherAssignments = await this.prisma.teachingAssignment.findMany({
-                where: { teacherId: staffProfile.id },
-                select: { subjectId: true },
-            });
-            const subjectIds = teacherAssignments.map((a) => a.subjectId);
+            const subjectIds = await this.getTeacherSubjectIds(userId);
             if (subjectIds.length > 0) {
                 whereClause.subjectId = { in: subjectIds };
             }
         }
-        return this.prisma.gradeEntry.findMany({
+        const entries = await this.prisma.gradeEntry.findMany({
             where: whereClause,
             include: {
                 student: {
-                    select: { indexNumber: true, firstName: true, lastName: true },
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
                 },
                 subject: { select: { name: true, code: true } },
             },
             orderBy: { student: { lastName: 'asc' } },
         });
+        const teacherMap = await this.getTeacherNameMap(entries.map((entry) => entry.submittedById));
+        return entries.map((entry) => ({
+            ...this.toObservation(entry, entry.submittedById ? teacherMap.get(entry.submittedById) || 'Unknown' : 'Unknown'),
+            status: 'Missing',
+        }));
+    }
+    async getObservationLogs(userId, userRole) {
+        const whereClause = {};
+        if (userRole === client_1.Role.TEACHER && userId) {
+            const subjectIds = await this.getTeacherSubjectIds(userId);
+            if (subjectIds.length === 0)
+                return [];
+            whereClause.subjectId = { in: subjectIds };
+        }
+        const entries = await this.prisma.gradeEntry.findMany({
+            where: whereClause,
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+            orderBy: [{ hasObservation: 'desc' }, { updatedAt: 'desc' }],
+        });
+        const teacherMap = await this.getTeacherNameMap(entries.map((entry) => entry.submittedById));
+        return entries.map((entry) => this.toObservation(entry, entry.submittedById ? teacherMap.get(entry.submittedById) || 'Unknown' : 'Unknown'));
+    }
+    async assertObservationAccess(entry, userId, userRole) {
+        if (userRole !== client_1.Role.TEACHER || !userId)
+            return;
+        const subjectIds = await this.getTeacherSubjectIds(userId);
+        if (!subjectIds.includes(entry.subjectId)) {
+            throw new common_1.ForbiddenException('You can only access your assigned observations');
+        }
+    }
+    async resolveObservationGradeEntry(body) {
+        if (body.gradeEntryId) {
+            return this.prisma.gradeEntry.findUnique({
+                where: { id: body.gradeEntryId },
+                include: {
+                    student: {
+                        select: {
+                            indexNumber: true,
+                            firstName: true,
+                            lastName: true,
+                            currentClass: { select: { name: true } },
+                        },
+                    },
+                    subject: { select: { name: true, code: true } },
+                },
+            });
+        }
+        const activeTermId = await this.getEffectiveTermId();
+        if (!activeTermId)
+            return null;
+        const student = await this.prisma.studentProfile.findFirst({
+            where: {
+                indexNumber: body.index || body.studentIndex,
+                currentClass: { name: body.class || body.className },
+            },
+            select: { id: true },
+        });
+        const subject = await this.prisma.subject.findFirst({
+            where: { name: body.type || body.subject || body.subjectName },
+            select: { id: true },
+        });
+        if (!student || !subject)
+            return null;
+        return this.prisma.gradeEntry.findUnique({
+            where: {
+                studentId_subjectId_termId: {
+                    studentId: student.id,
+                    subjectId: subject.id,
+                    termId: activeTermId,
+                },
+            },
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+    }
+    async createObservation(body, userId, userRole) {
+        const comment = body.comment || body.observationText || '';
+        const entry = await this.resolveObservationGradeEntry(body);
+        if (!entry) {
+            throw new common_1.NotFoundException('Grade entry matching observation not found');
+        }
+        await this.assertObservationAccess(entry, userId, userRole);
+        const updated = await this.prisma.gradeEntry.update({
+            where: { id: entry.id },
+            data: {
+                hasObservation: true,
+                observationText: comment,
+                remark: comment,
+                submittedById: userId,
+                submittedAt: new Date(),
+                isApproved: false,
+            },
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+        const teacherMap = await this.getTeacherNameMap([userId]);
+        return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
+    }
+    async updateObservation(observationId, body, userId, userRole) {
+        const entry = await this.prisma.gradeEntry.findUnique({
+            where: { id: observationId },
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+        if (!entry) {
+            throw new common_1.NotFoundException('Observation not found');
+        }
+        await this.assertObservationAccess(entry, userId, userRole);
+        const data = {
+            hasObservation: body.hasObservation ?? true,
+            submittedById: userId,
+            submittedAt: new Date(),
+            isApproved: false,
+        };
+        if (body.comment !== undefined || body.observationText !== undefined) {
+            const comment = body.comment ?? body.observationText ?? '';
+            data.observationText = comment;
+            data.remark = comment;
+        }
+        const updated = await this.prisma.gradeEntry.update({
+            where: { id: observationId },
+            data,
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+        const teacherMap = await this.getTeacherNameMap([userId]);
+        return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
+    }
+    async deleteObservation(observationId, userId, userRole) {
+        const entry = await this.prisma.gradeEntry.findUnique({
+            where: { id: observationId },
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+        if (!entry) {
+            throw new common_1.NotFoundException('Observation not found');
+        }
+        await this.assertObservationAccess(entry, userId, userRole);
+        const updated = await this.prisma.gradeEntry.update({
+            where: { id: observationId },
+            data: {
+                hasObservation: false,
+                observationText: null,
+                submittedById: userId,
+                submittedAt: new Date(),
+                isApproved: false,
+            },
+            include: {
+                student: {
+                    select: {
+                        indexNumber: true,
+                        firstName: true,
+                        lastName: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
+                subject: { select: { name: true, code: true } },
+            },
+        });
+        const teacherMap = await this.getTeacherNameMap([userId]);
+        return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
     }
     async getStudentTermGrades(studentId, termId, userRole) {
         const where = { studentId, termId };
@@ -370,6 +646,64 @@ let GradingService = class GradingService {
                 data: { position: currentRank },
             });
         }
+    }
+    async getStudentsForGrading(subjectId, classId, termId, userId, userRole) {
+        const effectiveTermId = await this.getEffectiveTermId(termId);
+        if (!subjectId || !classId || !effectiveTermId) {
+            return [];
+        }
+        let teacherId;
+        if (userRole === client_1.Role.TEACHER) {
+            const staffProfile = await this.prisma.staffProfile.findUnique({
+                where: { userId },
+                select: { id: true },
+            });
+            teacherId = staffProfile?.id;
+        }
+        const isAssigned = teacherId
+            ? !!(await this.prisma.teachingAssignment.findFirst({
+                where: { teacherId, subjectId, classSectionId: classId },
+            }))
+            : true;
+        if (userRole !== client_1.Role.SUPER_ADMIN && userRole !== client_1.Role.HEADMASTER && !isAssigned) {
+            return [];
+        }
+        const [students, gradeEntries] = await Promise.all([
+            this.prisma.studentProfile.findMany({
+                where: { currentClassId: classId },
+                select: { id: true, firstName: true, lastName: true, indexNumber: true },
+                orderBy: { lastName: 'asc' },
+            }),
+            this.prisma.gradeEntry.findMany({
+                where: { subjectId, termId: effectiveTermId },
+                select: { studentId: true, classScore: true, examScore: true, totalScore: true, grade: true, remark: true, hasObservation: true },
+            }),
+        ]);
+        const gradeMap = new Map(gradeEntries.map((g) => [g.studentId, g]));
+        return students.map((s) => {
+            const g = gradeMap.get(s.id);
+            let auditStatus;
+            if (g === undefined) {
+                auditStatus = undefined;
+            }
+            else if (g.hasObservation) {
+                auditStatus = 'COMPLETE';
+            }
+            else {
+                auditStatus = 'MISSING';
+            }
+            return {
+                id: s.id,
+                name: `${s.firstName} ${s.lastName}`,
+                index: s.indexNumber,
+                sba: g?.classScore ?? 0,
+                exam: g?.examScore ?? 0,
+                final: g?.totalScore ?? 0,
+                grade: g?.grade ?? '',
+                auditStatus,
+                remark: g?.remark ?? '',
+            };
+        });
     }
 };
 exports.GradingService = GradingService;

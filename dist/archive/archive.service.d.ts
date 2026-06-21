@@ -22,18 +22,18 @@ export declare class ArchiveService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
+                    label: string;
                     startDate: Date;
                     endDate: Date;
-                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
             };
             subject: {
                 name: string;
@@ -74,18 +74,18 @@ export declare class ArchiveService {
                 id: string;
                 isActive: boolean;
                 createdAt: Date;
+                label: string;
                 startDate: Date;
                 endDate: Date;
-                label: string;
             };
         } & {
             id: string;
             studentId: string;
             academicYearId: string;
-            fromClass: import(".prisma/client").$Enums.ClassLevel;
-            toClass: import(".prisma/client").$Enums.ClassLevel | null;
             status: import(".prisma/client").$Enums.PromotionStatus;
             notes: string | null;
+            fromClass: import(".prisma/client").$Enums.ClassLevel;
+            toClass: import(".prisma/client").$Enums.ClassLevel | null;
             performedById: string;
             performedAt: Date;
         })[];
@@ -95,18 +95,18 @@ export declare class ArchiveService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
+                    label: string;
                     startDate: Date;
                     endDate: Date;
-                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
             };
         } & {
             id: string;
@@ -150,9 +150,9 @@ export declare class ArchiveService {
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     getDatabaseHealth(): Promise<{
         status: string;

@@ -51,6 +51,9 @@ let GradingController = class GradingController {
     getStudentTermGrades(studentId, termId, role) {
         return this.gradingService.getStudentTermGrades(studentId, termId, role);
     }
+    async getStudentsForGrading(subjectId, classId, termId, userId, role) {
+        return this.gradingService.getStudentsForGrading(subjectId, classId, termId, userId, role);
+    }
     getSmartRemarks(grade) {
         return { grade, remarks: this.gradingService.getSmartRemarks(grade) };
     }
@@ -129,7 +132,7 @@ __decorate([
     (0, common_1.Get)('audit-tray'),
     (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get missing observations tray' }),
-    openapi.ApiResponse({ status: 200, type: [Object] }),
+    openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Query)('termId')),
     __param(1, (0, roles_decorator_1.CurrentUser)('id')),
     __param(2, (0, roles_decorator_1.CurrentUser)('role')),
@@ -162,6 +165,20 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], GradingController.prototype, "getStudentTermGrades", null);
+__decorate([
+    (0, common_1.Get)('students/for-grading'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get students eligible for grading by subject and class' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Query)('subjectId')),
+    __param(1, (0, common_1.Query)('classId')),
+    __param(2, (0, common_1.Query)('termId')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(4, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], GradingController.prototype, "getStudentsForGrading", null);
 __decorate([
     (0, common_1.Get)('smart-remarks/:grade'),
     (0, swagger_1.ApiOperation)({ summary: 'Get smart remark suggestions for a grade' }),

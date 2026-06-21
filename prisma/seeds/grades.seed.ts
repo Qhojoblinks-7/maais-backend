@@ -1,10 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 
-export async function seedGrades(prisma: PrismaClient, students: any[], subjects: any[], termId: string) {
+export async function seedGrades(prisma: PrismaClient, students: any[], subjects: any[], termId: string, teachers: any[]) {
   const grades = [];
 
-  for (const student of students) {
-    for (const subject of subjects) {
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i];
+    for (let j = 0; j < subjects.length; j++) {
+      const subject = subjects[j];
       const classScore = Math.floor(Math.random() * 20) + 10; // 10-30
       const examScore = Math.floor(Math.random() * 40) + 30; // 30-70
       const totalScore = classScore + examScore;
@@ -19,6 +21,9 @@ export async function seedGrades(prisma: PrismaClient, students: any[], subjects
       else if (totalScore >= 50) grade = 'C6';
       else if (totalScore >= 45) grade = 'D7';
       else if (totalScore >= 40) grade = 'E8';
+
+      // Assign a teacher by index cycling through
+      const teacher = teachers[j % teachers.length];
 
       const entry = await prisma.gradeEntry.upsert({
         where: {
@@ -37,6 +42,9 @@ export async function seedGrades(prisma: PrismaClient, students: any[], subjects
           examScore,
           totalScore,
           grade,
+          hasObservation: j % 3 === 0, // Every 3rd entry has observation (simulate mixed state)
+          submittedById: teacher?.userId,
+          submittedAt: new Date(),
           isApproved: true,
           isLocked: true,
         },

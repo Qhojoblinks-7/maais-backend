@@ -158,40 +158,67 @@ export declare class GradingService {
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
-    getMissingObservationsTray(termId: string, userId?: string, userRole?: Role): Promise<({
-        subject: {
-            name: string;
-            code: string;
-        };
-        student: {
-            indexNumber: string;
-            firstName: string;
-            lastName: string;
-        };
-    } & {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        studentId: string;
-        subjectId: string;
-        isApproved: boolean;
-        termId: string;
-        classScore: number | null;
-        examScore: number | null;
-        totalScore: number | null;
-        grade: string | null;
-        remark: string | null;
-        position: number | null;
-        hasObservation: boolean;
-        observationText: string | null;
-        isLocked: boolean;
-        lockedById: string | null;
-        lockedAt: Date | null;
-        submittedById: string | null;
-        submittedAt: Date | null;
-        approvedById: string | null;
-        approvedAt: Date | null;
-    })[]>;
+    private getTeacherSubjectIds;
+    private getEffectiveTermId;
+    private getTeacherNameMap;
+    private toObservation;
+    getMissingObservationsTray(termId: string, userId?: string, userRole?: Role): Promise<{
+        status: string;
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        date: any;
+    }[]>;
+    getObservationLogs(userId?: string, userRole?: Role): Promise<{
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        status: string;
+        date: any;
+    }[]>;
+    private assertObservationAccess;
+    private resolveObservationGradeEntry;
+    createObservation(body: any, userId?: string, userRole?: Role): Promise<{
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        status: string;
+        date: any;
+    }>;
+    updateObservation(observationId: string, body: any, userId?: string, userRole?: Role): Promise<{
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        status: string;
+        date: any;
+    }>;
+    deleteObservation(observationId: string, userId?: string, userRole?: Role): Promise<{
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        status: string;
+        date: any;
+    }>;
     getStudentTermGrades(studentId: string, termId: string, userRole?: Role): Promise<({
         subject: {
             name: string;
@@ -289,4 +316,15 @@ export declare class GradingService {
         approvedAt: Date | null;
     })[]>;
     computeSubjectPositions(subjectId: string, termId: string): Promise<void>;
+    getStudentsForGrading(subjectId: string, classId: string, termId: string, userId: string, userRole: Role): Promise<{
+        id: string;
+        name: string;
+        index: string;
+        sba: number;
+        exam: number;
+        final: number;
+        grade: string;
+        auditStatus: any;
+        remark: string;
+    }[]>;
 }

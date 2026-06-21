@@ -155,14 +155,14 @@ model StaffProfile {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-  // Teaching assignments
-  teachingAssignments TeachingAssignment[]
-  classTeacher        ClassSection?        @relation("ClassTeacher")
-  timetableEntries    TimetableEntry[]
-  behaviorsRecorded   StudentBehavior[]
+// Teaching assignments
+   teachingAssignments TeachingAssignment[]
+   classTeacher        ClassSection?        @relation("ClassTeacher")
+   timetableEntries    TimetableEntry[]
+   behaviorsRecorded   StudentBehavior[]
 
-  // Notifications
-  notifications       Notification[]
+   // Notifications
+   notifications       Notification[]
 
   @@map("staff_profiles")
 }
@@ -375,27 +375,27 @@ model GradeEntry {
    remark     String? // Selected from smart remarks pool
    position   Int? // Position in class for this subject
 
-   // Observations (missing = flagged)
-   hasObservation  Boolean @default(false)
-   observationText String?
+// Observations (missing = flagged)
+    hasObservation  Boolean @default(false)
+    observationText String?
 
-   // Locking & audit
-   isLocked      Boolean   @default(false)
-   lockedById    String?
-   lockedAt      DateTime?
-   submittedById String?
-   submittedAt   DateTime?
+    // Locking & audit
+    isLocked      Boolean   @default(false)
+    lockedById    String?
+    lockedAt      DateTime?
+    submittedById String?
+    submittedAt   DateTime?
 
-   // Approval
-   isApproved   Boolean   @default(false)
-   approvedById String?
-   approvedAt   DateTime?
+    // Approval
+    isApproved   Boolean   @default(false)
+    approvedById String?
+    approvedAt   DateTime?
 
-   // Corrections tracked
-   corrections GradeCorrection[]
+    // Corrections tracked
+    corrections GradeCorrection[]
 
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
    @@unique([studentId, subjectId, termId])
    @@map("grade_entries")

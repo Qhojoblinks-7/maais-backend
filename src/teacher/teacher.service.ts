@@ -388,7 +388,6 @@ export class TeacherService {
       },
     });
 
-    // Return transformed data like getGradeRevisions
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: updated.studentId },
       select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
@@ -410,5 +409,131 @@ export class TeacherService {
       time: updated.createdAt.toISOString(),
       history: updated.history || [],
     };
+  }
+
+  async getGradingIds(subjectName: string, className: string) {
+    const subject = await this.prisma.subject.findFirst({
+      where: { name: subjectName },
+      select: { id: true, name: true },
+    });
+
+    const classSection = await this.prisma.classSection.findFirst({
+      where: { name: className },
+      select: { id: true, name: true },
+    });
+
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+      select: { id: true, termNumber: true },
+    });
+
+    const term = activeTerm || await this.prisma.term.findFirst({
+      orderBy: { startDate: 'desc' },
+      select: { id: true, termNumber: true },
+    });
+
+    if (!subject || !classSection || !term) {
+      return {
+        subjectId: subject?.id || null,
+        classId: classSection?.id || null,
+        termId: term?.id || null,
+      };
+    }
+
+    return {
+      subjectId: subject.id,
+      subjectName: subject.name,
+      classId: classSection.id,
+      className: classSection.name,
+      termId: term.id,
+      termNumber: term.termNumber,
+    };
+  }
+
+  async getGradingStudents(
+    subjectName: string,
+    className: string,
+    user: { id: string; role: Role; staffProfile?: { id: string } },
+  ) {
+    const subject = await this.prisma.subject.findFirst({
+      where: { name: subjectName },
+      select: { id: true },
+    });
+
+    const classSection = await this.prisma.classSection.findFirst({
+      where: { name: className },
+      select: { id: true },
+    });
+
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+      select: { id: true },
+    });
+
+    const term = activeTerm || await this.prisma.term.findFirst({
+      orderBy: { startDate: 'desc' },
+      select: { id: true },
+    });
+
+    if (!subject?.id || !classSection?.id || !term?.id) {
+      return [];
+    }
+
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+
+    const isAssigned = await this.prisma.teachingAssignment.findFirst({
+      where: {
+        teacherId: staffProfile?.id,
+        subjectId: subject.id,
+        classSectionId: classSection.id,
+      },
+    });
+
+    if (user.role !== Role.SUPER_ADMIN && user.role !== Role.HEADMASTER && !isAssigned) {
+      return [];
+    }
+
+    const studentsPromise = this.prisma.studentProfile.findMany({
+      where: { currentClassId: classSection.id },
+      select: { id: true, firstName: true, lastName: true, indexNumber: true },
+      orderBy: { lastName: 'asc' },
+    });
+
+    const gradeEntriesPromise = this.prisma.gradeEntry.findMany({
+      where: { subjectId: subject.id, termId: term.id },
+      select: { studentId: true, classScore: true, examScore: true, totalScore: true, grade: true, remark: true, hasObservation: true },
+    });
+
+    const [students, gradeEntries] = await Promise.all([studentsPromise, gradeEntriesPromise]);
+
+    const gradeMap = new Map(gradeEntries.map((g) => [g.studentId, g]));
+
+    return students.map((s) => {
+      const g = gradeMap.get(s.id);
+      let auditStatus;
+      if (g === undefined) {
+        auditStatus = undefined;
+      } else if (g.hasObservation) {
+        auditStatus = 'COMPLETE';
+      } else {
+        auditStatus = 'MISSING';
+      }
+      return {
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`,
+        index: s.indexNumber,
+        sba: g?.classScore ?? 0,
+        exam: g?.examScore ?? 0,
+        final: g?.totalScore ?? 0,
+        grade: g?.grade ?? '',
+        auditStatus,
+        remark: g?.remark ?? '',
+      };
+    });
   }
 }

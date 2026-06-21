@@ -128,6 +128,19 @@ export class GradingController {
     return this.gradingService.getStudentTermGrades(studentId, termId, role);
   }
 
+  @Get('students/for-grading')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get students eligible for grading by subject and class' })
+  async getStudentsForGrading(
+    @Query('subjectId') subjectId: string,
+    @Query('classId') classId: string,
+    @Query('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.gradingService.getStudentsForGrading(subjectId, classId, termId, userId, role);
+  }
+
   @Get('smart-remarks/:grade')
   @ApiOperation({ summary: 'Get smart remark suggestions for a grade' })
   getSmartRemarks(@Param('grade') grade: string) {
