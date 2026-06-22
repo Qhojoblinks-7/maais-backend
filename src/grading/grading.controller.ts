@@ -10,6 +10,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { GradingService } from './grading.service';
+import { PrismaService } from '../common/prisma/prisma.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
 import {
   UpsertGradeDto,
@@ -21,7 +22,7 @@ import {
 @ApiBearerAuth()
 @Controller('grading')
 export class GradingController {
-  constructor(private gradingService: GradingService) {}
+  constructor(private gradingService: GradingService, private prisma: PrismaService) {}
 
   @Post('entries')
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
@@ -92,6 +93,53 @@ export class GradingController {
     @CurrentUser('role') role: Role,
   ) {
     return this.gradingService.getMissingObservationsTray(termId, userId, role);
+  }
+
+  @Get('missing-observations')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
+  @ApiOperation({ summary: 'Get missing observations (flat list)' })
+  getMissingObservationsFlat(
+    @Query('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.gradingService.getMissingObservationsTray(termId, userId, role);
+  }
+
+  @Get('entries/:id')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get a single grade entry' })
+  getGradeEntry(@Param('id') id: string) {
+    return this.prisma.gradeEntry.findUnique({
+      where: { id },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } } },
+        subject: { select: { id: true, name: true } },
+        term: { select: { id: true, termNumber: true } },
+      },
+    });
+  }
+
+  @Patch('entries/:id/unlock')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Unlock a grade entry' })
+  unlockGrade(@Param('id') id: string) {
+    return this.prisma.gradeEntry.update({
+      where: { id },
+      data: { isLocked: false, lockedById: null, lockedAt: null },
+    });
+  }
+
+  @Get('classes/:classId/terms/:termId/performance')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get class performance summary' })
+  getClassPerformance(
+    @Param('classId') classId: string,
+    @Param('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
   }
 
   @Get('class-summary/:classId')

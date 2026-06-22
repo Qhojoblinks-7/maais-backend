@@ -47,6 +47,121 @@ export class TeacherController {
     return this.teacherService.getAnalytics(teacherId, user);
   }
 
+  @Get('settings/classes')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get classes for teacher settings' })
+  getSettingsClasses(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getSettingsClasses(user);
+  }
+
+  @Get('settings/preferences')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get notification preferences' })
+  getNotificationPreferences() {
+    return this.teacherService.getNotificationPreferences();
+  }
+
+  @Get('subject-config')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get subject configuration' })
+  getSubjectConfig() {
+    return this.teacherService.getSubjectConfig();
+  }
+
+  @Get('grading/status-meta')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get grading status metadata' })
+  getGradingStatusMeta() {
+    return this.teacherService.getGradingStatusMeta();
+  }
+
+  @Get('grading/filters')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get grading filter options' })
+  getGradingFilterOptions() {
+    return this.teacherService.getGradingFilterOptions();
+  }
+
+  @Get('observation-types')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get observation types' })
+  getObservationTypes() {
+    return this.teacherService.getObservationTypes();
+  }
+
+  @Get('observation-colors')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get observation colors' })
+  getObservationColors() {
+    return this.teacherService.getObservationColors();
+  }
+
+  @Get('analytics-observation-colors')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get analytics observation colors' })
+  getAnalyticsObservationColors() {
+    return this.teacherService.getAnalyticsObservationColors();
+  }
+
+  @Get('grade-config')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get grade configuration' })
+  getGradeConfig() {
+    return this.teacherService.getGradeConfig();
+  }
+
+  @Get('missing-observations')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get missing observations tray' })
+  getMissingObservations() {
+    return this.teacherService.getMissingObservationsTray();
+  }
+
+  @Patch('profile')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Update teacher profile' })
+  updateProfile(
+    @Body() data: { name?: string; department?: string; email?: string; phone?: string },
+    @CurrentUser() user: { id: string; role: Role; staffProfile?: { id: string } },
+  ) {
+    return this.teacherService.updateProfile(user.id, data);
+  }
+
+  @Get('profile')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get current teacher profile' })
+  getProfile(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getProfile(user);
+  }
+
+  @Get('support/observations')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get support observations for a teacher' })
+  getSupportObservations(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getSupportObservations(user);
+  }
+
   @Get('grade-revisions')
   @Roles(Role.TEACHER, Role.HOD)
   @ApiOperation({ summary: 'Get grade revision requests for a teacher' })
@@ -175,5 +290,33 @@ export class TeacherController {
     },
   ) {
     return this.gradingService.deleteObservation(observationId, user.id, user.role);
+  }
+
+  @Get('grade-issues')
+  @Roles(Role.TEACHER, Role.HOD)
+  @ApiOperation({ summary: 'Get grade issues for a teacher' })
+  getGradeIssues(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getGradeIssues(user.staffProfile?.id || user.id);
+  }
+
+  @Get('grade-issues/meta')
+  @Roles(Role.TEACHER, Role.HOD)
+  @ApiOperation({ summary: 'Get grade issue status metadata for a teacher' })
+  getGradeIssueStatusMeta(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getGradeIssueStatusMeta(user.staffProfile?.id || user.id);
   }
 }

@@ -158,17 +158,91 @@ export class TeacherService {
         ],
       });
 
-      const classProgress = await Promise.all(
+      const previousTerm = activeTerm
+        ? await this.prisma.term.findFirst({
+            where: {
+              startDate: { lt: activeTerm.startDate },
+            },
+            orderBy: { startDate: 'desc' },
+          })
+        : null;
+
+      const assignmentStudentData = await Promise.all(
         assignments.map(async (assignment) => {
           const students = await this.prisma.studentProfile.findMany({
             where: {
               currentClassId: assignment.classSectionId,
               archivedAt: null,
             },
-            select: { id: true },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              indexNumber: true,
+            },
           });
 
-          const studentIds = students.map((student) => student.id);
+          return {
+            assignment,
+            students,
+            studentIds: students.map((student) => student.id),
+          };
+        }),
+      );
+
+      const allStudentIds = Array.from(
+        new Set(assignmentStudentData.flatMap((item) => item.studentIds)),
+      );
+      const subjectIds = Array.from(
+        new Set(assignments.map((assignment) => assignment.subjectId)),
+      );
+
+      const previousGrades =
+        previousTerm && allStudentIds.length > 0 && subjectIds.length > 0
+          ? await this.prisma.gradeEntry.findMany({
+              where: {
+                termId: previousTerm.id,
+                studentId: { in: allStudentIds },
+                subjectId: { in: subjectIds },
+              },
+              select: {
+                studentId: true,
+                subjectId: true,
+                totalScore: true,
+              },
+            })
+          : [];
+
+      const previousGradeMap = new Map<string, number>();
+      previousGrades.forEach((grade) => {
+        if (typeof grade.totalScore === 'number') {
+          previousGradeMap.set(
+            `${grade.studentId}:${grade.subjectId}`,
+            grade.totalScore,
+          );
+        }
+      });
+
+      const getStudentTrend = (
+        studentId: string,
+        subjectId: string,
+        score: number,
+      ) => {
+        const previousScore = previousGradeMap.get(`${studentId}:${subjectId}`);
+
+        if (previousScore === undefined) {
+          return { trend: '0', trendUp: true };
+        }
+
+        const delta = Math.round(score - previousScore);
+        return {
+          trend: delta === 0 ? '0' : delta > 0 ? `+${delta}` : `${delta}`,
+          trendUp: delta >= 0,
+        };
+      };
+
+      const classProgress = await Promise.all(
+        assignmentStudentData.map(async ({ assignment, studentIds }) => {
           const grades = activeTerm
             ? await this.prisma.gradeEntry.findMany({
                 where: {
@@ -206,21 +280,7 @@ export class TeacherService {
       const observations: any[] = [];
 
       await Promise.all(
-        assignments.map(async (assignment) => {
-          const students = await this.prisma.studentProfile.findMany({
-            where: {
-              currentClassId: assignment.classSectionId,
-              archivedAt: null,
-            },
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              indexNumber: true,
-            },
-          });
-
-          const studentIds = students.map((student) => student.id);
+        assignmentStudentData.map(async ({ assignment, students, studentIds }) => {
           const grades = activeTerm
             ? await this.prisma.gradeEntry.findMany({
                 where: {
@@ -264,6 +324,7 @@ export class TeacherService {
               date,
               status,
             };
+            const trend = getStudentTrend(student.id, assignment.subjectId, score);
 
             studentScores.push({
               id: grade.id,
@@ -271,8 +332,8 @@ export class TeacherService {
               class: assignment.classSection.name,
               index: student.indexNumber,
               score,
-              trend: '0',
-              trendUp: true,
+              trend: trend.trend,
+              trendUp: trend.trendUp,
               type: assignment.subject.name,
               status,
             });
@@ -409,6 +470,444 @@ export class TeacherService {
       time: updated.createdAt.toISOString(),
       history: updated.history || [],
     };
+  }
+
+  async getGradeIssues(teacherId: string) {
+    const revisions = await this.prisma.gradeRevision.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const transformed = await Promise.all(
+      revisions.map(async (r) => {
+        const student = await this.prisma.studentProfile.findUnique({
+          where: { id: r.studentId },
+          select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+        });
+        const subject = await this.prisma.subject.findUnique({
+          where: { id: r.subjectId },
+          select: { name: true },
+        });
+
+        return {
+          id: r.id,
+          recordId: r.id,
+          studentId: r.studentId,
+          student: student ? `${student.firstName} ${student.lastName}` : 'Unknown Student',
+          index: student?.indexNumber || '',
+          className: r.className || student?.currentClass?.name || 'Unknown Class',
+          subject: subject?.name || 'Unknown Subject',
+          issue: r.issue,
+          status: r.status,
+          date: r.createdAt.toISOString().split('T')[0],
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        };
+      }),
+    );
+
+    return transformed;
+  }
+
+  async getGradeIssueStatusMeta(teacherId: string) {
+    const revisions = await this.prisma.gradeRevision.findMany({
+      where: { teacherId },
+      select: { status: true },
+    });
+
+    const counts: Record<string, number> = {};
+    for (const r of revisions) {
+      counts[r.status] = (counts[r.status] || 0) + 1;
+    }
+
+    return {
+      total: revisions.length,
+      counts,
+      statuses: Object.keys(counts),
+    };
+  }
+
+  async getSettingsClasses(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!staffProfile) {
+      throw new NotFoundException('Teacher profile not found');
+    }
+
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: { teacherId: staffProfile.id },
+      include: {
+        subject: { include: { department: true } },
+        classSection: { include: { classTeacher: true } },
+      },
+      orderBy: [
+        { classSection: { level: 'asc' } },
+        { classSection: { name: 'asc' } },
+        { subject: { name: 'asc' } },
+      ],
+    });
+
+    return Promise.all(
+      assignments.map(async (assignment) => {
+        const students = await this.prisma.studentProfile.findMany({
+          where: {
+            currentClassId: assignment.classSectionId,
+            archivedAt: null,
+          },
+          select: { id: true },
+        });
+
+        return {
+          id: assignment.id,
+          subject: assignment.subject.name,
+          className: assignment.classSection.name,
+          studentCount: students.length,
+        };
+      }),
+    );
+  }
+
+  async getNotificationPreferences() {
+    return [
+      {
+        id: 'email',
+        label: 'Email Notifications',
+        desc: 'Receive grade and behavior alerts via email',
+        enabled: true,
+      },
+      {
+        id: 'sms',
+        label: 'SMS Notifications',
+        desc: 'Receive urgent alerts via SMS',
+        enabled: false,
+      },
+      {
+        id: 'app',
+        label: 'In-App Notifications',
+        desc: 'Show notifications within the dashboard',
+        enabled: true,
+      },
+    ];
+  }
+
+  async updateProfile(
+    userId: string,
+    data: {
+      name?: string;
+      department?: string;
+      email?: string;
+      phone?: string;
+    },
+  ) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+      include: { user: { select: { role: true } } },
+    });
+
+    if (!staffProfile) {
+      throw new NotFoundException('Teacher profile not found');
+    }
+
+    const nameParts = (data.name || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || staffProfile.firstName;
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : staffProfile.lastName;
+
+    await this.prisma.staffProfile.update({
+      where: { id: staffProfile.id },
+      data: {
+        firstName,
+        lastName,
+        phone: data.phone ?? staffProfile.phone,
+      },
+    });
+
+    if (data.email) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { email: data.email },
+      });
+    }
+
+    return this.getProfile({ id: userId, role: staffProfile.user?.role || 'TEACHER' } as any);
+  }
+
+  async getSubjectConfig() {
+    const subjects = await this.prisma.subject.findMany({
+      where: { isActive: true },
+      include: { department: { select: { name: true, code: true } } },
+      orderBy: { name: 'asc' },
+    });
+
+    return subjects.map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      type: s.type,
+      department: s.department?.name || null,
+      departmentCode: s.department?.code || null,
+    }));
+  }
+
+  async getGradingStatusMeta() {
+    return {
+      statuses: ['PENDING', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REVISION_REQUESTED'],
+      colors: {
+        PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+        SUBMITTED: 'bg-blue-50 text-blue-700 border-blue-200',
+        UNDER_REVIEW: 'bg-purple-50 text-purple-700 border-purple-200',
+        APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        REVISION_REQUESTED: 'bg-red-50 text-red-700 border-red-200',
+      },
+    };
+  }
+
+  async getGradingFilterOptions() {
+    const [departments, levels, terms] = await Promise.all([
+      this.prisma.department.findMany({
+        where: { subjects: { some: {} } },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.classSection.findMany({
+        select: { level: true },
+        distinct: ['level'],
+        orderBy: { level: 'asc' },
+      }),
+      this.prisma.term.findMany({
+        select: { id: true, termNumber: true, academicYear: { select: { label: true } } },
+        orderBy: { startDate: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    return {
+      departments: departments.map((d) => ({ id: d.id, name: d.name })),
+      levels: levels.map((l) => l.level),
+      terms: terms.map((t) => ({
+        id: t.id,
+        label: `${t.academicYear.label} - ${t.termNumber}`,
+        termNumber: t.termNumber,
+      })),
+    };
+  }
+
+  async getObservationTypes() {
+    return [
+      { id: 'ACADEMIC', label: 'Academic', color: 'bg-blue-100 text-blue-800' },
+      { id: 'BEHAVIOR', label: 'Behavior', color: 'bg-amber-100 text-amber-800' },
+      { id: 'ATTENDANCE', label: 'Attendance', color: 'bg-purple-100 text-purple-800' },
+      { id: 'GENERAL', label: 'General', color: 'bg-gray-100 text-gray-800' },
+    ];
+  }
+
+  async getObservationColors() {
+    return {
+      ACADEMIC: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300' },
+      BEHAVIOR: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' },
+      ATTENDANCE: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
+      GENERAL: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' },
+      COMPLETE: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+      MISSING: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
+      LOGGED: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300' },
+      PENDING: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+    };
+  }
+
+  async getAnalyticsObservationColors() {
+    return {
+      COMPLETE: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+      MISSING: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
+      LOGGED: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300' },
+      PENDING: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+      IN_PROGRESS: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300' },
+      RESOLVED: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' },
+    };
+  }
+
+  async getGradeConfig() {
+    return {
+      minScore: 0,
+      maxScore: 100,
+      passingGrade: 50,
+      bands: [
+        { grade: 'A1', min: 80, max: 100, remark: 'EXCELLENT' },
+        { grade: 'B2', min: 70, max: 79, remark: 'VERY_GOOD' },
+        { grade: 'B3', min: 65, max: 69, remark: 'GOOD' },
+        { grade: 'C4', min: 60, max: 64, remark: 'CREDIT' },
+        { grade: 'C5', min: 55, max: 59, remark: 'PASS' },
+        { grade: 'C6', min: 50, max: 54, remark: 'PASS' },
+        { grade: 'D7', min: 45, max: 49, remark: 'WEAK_PASS' },
+        { grade: 'E8', min: 40, max: 44, remark: 'WEAK_PASS' },
+        { grade: 'F9', min: 0, max: 39, remark: 'FAILURE' },
+      ],
+    };
+  }
+
+  async getMissingObservationsTray() {
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+      select: { id: true },
+    });
+
+    if (!activeTerm) return [];
+
+    const entries = await this.prisma.gradeEntry.findMany({
+      where: {
+        termId: activeTerm.id,
+        hasObservation: false,
+        OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
+      },
+      include: {
+        student: {
+          select: {
+            indexNumber: true,
+            firstName: true,
+            lastName: true,
+            currentClass: { select: { name: true } },
+          },
+        },
+        subject: { select: { name: true, code: true } },
+      },
+      orderBy: { student: { lastName: 'asc' } },
+      take: 50,
+    });
+
+    const teacherMap = await this.getTeacherNameMap(
+      entries.map((entry) => entry.submittedById),
+    );
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      student: entry.student
+        ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
+        : 'Unknown',
+      index: entry.student?.indexNumber || '',
+      class: entry.student?.currentClass?.name || 'Unknown Class',
+      type: entry.subject?.name || 'Unknown Subject',
+      comment: entry.observationText || entry.remark || 'Missing observation',
+      status: 'Missing',
+      date: entry.updatedAt
+        ? entry.updatedAt.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
+      teacher: entry.submittedById
+        ? teacherMap.get(entry.submittedById) || 'Unknown'
+        : 'Unknown',
+    }));
+  }
+
+  async getProfile(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+      include: {
+        user: { select: { email: true, phone: true, role: true } },
+        department: { select: { name: true, code: true } },
+      },
+    });
+
+    if (!staffProfile) {
+      throw new NotFoundException('Teacher profile not found');
+    }
+
+    return {
+      id: staffProfile.id,
+      staffId: staffProfile.staffId,
+      name: `${staffProfile.firstName} ${staffProfile.lastName}`,
+      firstName: staffProfile.firstName,
+      lastName: staffProfile.lastName,
+      middleName: staffProfile.middleName,
+      gender: staffProfile.gender,
+      dateOfBirth: staffProfile.dateOfBirth,
+      phone: staffProfile.phone || staffProfile.user?.phone || '',
+      email: staffProfile.user?.email || '',
+      department: staffProfile.department?.name || '',
+      departmentCode: staffProfile.department?.code || '',
+      role: user.role,
+      hiredAt: staffProfile.hiredAt,
+    };
+  }
+
+  async getSupportObservations(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!staffProfile) {
+      throw new NotFoundException('Teacher profile not found');
+    }
+
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: { teacherId: staffProfile.id },
+      select: { subjectId: true, classSectionId: true },
+    });
+
+    const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
+    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+
+    const whereClause: any = { hasObservation: true };
+
+    if (subjectIds.length > 0) {
+      whereClause.subjectId = { in: subjectIds };
+    }
+
+    const entries = await this.prisma.gradeEntry.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          select: {
+            indexNumber: true,
+            firstName: true,
+            lastName: true,
+            currentClassId: true,
+            currentClass: { select: { name: true } },
+          },
+        },
+        subject: { select: { name: true, code: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    const filteredEntries = classSectionIds.length > 0
+      ? entries.filter((e) => e.student?.currentClassId && classSectionIds.includes(e.student.currentClassId))
+      : entries;
+
+    const teacherMap = await this.getTeacherNameMap(
+      filteredEntries.map((entry) => entry.submittedById),
+    );
+
+    return filteredEntries.map((entry) => ({
+      id: entry.id,
+      type: entry.subject?.name || 'Unknown Subject',
+      student: entry.student
+        ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
+        : 'Unknown Student',
+      teacher: entry.submittedById
+        ? teacherMap.get(entry.submittedById) || 'Unknown'
+        : 'Unknown',
+      comment: entry.observationText || entry.remark || '',
+      date: entry.updatedAt
+        ? entry.updatedAt.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
+    }));
+  }
+
+  private async getTeacherNameMap(userIds: Array<string | null | undefined>) {
+    const ids = [...new Set(userIds.filter(Boolean))] as string[];
+    if (ids.length === 0) return new Map<string, string>();
+
+    const staffProfiles = await this.prisma.staffProfile.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true, firstName: true, lastName: true },
+    });
+
+    return new Map(
+      staffProfiles.map((staff) => [
+        staff.userId,
+        `${staff.firstName || ''} ${staff.lastName || ''}`.trim(),
+      ]),
+    );
   }
 
   async getGradingIds(subjectName: string, className: string) {
