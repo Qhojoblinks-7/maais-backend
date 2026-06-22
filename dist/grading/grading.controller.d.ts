@@ -1,9 +1,11 @@
 import { Role } from '@prisma/client';
 import { GradingService } from './grading.service';
+import { PrismaService } from '../common/prisma/prisma.service';
 import { UpsertGradeDto, BulkUpsertGradeDto, CorrectGradeDto } from './dto/grading.dto';
 export declare class GradingController {
     private gradingService;
-    constructor(gradingService: GradingService);
+    private prisma;
+    constructor(gradingService: GradingService, prisma: PrismaService);
     upsertGrade(dto: UpsertGradeDto, userId: string): Promise<{
         subject: {
             name: string;
@@ -11,8 +13,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         };
         student: {
@@ -62,8 +64,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         };
         student: {
@@ -190,6 +192,91 @@ export declare class GradingController {
         comment: any;
         date: any;
     }[]>;
+    getMissingObservationsFlat(termId: string, userId: string, role: Role): Promise<{
+        status: string;
+        id: any;
+        student: string;
+        index: any;
+        class: any;
+        teacher: string;
+        type: any;
+        comment: any;
+        date: any;
+    }[]>;
+    getGradeEntry(id: string): import(".prisma/client").Prisma.Prisma__GradeEntryClient<{
+        term: {
+            id: string;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
+        };
+        subject: {
+            name: string;
+            id: string;
+        };
+        student: {
+            id: string;
+            indexNumber: string;
+            firstName: string;
+            lastName: string;
+            currentClass: {
+                name: string;
+            };
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        studentId: string;
+        subjectId: string;
+        isApproved: boolean;
+        termId: string;
+        classScore: number | null;
+        examScore: number | null;
+        totalScore: number | null;
+        grade: string | null;
+        remark: string | null;
+        position: number | null;
+        hasObservation: boolean;
+        observationText: string | null;
+        isLocked: boolean;
+        lockedById: string | null;
+        lockedAt: Date | null;
+        submittedById: string | null;
+        submittedAt: Date | null;
+        approvedById: string | null;
+        approvedAt: Date | null;
+    }, null, import("@prisma/client/runtime/client").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    unlockGrade(id: string): import(".prisma/client").Prisma.Prisma__GradeEntryClient<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        studentId: string;
+        subjectId: string;
+        isApproved: boolean;
+        termId: string;
+        classScore: number | null;
+        examScore: number | null;
+        totalScore: number | null;
+        grade: string | null;
+        remark: string | null;
+        position: number | null;
+        hasObservation: boolean;
+        observationText: string | null;
+        isLocked: boolean;
+        lockedById: string | null;
+        lockedAt: Date | null;
+        submittedById: string | null;
+        submittedAt: Date | null;
+        approvedById: string | null;
+        approvedAt: Date | null;
+    }, never, import("@prisma/client/runtime/client").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    getClassPerformance(classId: string, termId: string, userId: string, role: Role): Promise<{
+        id: string;
+        name: string;
+        indexNumber: string;
+        progress: number;
+        isFullyApproved: boolean;
+        gradesCount: number;
+    }[]>;
     getClassSummary(classId: string, termId: string, userId: string, role: Role): Promise<{
         id: string;
         name: string;
@@ -205,8 +292,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         };
         corrections: {

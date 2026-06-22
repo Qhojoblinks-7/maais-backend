@@ -80,54 +80,58 @@ async function main() {
   const departments = await seeds.seedDepartments(prisma);
   const deptMap = Object.fromEntries(departments.map((d) => [d.code, d.id]));
 
-  // 3. Subjects
+  // 3. HODs
+  const hods = await seeds.seedHODs(prisma, departments);
+
+  // 4. Subjects
   const subjects = await seeds.seedSubjects(prisma, deptMap);
 
-  // 4. Academic (Year, Terms, Classes)
+  // 5. Academic (Year, Terms, Classes)
   const { year, terms, classes } = await seeds.seedAcademic(prisma);
   const currentTerm = terms[0]; // Term 1
 
-  // 5. Grading
+  // 6. Grading
   await seeds.seedGrading(prisma);
 
-  // 6. Staff (Teachers)
+  // 7. Staff (Teachers)
   const teachers = await seeds.seedStaff(prisma, departments, classes);
 
-  // 7. Students
+  // 8. Students
   const students = await seeds.seedStudents(prisma, classes, departments);
 
-  // 8. Parents
+  // 9. Parents
   await seeds.seedParents(prisma, students);
 
-  // 9. Teaching Assignments
+  // 10. Teaching Assignments
   await seeds.seedAssignments(prisma, teachers, subjects, classes, year.id);
 
-  // 10. Grades (Current Term)
+  // 11. Grades (Current Term)
   await seeds.seedGrades(prisma, students, subjects, currentTerm.id, teachers);
 
-  // 11. Attendance (All Terms)
+  // 12. Attendance (All Terms)
   await seeds.seedAttendance(prisma, students, terms);
 
-  // 12. Reports (Current Term)
+  // 13. Reports (Current Term)
   await seeds.seedReports(prisma, students, currentTerm.id);
 
-  // 13. Behavior & Traits (Current Term)
+  // 14. Behavior & Traits (Current Term)
   await seeds.seedBehavior(prisma, students, currentTerm.id);
 
-  // 14. Interventions
+  // 15. Interventions
   await seeds.seedInterventions(prisma, students);
 
-  // 15. Notifications
+  // 16. Notifications
   await seeds.seedNotifications(prisma, students);
 
-  // 16. Timetable
+  // 17. Timetable
   await seeds.seedTimetable(prisma, classes, subjects, teachers);
 
-  // 17. Audit Logs
+  // 18. Audit Logs
   await seeds.seedAudit(prisma, admin.id);
 
   console.log('\n🎉 Full seed complete!');
   console.log('   Admin login: admin@mandoshts.edu.gh / Admin@2024!');
+  console.log('   HOD login: m.osei@mandoshts.edu.gh / HOD@2024!');
 }
 
 main()

@@ -54,6 +54,8 @@ export declare class UsersService {
             departmentId: string | null;
             staffId: string;
             hiredAt: Date;
+            canTeach: boolean;
+            canOversight: boolean;
         };
     } & {
         id: string;
@@ -212,8 +214,8 @@ export declare class UsersService {
                 isActive: boolean;
                 createdAt: Date;
                 departmentId: string | null;
-                type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
+                type: import(".prisma/client").$Enums.SubjectType;
                 code: string;
             };
         } & {
@@ -336,8 +338,8 @@ export declare class UsersService {
                 isActive: boolean;
                 createdAt: Date;
                 departmentId: string | null;
-                type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
+                type: import(".prisma/client").$Enums.SubjectType;
                 code: string;
             };
             classSection: {
@@ -367,6 +369,8 @@ export declare class UsersService {
         departmentId: string | null;
         staffId: string;
         hiredAt: Date;
+        canTeach: boolean;
+        canOversight: boolean;
     })[]>;
     deactivateUser(userId: string): Promise<{
         id: string;

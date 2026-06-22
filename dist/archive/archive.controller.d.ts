@@ -36,8 +36,8 @@ export declare class ArchiveController {
                 isActive: boolean;
                 createdAt: Date;
                 departmentId: string | null;
-                type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
+                type: import(".prisma/client").$Enums.SubjectType;
                 code: string;
             };
         } & {

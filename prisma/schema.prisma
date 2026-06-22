@@ -155,14 +155,18 @@ model StaffProfile {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-// Teaching assignments
-   teachingAssignments TeachingAssignment[]
-   classTeacher        ClassSection?        @relation("ClassTeacher")
-   timetableEntries    TimetableEntry[]
-   behaviorsRecorded   StudentBehavior[]
+  // Dual-role flags for HODs who can also teach
+  canTeach      Boolean   @default(false)
+  canOversight  Boolean   @default(true)
 
-   // Notifications
-   notifications       Notification[]
+  // Teaching assignments
+  teachingAssignments TeachingAssignment[]
+  classTeacher        ClassSection?        @relation("ClassTeacher")
+  timetableEntries    TimetableEntry[]
+  behaviorsRecorded   StudentBehavior[]
+
+  // Notifications
+  notifications       Notification[]
 
   @@map("staff_profiles")
 }
@@ -375,7 +379,7 @@ model GradeEntry {
    remark     String? // Selected from smart remarks pool
    position   Int? // Position in class for this subject
 
-// Observations (missing = flagged)
+   // Observations (missing = flagged)
     hasObservation  Boolean @default(false)
     observationText String?
 

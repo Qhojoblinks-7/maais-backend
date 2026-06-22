@@ -18,11 +18,13 @@ const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
 const grading_service_1 = require("./grading.service");
+const prisma_service_1 = require("../common/prisma/prisma.service");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const grading_dto_1 = require("./dto/grading.dto");
 let GradingController = class GradingController {
-    constructor(gradingService) {
+    constructor(gradingService, prisma) {
         this.gradingService = gradingService;
+        this.prisma = prisma;
     }
     upsertGrade(dto, userId) {
         return this.gradingService.upsertGrade(dto, userId);
@@ -44,6 +46,28 @@ let GradingController = class GradingController {
     }
     getMissingObservations(termId, userId, role) {
         return this.gradingService.getMissingObservationsTray(termId, userId, role);
+    }
+    getMissingObservationsFlat(termId, userId, role) {
+        return this.gradingService.getMissingObservationsTray(termId, userId, role);
+    }
+    getGradeEntry(id) {
+        return this.prisma.gradeEntry.findUnique({
+            where: { id },
+            include: {
+                student: { select: { id: true, firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } } },
+                subject: { select: { id: true, name: true } },
+                term: { select: { id: true, termNumber: true } },
+            },
+        });
+    }
+    unlockGrade(id) {
+        return this.prisma.gradeEntry.update({
+            where: { id },
+            data: { isLocked: false, lockedById: null, lockedAt: null },
+        });
+    }
+    getClassPerformance(classId, termId, userId, role) {
+        return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
     }
     getClassSummary(classId, termId, userId, role) {
         return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
@@ -141,6 +165,51 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], GradingController.prototype, "getMissingObservations", null);
 __decorate([
+    (0, common_1.Get)('missing-observations'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.TEACHER),
+    (0, swagger_1.ApiOperation)({ summary: 'Get missing observations (flat list)' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Query)('termId')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], GradingController.prototype, "getMissingObservationsFlat", null);
+__decorate([
+    (0, common_1.Get)('entries/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get a single grade entry' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], GradingController.prototype, "getGradeEntry", null);
+__decorate([
+    (0, common_1.Patch)('entries/:id/unlock'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Unlock a grade entry' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], GradingController.prototype, "unlockGrade", null);
+__decorate([
+    (0, common_1.Get)('classes/:classId/terms/:termId/performance'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get class performance summary' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Param)('classId')),
+    __param(1, (0, common_1.Param)('termId')),
+    __param(2, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(3, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", void 0)
+], GradingController.prototype, "getClassPerformance", null);
+__decorate([
     (0, common_1.Get)('class-summary/:classId'),
     (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get class performance summary' }),
@@ -192,6 +261,6 @@ exports.GradingController = GradingController = __decorate([
     (0, swagger_1.ApiTags)('Grading'),
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Controller)('grading'),
-    __metadata("design:paramtypes", [grading_service_1.GradingService])
+    __metadata("design:paramtypes", [grading_service_1.GradingService, prisma_service_1.PrismaService])
 ], GradingController);
 //# sourceMappingURL=grading.controller.js.map
