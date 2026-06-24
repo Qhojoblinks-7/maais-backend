@@ -1,5 +1,6 @@
 export * from './admin.seed';
 export * from './departments.seed';
+export * from './hod.seed';
 export * from './subjects.seed';
 export * from './academic.seed';
 export * from './grading.seed';

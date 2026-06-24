@@ -46,27 +46,32 @@ export async function seedParents(prisma: PrismaClient, students: any[]) {
     });
     parents.push(parent.parentProfile);
 
-    // Link to 2 students
+    // Link to 2 students (use upsert to handle re-runs)
     const student1 = students[i * 2];
     const student2 = students[i * 2 + 1];
+    const parentId = parent.parentProfile!.id;
 
     if (student1) {
-      await prisma.studentParentLink.create({
-        data: {
+      await prisma.studentParentLink.upsert({
+        where: { studentId_parentId: { studentId: student1.id, parentId } },
+        update: {},
+        create: {
           studentId: student1.id,
-          parentId: parent.parentProfile!.id,
+          parentId,
           relationship: i % 2 === 0 ? 'Father' : 'Mother',
           isPrimary: true,
         },
       });
     }
     if (student2) {
-      await prisma.studentParentLink.create({
-        data: {
+      await prisma.studentParentLink.upsert({
+        where: { studentId_parentId: { studentId: student2.id, parentId } },
+        update: {},
+        create: {
           studentId: student2.id,
-          parentId: parent.parentProfile!.id,
+          parentId,
           relationship: i % 2 === 0 ? 'Father' : 'Mother',
-          isPrimary: true,
+          isPrimary: false,
         },
       });
     }

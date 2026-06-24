@@ -81,8 +81,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         }[];
     } & {
@@ -98,8 +98,8 @@ export declare class AcademicArchitectController {
         isActive: boolean;
         createdAt: Date;
         departmentId: string | null;
-        type: import(".prisma/client").$Enums.SubjectType;
         description: string | null;
+        type: import(".prisma/client").$Enums.SubjectType;
         code: string;
     }>;
     getAllSubjects(): Promise<({
@@ -116,8 +116,8 @@ export declare class AcademicArchitectController {
         isActive: boolean;
         createdAt: Date;
         departmentId: string | null;
-        type: import(".prisma/client").$Enums.SubjectType;
         description: string | null;
+        type: import(".prisma/client").$Enums.SubjectType;
         code: string;
     })[]>;
     createClass(dto: CreateClassSectionDto): Promise<{
@@ -144,6 +144,8 @@ export declare class AcademicArchitectController {
             departmentId: string | null;
             staffId: string;
             hiredAt: Date;
+            canTeach: boolean;
+            canOversight: boolean;
         };
     } & {
         level: import(".prisma/client").$Enums.ClassLevel;
@@ -178,8 +180,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         };
         classSection: {
@@ -203,8 +205,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            type: import(".prisma/client").$Enums.SubjectType;
             description: string | null;
+            type: import(".prisma/client").$Enums.SubjectType;
             code: string;
         };
         classSection: {
