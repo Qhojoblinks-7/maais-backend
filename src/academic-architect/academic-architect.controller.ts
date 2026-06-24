@@ -50,6 +50,13 @@ export class AcademicArchitectController {
     return this.service.getActiveYear();
   }
 
+  @Get('years')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @ApiOperation({ summary: 'Get all academic years' })
+  getAllYears() {
+    return this.service.getAllYears();
+  }
+
   @Post('terms')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a term' })

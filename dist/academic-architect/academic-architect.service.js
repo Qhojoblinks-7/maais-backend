@@ -34,6 +34,11 @@ let AcademicArchitectService = class AcademicArchitectService {
             include: { terms: { orderBy: { termNumber: 'asc' } } },
         });
     }
+    async getAllYears() {
+        return this.prisma.academicYear.findMany({
+            orderBy: { startDate: 'desc' },
+        });
+    }
     async createTerm(academicYearId, termNumber, startDate, endDate) {
         return this.prisma.term.create({
             data: { academicYearId, termNumber, startDate, endDate },

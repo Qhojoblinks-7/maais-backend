@@ -26,6 +26,7 @@ const behavior_module_1 = require("./behavior/behavior.module");
 const interventions_module_1 = require("./interventions/interventions.module");
 const timetable_module_1 = require("./timetable/timetable.module");
 const teacher_module_1 = require("./teacher/teacher.module");
+const hod_module_1 = require("./hod/hod.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -47,6 +48,7 @@ exports.AppModule = AppModule = __decorate([
             interventions_module_1.InterventionsModule,
             timetable_module_1.TimetableModule,
             teacher_module_1.TeacherModule,
+            hod_module_1.HODModule,
         ],
         providers: [
             {

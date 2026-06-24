@@ -29,6 +29,12 @@ export class AcademicArchitectService {
     });
   }
 
+  async getAllYears() {
+    return this.prisma.academicYear.findMany({
+      orderBy: { startDate: 'desc' },
+    });
+  }
+
   // ─── Terms ────────────────────────────────────────────
 
   async createTerm(

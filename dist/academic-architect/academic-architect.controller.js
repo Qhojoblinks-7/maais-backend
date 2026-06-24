@@ -33,6 +33,9 @@ let AcademicArchitectController = class AcademicArchitectController {
     getActiveYear() {
         return this.service.getActiveYear();
     }
+    getAllYears() {
+        return this.service.getAllYears();
+    }
     createTerm(dto) {
         return this.service.createTerm(dto.academicYearId, dto.termNumber, new Date(dto.startDate), new Date(dto.endDate));
     }
@@ -105,6 +108,15 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getActiveYear", null);
+__decorate([
+    (0, common_1.Get)('years'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all academic years' }),
+    openapi.ApiResponse({ status: 200 }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AcademicArchitectController.prototype, "getAllYears", null);
 __decorate([
     (0, common_1.Post)('terms'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),

@@ -37,6 +37,14 @@ export declare class AcademicArchitectService {
         startDate: Date;
         endDate: Date;
     }>;
+    getAllYears(): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        label: string;
+        startDate: Date;
+        endDate: Date;
+    }[]>;
     createTerm(academicYearId: string, termNumber: TermNumber, startDate: Date, endDate: Date): Promise<{
         id: string;
         isActive: boolean;

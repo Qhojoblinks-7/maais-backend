@@ -38,6 +38,14 @@ export declare class AcademicArchitectController {
         startDate: Date;
         endDate: Date;
     }>;
+    getAllYears(): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        label: string;
+        startDate: Date;
+        endDate: Date;
+    }[]>;
     createTerm(dto: CreateTermDto): Promise<{
         id: string;
         isActive: boolean;

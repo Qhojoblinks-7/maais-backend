@@ -17,6 +17,7 @@ import { BehaviorModule } from './behavior/behavior.module';
 import { InterventionsModule } from './interventions/interventions.module';
 import { TimetableModule } from './timetable/timetable.module';
 import { TeacherModule } from './teacher/teacher.module';
+import { HODModule } from './hod/hod.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TeacherModule } from './teacher/teacher.module';
     InterventionsModule,
     TimetableModule,
     TeacherModule,
+    HODModule,
   ],
   providers: [
     {
