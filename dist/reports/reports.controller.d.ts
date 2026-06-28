@@ -76,8 +76,8 @@ export declare class ReportsController {
                 isActive: boolean;
                 createdAt: Date;
                 departmentId: string | null;
-                description: string | null;
                 type: import(".prisma/client").$Enums.SubjectType;
+                description: string | null;
                 code: string;
             };
         } & {
@@ -212,8 +212,8 @@ export declare class ReportsController {
                     isActive: boolean;
                     createdAt: Date;
                     departmentId: string | null;
-                    description: string | null;
                     type: import(".prisma/client").$Enums.SubjectType;
+                    description: string | null;
                     code: string;
                 };
             } & {

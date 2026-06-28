@@ -13,8 +13,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         };
         student: {
@@ -63,8 +63,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         };
         student: {
@@ -290,8 +290,8 @@ export declare class GradingController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         };
         corrections: {

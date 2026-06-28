@@ -29,8 +29,8 @@ export declare class CommsService {
         id: string;
         createdAt: Date;
         staffId: string | null;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -43,8 +43,8 @@ export declare class CommsService {
         id: string;
         createdAt: Date;
         staffId: string | null;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -57,8 +57,8 @@ export declare class CommsService {
         id: string;
         createdAt: Date;
         staffId: string | null;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -72,8 +72,8 @@ export declare class CommsService {
         id: string;
         createdAt: Date;
         staffId: string | null;
-        studentId: string | null;
         title: string;
+        studentId: string | null;
         body: string;
         channel: import(".prisma/client").$Enums.NotificationChannel;
         isRead: boolean;
@@ -121,8 +121,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;
@@ -135,8 +135,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;
@@ -176,8 +176,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;
@@ -221,8 +221,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;
@@ -258,8 +258,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;
@@ -300,8 +300,8 @@ export declare class CommsService {
         createdAt: Date;
         updatedAt: Date;
         description: string;
-        studentId: string;
         title: string;
+        studentId: string;
         status: string;
         resolvedAt: Date | null;
         createdById: string | null;

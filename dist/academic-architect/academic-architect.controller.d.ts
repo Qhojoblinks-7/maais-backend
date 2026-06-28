@@ -106,8 +106,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         }[];
     } & {
@@ -126,8 +126,8 @@ export declare class AcademicArchitectController {
         isActive: boolean;
         createdAt: Date;
         departmentId: string | null;
-        description: string | null;
         type: import(".prisma/client").$Enums.SubjectType;
+        description: string | null;
         code: string;
     }>;
     getAllSubjects(): Promise<({
@@ -147,8 +147,8 @@ export declare class AcademicArchitectController {
         isActive: boolean;
         createdAt: Date;
         departmentId: string | null;
-        description: string | null;
         type: import(".prisma/client").$Enums.SubjectType;
+        description: string | null;
         code: string;
     })[]>;
     createClass(dto: CreateClassSectionDto): Promise<{
@@ -209,8 +209,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         };
         classSection: {
@@ -234,8 +234,8 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             createdAt: Date;
             departmentId: string | null;
-            description: string | null;
             type: import(".prisma/client").$Enums.SubjectType;
+            description: string | null;
             code: string;
         };
         classSection: {
