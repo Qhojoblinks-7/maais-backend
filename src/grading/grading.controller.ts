@@ -3,12 +3,13 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Body,
   Param,
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, AuditAction } from '@prisma/client';
 import { GradingService } from './grading.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
@@ -22,7 +23,10 @@ import {
 @ApiBearerAuth()
 @Controller('grading')
 export class GradingController {
-  constructor(private gradingService: GradingService, private prisma: PrismaService) {}
+  constructor(
+    private gradingService: GradingService,
+    private prisma: PrismaService,
+  ) {}
 
   @Post('entries')
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
@@ -113,7 +117,15 @@ export class GradingController {
     return this.prisma.gradeEntry.findUnique({
       where: { id },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } } },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            indexNumber: true,
+            currentClass: { select: { name: true } },
+          },
+        },
         subject: { select: { id: true, name: true } },
         term: { select: { id: true, termNumber: true } },
       },
@@ -123,11 +135,26 @@ export class GradingController {
   @Patch('entries/:id/unlock')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Unlock a grade entry' })
-  unlockGrade(@Param('id') id: string) {
-    return this.prisma.gradeEntry.update({
+  async unlockGrade(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const updated = await this.prisma.gradeEntry.update({
       where: { id },
       data: { isLocked: false, lockedById: null, lockedAt: null },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId,
+        action: AuditAction.UNLOCK,
+        entity: 'GradeEntry',
+        entityId: id,
+        payload: { gradeEntryId: id, unlockedById: userId },
+      },
+    });
+
+    return updated;
   }
 
   @Get('classes/:classId/terms/:termId/performance')
@@ -139,7 +166,12 @@ export class GradingController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
+    return this.gradingService.getClassPerformanceSummary(
+      classId,
+      termId,
+      userId,
+      role,
+    );
   }
 
   @Get('class-summary/:classId')
@@ -178,7 +210,9 @@ export class GradingController {
 
   @Get('students/for-grading')
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Get students eligible for grading by subject and class' })
+  @ApiOperation({
+    summary: 'Get students eligible for grading by subject and class',
+  })
   async getStudentsForGrading(
     @Query('subjectId') subjectId: string,
     @Query('classId') classId: string,
@@ -186,12 +220,106 @@ export class GradingController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.gradingService.getStudentsForGrading(subjectId, classId, termId, userId, role);
+    return this.gradingService.getStudentsForGrading(
+      subjectId,
+      classId,
+      termId,
+      userId,
+      role,
+    );
   }
 
   @Get('smart-remarks/:grade')
   @ApiOperation({ summary: 'Get smart remark suggestions for a grade' })
   getSmartRemarks(@Param('grade') grade: string) {
     return { grade, remarks: this.gradingService.getSmartRemarks(grade) };
+  }
+
+  @Get('rules')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get current grading rules configuration' })
+  async getGradingRules(@Query('termId') termId: string) {
+    if (termId) {
+      const rules = await this.prisma.assessmentRules.findUnique({
+        where: { termId },
+        include: { term: true },
+      });
+      if (rules) return rules;
+    }
+    const existing = await this.prisma.assessmentRules.findFirst();
+    if (!existing) {
+      return this.prisma.assessmentRules.create({
+        data: {
+          termId: 'default',
+          caWeight: 30,
+          examWeight: 70,
+          normalizationEnabled: true,
+        },
+      });
+    }
+    return existing;
+  }
+
+  @Put('rules')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Update grading rules configuration' })
+  async updateGradingRules(
+    @Body()
+    body: {
+      termId?: string;
+      caWeight?: number;
+      examWeight?: number;
+      normalizationEnabled?: boolean;
+      submissionDeadline?: string;
+    },
+  ) {
+    if (!body.termId) {
+      const existing = await this.prisma.assessmentRules.findFirst();
+      if (!existing) {
+        return this.prisma.assessmentRules.create({
+          data: {
+            termId: 'default',
+            caWeight: body.caWeight ?? 30,
+            examWeight: body.examWeight ?? 70,
+            normalizationEnabled: body.normalizationEnabled ?? true,
+            submissionDeadline: body.submissionDeadline
+              ? new Date(body.submissionDeadline)
+              : undefined,
+          },
+        });
+      }
+      return this.prisma.assessmentRules.update({
+        where: { id: existing.id },
+        data: {
+          caWeight: body.caWeight ?? existing.caWeight,
+          examWeight: body.examWeight ?? existing.examWeight,
+          normalizationEnabled:
+            body.normalizationEnabled ?? existing.normalizationEnabled,
+          submissionDeadline: body.submissionDeadline
+            ? new Date(body.submissionDeadline)
+            : existing.submissionDeadline,
+        },
+      });
+    }
+    return this.prisma.assessmentRules.upsert({
+      where: { termId: body.termId },
+      create: {
+        termId: body.termId,
+        caWeight: body.caWeight ?? 30,
+        examWeight: body.examWeight ?? 70,
+        normalizationEnabled: body.normalizationEnabled ?? true,
+        submissionDeadline: body.submissionDeadline
+          ? new Date(body.submissionDeadline)
+          : undefined,
+      },
+      update: {
+        caWeight: body.caWeight ?? 30,
+        examWeight: body.examWeight ?? 70,
+        normalizationEnabled: body.normalizationEnabled ?? true,
+        submissionDeadline: body.submissionDeadline
+          ? new Date(body.submissionDeadline)
+          : undefined,
+      },
+    });
   }
 }

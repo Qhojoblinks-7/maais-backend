@@ -1,6 +1,11 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { GradeRemark, Role } from '@prisma/client';
+import { GradeRemark, Role, AuditAction } from '@prisma/client';
+import { InterventionsService } from '../interventions/interventions.service';
 
 // GH SHS Standard WAEC grading
 const GRADE_BOUNDARIES = [
@@ -121,7 +126,10 @@ export interface CorrectGradeDto {
 
 @Injectable()
 export class GradingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private interventionsService: InterventionsService,
+  ) {}
 
   computeGrade(classScore: number, examScore: number) {
     const total = Math.round(classScore + examScore);
@@ -170,6 +178,15 @@ export class GradingService {
       grade = computed.grade;
     }
 
+    const existing = await this.prisma.gradeEntry.findFirst({
+      where: {
+        studentId: dto.studentId,
+        subjectId: dto.subjectId,
+        termId: dto.termId,
+      },
+      select: { classScore: true, examScore: true, totalScore: true, grade: true },
+    });
+
     const entry = await this.prisma.gradeEntry.upsert({
       where: {
         studentId_subjectId_termId: {
@@ -208,7 +225,80 @@ export class GradingService {
       include: { student: true, subject: true },
     });
 
+    await this.prisma.auditLog.create({
+      data: {
+        userId: submittedById,
+        action: existing ? AuditAction.UPDATE : AuditAction.CREATE,
+        entity: 'GradeEntry',
+        entityId: entry.id,
+        payload: {
+          studentId: dto.studentId,
+          subjectId: dto.subjectId,
+          termId: dto.termId,
+          oldValue: existing
+            ? { classScore: existing.classScore, examScore: existing.examScore, totalScore: existing.totalScore, grade: existing.grade }
+            : null,
+          newValue: { classScore: dto.classScore, examScore: dto.examScore, totalScore, grade },
+          justification: null,
+        },
+      },
+    });
+
+    const previousTermId = await this.getPreviousTermId(dto.termId);
+    if (previousTermId) {
+      try {
+        await this.interventionsService.checkPerformanceDrop(
+          dto.studentId,
+          dto.termId,
+          previousTermId,
+        );
+      } catch {
+        // Intervention check failure must not break grade submission
+      }
+    }
+
     return entry;
+  }
+
+  private async getPreviousTermId(
+    currentTermId: string,
+  ): Promise<string | null> {
+    const currentTerm = await this.prisma.term.findUniqueOrThrow({
+      where: { id: currentTermId },
+      select: { academicYearId: true, termNumber: true },
+    });
+
+    const termOrder: Record<string, number> = {
+      TERM_1: 1,
+      TERM_2: 2,
+      TERM_3: 3,
+    };
+    const currentNum = termOrder[currentTerm.termNumber];
+
+    const candidates = await this.prisma.term.findMany({
+      where: { academicYearId: currentTerm.academicYearId },
+      orderBy: { termNumber: 'desc' },
+    });
+
+    for (const t of candidates) {
+      if (termOrder[t.termNumber] < currentNum) {
+        return t.id;
+      }
+    }
+
+    const prevYear = await this.prisma.academicYear.findFirst({
+      where: { id: { not: currentTerm.academicYearId } },
+      orderBy: { startDate: 'desc' },
+    });
+
+    if (!prevYear) return null;
+
+    const prevYearTerms = await this.prisma.term.findMany({
+      where: { academicYearId: prevYear.id },
+      orderBy: { termNumber: 'desc' },
+    });
+
+    return prevYearTerms[0]?.id ?? null;
   }
 
   async approveGrade(
@@ -226,10 +316,25 @@ export class GradingService {
       );
     }
 
-    return this.prisma.gradeEntry.update({
+    const entry = await this.prisma.gradeEntry.update({
       where: { id: gradeEntryId },
       data: { isApproved: true, approvedById, approvedAt: new Date() },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: approvedById,
+        action: AuditAction.UPDATE,
+        entity: 'GradeEntry',
+        entityId: gradeEntryId,
+        payload: {
+          oldValue: { isApproved: false },
+          newValue: { isApproved: true, approvedAt: new Date().toISOString() },
+        },
+      },
+    });
+
+    return entry;
   }
 
   async bulkApproveGrades(ids: string[], approvedById: string, userRole: Role) {
@@ -243,10 +348,25 @@ export class GradingService {
       );
     }
 
-    return this.prisma.gradeEntry.updateMany({
+    const result = await this.prisma.gradeEntry.updateMany({
       where: { id: { in: ids } },
       data: { isApproved: true, approvedById, approvedAt: new Date() },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: approvedById,
+        action: AuditAction.UPDATE,
+        entity: 'GradeEntry',
+        entityId: ids[0] || 'bulk',
+        payload: {
+          approvedCount: result.count,
+          ids,
+        },
+      },
+    });
+
+    return result;
   }
 
   async getClassPerformanceSummary(
@@ -312,10 +432,22 @@ export class GradingService {
       throw new ForbiddenException('Only HODs or above can lock grade entries');
     }
 
-    return this.prisma.gradeEntry.update({
+    const updated = await this.prisma.gradeEntry.update({
       where: { id: gradeEntryId },
       data: { isLocked: true, lockedById, lockedAt: new Date() },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: lockedById,
+        action: AuditAction.LOCK,
+        entity: 'GradeEntry',
+        entityId: gradeEntryId,
+        payload: { gradeEntryId, lockedById },
+      },
+    });
+
+    return updated;
   }
 
   async correctGrade(dto: CorrectGradeDto, changedById: string) {
@@ -339,6 +471,21 @@ export class GradingService {
         oldValue,
         newValue: dto.newValue,
         reason: dto.reason,
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: changedById,
+        action: AuditAction.GRADE_CORRECTION,
+        entity: 'GradeEntry',
+        entityId: dto.gradeEntryId,
+        payload: {
+          fieldChanged: dto.fieldChanged,
+          oldValue,
+          newValue: dto.newValue,
+          justification: dto.reason,
+        },
       },
     });
 
@@ -485,7 +632,9 @@ export class GradingService {
     return entries.map((entry) => ({
       ...this.toObservation(
         entry,
-        entry.submittedById ? teacherMap.get(entry.submittedById) || 'Unknown' : 'Unknown',
+        entry.submittedById
+          ? teacherMap.get(entry.submittedById) || 'Unknown'
+          : 'Unknown',
       ),
       status: 'Missing',
     }));
@@ -523,17 +672,25 @@ export class GradingService {
     return entries.map((entry) =>
       this.toObservation(
         entry,
-        entry.submittedById ? teacherMap.get(entry.submittedById) || 'Unknown' : 'Unknown',
+        entry.submittedById
+          ? teacherMap.get(entry.submittedById) || 'Unknown'
+          : 'Unknown',
       ),
     );
   }
 
-  private async assertObservationAccess(entry: any, userId?: string, userRole?: Role) {
+  private async assertObservationAccess(
+    entry: any,
+    userId?: string,
+    userRole?: Role,
+  ) {
     if (userRole !== Role.TEACHER || !userId) return;
 
     const subjectIds = await this.getTeacherSubjectIds(userId);
     if (!subjectIds.includes(entry.subjectId)) {
-      throw new ForbiddenException('You can only access your assigned observations');
+      throw new ForbiddenException(
+        'You can only access your assigned observations',
+      );
     }
   }
 
@@ -633,7 +790,12 @@ export class GradingService {
     return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
   }
 
-  async updateObservation(observationId: string, body: any, userId?: string, userRole?: Role) {
+  async updateObservation(
+    observationId: string,
+    body: any,
+    userId?: string,
+    userRole?: Role,
+  ) {
     const entry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
       include: {
@@ -688,7 +850,11 @@ export class GradingService {
     return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
   }
 
-  async deleteObservation(observationId: string, userId?: string, userRole?: Role) {
+  async deleteObservation(
+    observationId: string,
+    userId?: string,
+    userRole?: Role,
+  ) {
     const entry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
       include: {
@@ -815,19 +981,36 @@ export class GradingService {
         }))
       : true;
 
-    if (userRole !== Role.SUPER_ADMIN && userRole !== Role.HEADMASTER && !isAssigned) {
+    if (
+      userRole !== Role.SUPER_ADMIN &&
+      userRole !== Role.HEADMASTER &&
+      !isAssigned
+    ) {
       return [];
     }
 
     const [students, gradeEntries] = await Promise.all([
       this.prisma.studentProfile.findMany({
         where: { currentClassId: classId },
-        select: { id: true, firstName: true, lastName: true, indexNumber: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          indexNumber: true,
+        },
         orderBy: { lastName: 'asc' },
       }),
       this.prisma.gradeEntry.findMany({
         where: { subjectId, termId: effectiveTermId },
-        select: { studentId: true, classScore: true, examScore: true, totalScore: true, grade: true, remark: true, hasObservation: true },
+        select: {
+          studentId: true,
+          classScore: true,
+          examScore: true,
+          totalScore: true,
+          grade: true,
+          remark: true,
+          hasObservation: true,
+        },
       }),
     ]);
 

@@ -36,9 +36,9 @@ export class InterventionsService {
     termId: string,
   ): Promise<number | null> {
     const result: { avg: number | null }[] = await this.prisma.$queryRaw`
-      SELECT AVG(CAST(grade AS DOUBLE PRECISION)) AS avg
-      FROM "Enrollment"
-      WHERE "studentId" = ${studentId} AND "termId" = ${termId}
+      SELECT AVG(CAST("totalScore" AS DOUBLE PRECISION)) AS avg
+      FROM "grade_entries"
+      WHERE "studentId" = ${studentId} AND "termId" = ${termId} AND "totalScore" IS NOT NULL
     `;
     return result?.[0]?.avg ?? null;
   }
@@ -56,15 +56,25 @@ export class InterventionsService {
     const drop = ((previous - current) / previous) * 100;
 
     if (drop >= 15) {
-      await this.prisma.interventionAlert.create({
-        data: {
+      const existing = await this.prisma.interventionAlert.findFirst({
+        where: {
           studentId,
-          previousAverage: previous,
-          currentAverage: current,
-          dropPercentage: drop,
           status: 'ACTIVE',
         },
+        orderBy: { createdAt: 'desc' },
       });
+
+      if (!existing) {
+        await this.prisma.interventionAlert.create({
+          data: {
+            studentId,
+            previousAverage: previous,
+            currentAverage: current,
+            dropPercentage: drop,
+            status: 'ACTIVE',
+          },
+        });
+      }
     }
   }
 }
