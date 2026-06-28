@@ -15,7 +15,7 @@ const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 class GenerateReportCardDto {
     static _OPENAPI_METADATA_FACTORY() {
-        return { studentId: { required: true, type: () => String }, termId: { required: true, type: () => String } };
+        return { studentId: { required: true, type: () => String }, termId: { required: false, type: () => String } };
     }
 }
 exports.GenerateReportCardDto = GenerateReportCardDto;
@@ -25,7 +25,8 @@ __decorate([
     __metadata("design:type", String)
 ], GenerateReportCardDto.prototype, "studentId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], GenerateReportCardDto.prototype, "termId", void 0);

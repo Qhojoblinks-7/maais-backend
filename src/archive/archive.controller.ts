@@ -44,8 +44,17 @@ export class ArchiveController {
     return this.archiveService.lockTerm(id);
   }
 
+  @Get('stats')
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get archive statistics and recent promotions' })
+  getStats() {
+    return this.archiveService.getArchiveStats();
+  }
+
   @Get('health')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Database health check' })
   health() {
     return this.archiveService.getDatabaseHealth();

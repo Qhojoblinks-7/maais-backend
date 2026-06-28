@@ -1,5 +1,15 @@
 import { ReportsService } from './reports.service';
 import { GenerateReportCardDto, BatchGenerateDto, BuildTranscriptDto } from './dto/reports.dto';
+declare class ReportGenerationQueryDto {
+    form?: string;
+    track?: string;
+    classSectionId?: string;
+    search?: string;
+}
+declare class SendNudgeDto {
+    classSectionId: string;
+    message?: string;
+}
 export declare class ReportsController {
     private reportsService;
     constructor(reportsService: ReportsService);
@@ -30,7 +40,6 @@ export declare class ReportsController {
                 firstName: string;
                 lastName: string;
                 middleName: string | null;
-                bio: string | null;
                 gender: import(".prisma/client").$Enums.Gender;
                 dateOfBirth: Date | null;
                 photoUrl: string | null;
@@ -77,7 +86,6 @@ export declare class ReportsController {
             updatedAt: Date;
             studentId: string;
             subjectId: string;
-            isApproved: boolean;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -92,6 +100,7 @@ export declare class ReportsController {
             lockedAt: Date | null;
             submittedById: string | null;
             submittedAt: Date | null;
+            isApproved: boolean;
             approvedById: string | null;
             approvedAt: Date | null;
         })[];
@@ -129,7 +138,6 @@ export declare class ReportsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -214,7 +222,6 @@ export declare class ReportsController {
                 updatedAt: Date;
                 studentId: string;
                 subjectId: string;
-                isApproved: boolean;
                 termId: string;
                 classScore: number | null;
                 examScore: number | null;
@@ -229,6 +236,7 @@ export declare class ReportsController {
                 lockedAt: Date | null;
                 submittedById: string | null;
                 submittedAt: Date | null;
+                isApproved: boolean;
                 approvedById: string | null;
                 approvedAt: Date | null;
             })[];
@@ -279,7 +287,6 @@ export declare class ReportsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -336,4 +343,39 @@ export declare class ReportsController {
         generatedAt?: undefined;
         indexNumber?: undefined;
     }>;
+    getStudentsForGeneration(query: ReportGenerationQueryDto): Promise<{
+        id: string;
+        indexNumber: string;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+        currentClass: {
+            level: import(".prisma/client").$Enums.ClassLevel;
+            name: string;
+            id: string;
+        };
+    }[]>;
+    compileBatchReports(body: {
+        classSectionId: string;
+        termId: string;
+    }): Promise<{
+        total: number;
+        succeeded: number;
+        failedCount: number;
+        failed: {
+            studentId: string;
+            indexNumber: string;
+            error: any;
+        }[];
+    }>;
+    getBlockingIssues(classSectionId: string): Promise<{
+        type: string;
+        message: string;
+        severity: string;
+    }[]>;
+    sendNudgeToTeachers(dto: SendNudgeDto, userId: string): Promise<{
+        sent: number;
+        teacherIds: string[];
+    }>;
 }
+export {};

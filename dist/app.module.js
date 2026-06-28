@@ -21,12 +21,17 @@ const archive_module_1 = require("./archive/archive.module");
 const comms_module_1 = require("./comms/comms.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
+const system_freeze_guard_1 = require("./common/guards/system-freeze.guard");
+const audit_interceptor_1 = require("./common/interceptors/audit.interceptor");
 const portal_module_1 = require("./portal/portal.module");
+const admin_module_1 = require("./admin/admin.module");
+const approvals_module_1 = require("./approvals/approvals.module");
 const behavior_module_1 = require("./behavior/behavior.module");
 const interventions_module_1 = require("./interventions/interventions.module");
 const timetable_module_1 = require("./timetable/timetable.module");
 const teacher_module_1 = require("./teacher/teacher.module");
 const hod_module_1 = require("./hod/hod.module");
+const database_init_service_1 = require("./common/services/database-init.service");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -44,11 +49,14 @@ exports.AppModule = AppModule = __decorate([
             archive_module_1.ArchiveModule,
             comms_module_1.CommsModule,
             portal_module_1.PortalModule,
+            admin_module_1.AdminModule,
+            approvals_module_1.ApprovalsModule,
             behavior_module_1.BehaviorModule,
             interventions_module_1.InterventionsModule,
             timetable_module_1.TimetableModule,
             teacher_module_1.TeacherModule,
             hod_module_1.HODModule,
+            admin_module_1.AdminModule,
         ],
         providers: [
             {
@@ -59,6 +67,15 @@ exports.AppModule = AppModule = __decorate([
                 provide: core_1.APP_GUARD,
                 useClass: roles_guard_1.RolesGuard,
             },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: system_freeze_guard_1.SystemFreezeGuard,
+            },
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: audit_interceptor_1.AuditInterceptor,
+            },
+            database_init_service_1.DatabaseInitService,
         ],
     })
 ], AppModule);

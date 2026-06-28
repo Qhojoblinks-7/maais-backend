@@ -62,7 +62,17 @@ let AcademicArchitectService = class AcademicArchitectService {
     }
     async getAllDepartments() {
         return this.prisma.department.findMany({
-            include: { subjects: true, _count: { select: { staff: true } } },
+            include: {
+                staff: {
+                    include: {
+                        user: {
+                            select: { id: true, email: true, role: true, isActive: true },
+                        },
+                    },
+                },
+                subjects: true,
+                _count: { select: { staff: true, subjects: true } },
+            },
             orderBy: { name: 'asc' },
         });
     }

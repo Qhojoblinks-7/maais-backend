@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { ClassLevel, PromotionStatus, Role } from '@prisma/client';
+import { ClassLevel, Role } from '@prisma/client';
 
 const PROMOTION_MAP: Record<ClassLevel, ClassLevel | null> = {
   [ClassLevel.FORM_1]: ClassLevel.FORM_2,
@@ -17,27 +17,58 @@ export class ArchiveService {
    * F1→F2, F2→F3, F3→Graduate/Alumni
    * Only callable by SUPER_ADMIN or HEADMASTER
    */
-  async runPromotionCycle(academicYearId: string, performedById: string) {
-    const year = await this.prisma.academicYear.findUniqueOrThrow({
-      where: { id: academicYearId },
-    });
+  async runPromotionCycle(
+    academicYearId?: string,
+    performedById?: string,
+    studentId?: string,
+    classId?: string,
+  ) {
+    let yearLabel = null;
+    let resolvedYearId = academicYearId;
+    const needsYearLookup = !resolvedYearId;
 
-    // Ensure all terms are locked before promotion
-    const unlockedTerms = await this.prisma.term.findMany({
-      where: { academicYearId, isLocked: false },
-    });
+    if (needsYearLookup) {
+      try {
+        const activeYear = await this.prisma.academicYear.findFirst({
+          where: { isActive: true },
+        });
+        resolvedYearId = activeYear?.id;
+        yearLabel = activeYear?.label || null;
+      } catch {
+        resolvedYearId = null;
+        yearLabel = null;
+      }
+    } else {
+      const year = await this.prisma.academicYear.findUniqueOrThrow({
+        where: { id: academicYearId },
+      });
+      yearLabel = year.label;
 
-    if (unlockedTerms.length > 0) {
-      throw new BadRequestException(
-        `${unlockedTerms.length} term(s) are still unlocked. Lock all terms before running promotion.`,
-      );
+      const unlockedTerms = await this.prisma.term.findMany({
+        where: { academicYearId, isLocked: false },
+      });
+
+      if (unlockedTerms.length > 0) {
+        throw new BadRequestException(
+          `${unlockedTerms.length} term(s) are still unlocked. Lock all terms before running promotion.`,
+        );
+      }
     }
 
-    // Fetch all active students with their current class
-    const students = await this.prisma.studentProfile.findMany({
+    let students = await this.prisma.studentProfile.findMany({
       where: { archivedAt: null, currentClassId: { not: null } },
       include: { currentClass: true },
     });
+
+    const totalCount = students.length;
+
+    if (studentId) {
+      students = students.filter((s) => s.id === studentId);
+    }
+
+    if (classId) {
+      students = students.filter((s) => s.currentClassId === classId);
+    }
 
     const promotionRecords = [];
     const graduates = [];
@@ -47,21 +78,18 @@ export class ArchiveService {
       const nextLevel = PROMOTION_MAP[currentLevel];
 
       if (nextLevel === null) {
-        // FORM_3 → Graduate
         graduates.push(student.id);
         promotionRecords.push({
           studentId: student.id,
-          academicYearId,
+          academicYearId: resolvedYearId,
           fromClass: currentLevel,
           toClass: null,
-          status: PromotionStatus.GRADUATED,
-          performedById,
+          status: 'GRADUATED',
+          performedById: performedById || '',
         });
       } else {
-        // Find the next class section (matching suffix, next level)
-        // e.g. "1A" (Form 1) -> find something like "2A" in Form 2
         const currentClassName = student.currentClass!.name;
-        const suffix = currentClassName.replace(/^[1-3]/, ''); // Remove the form number prefix
+        const suffix = currentClassName.replace(/^[1-3]/, '');
 
         const nextClass = await this.prisma.classSection.findFirst({
           where: {
@@ -79,32 +107,28 @@ export class ArchiveService {
 
         promotionRecords.push({
           studentId: student.id,
-          academicYearId,
+          academicYearId: resolvedYearId,
           fromClass: currentLevel,
           toClass: nextLevel,
-          status: PromotionStatus.PROMOTED,
-          performedById,
+          status: 'PROMOTED',
+          performedById: performedById || '',
         });
       }
     }
 
-    // Archive graduates
-    if (graduates.length > 0) {
-      await this.prisma.studentProfile.updateMany({
-        where: { id: { in: graduates } },
-        data: { archivedAt: new Date(), currentClassId: null },
-      });
+    await this.prisma.studentProfile.updateMany({
+      where: { id: { in: graduates } },
+      data: { archivedAt: new Date(), currentClassId: null },
+    });
+
+    if (resolvedYearId) {
+      await this.prisma.promotionRecord.createMany({ data: promotionRecords });
     }
 
-    // Bulk insert promotion records
-    await this.prisma.promotionRecord.createMany({ data: promotionRecords });
-
     return {
-      academicYear: year.label,
-      totalProcessed: students.length,
-      promoted: promotionRecords.filter(
-        (r) => r.status === PromotionStatus.PROMOTED,
-      ).length,
+      academicYear: yearLabel,
+      totalProcessed: totalCount,
+      promoted: promotionRecords.filter((r) => r.status === 'PROMOTED').length,
       graduated: graduates.length,
     };
   }
@@ -238,6 +262,63 @@ export class ArchiveService {
         totalTranscripts,
         pendingObservations,
       },
+    };
+  }
+
+  async getArchiveStats() {
+    const [
+      totalStudents,
+      archivedStudents,
+      totalPromotions,
+      totalReportCards,
+      totalTranscripts,
+      totalDepartments,
+      totalSubjects,
+    ] = await Promise.all([
+      this.prisma.studentProfile.count(),
+      this.prisma.studentProfile.count({
+        where: { archivedAt: { not: null } },
+      }),
+      this.prisma.promotionRecord.count(),
+      this.prisma.reportCard.count(),
+      this.prisma.transcript.count(),
+      this.prisma.department.count(),
+      this.prisma.subject.count(),
+    ]);
+
+    const recentPromotions = await this.prisma.promotionRecord.findMany({
+      take: 10,
+      orderBy: { performedAt: 'desc' },
+      include: {
+        student: {
+          include: {
+            user: { select: { email: true } },
+            currentClass: true,
+          },
+        },
+        academicYear: true,
+      },
+    });
+
+    return {
+      totalStudents,
+      archivedStudents,
+      totalPromotions,
+      totalReportCards,
+      totalTranscripts,
+      totalDepartments,
+      totalSubjects,
+      recentPromotions: recentPromotions.map((r) => ({
+        id: r.id,
+        studentId: r.studentId,
+        studentName: `${r.student.firstName} ${r.student.lastName}`,
+        studentIndex: r.student.indexNumber,
+        fromClass: r.fromClass,
+        toClass: r.toClass,
+        status: r.status,
+        academicYear: r.academicYear?.label,
+        performedAt: r.performedAt,
+      })),
     };
   }
 }

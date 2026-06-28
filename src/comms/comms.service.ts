@@ -1,6 +1,6 @@
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { NotificationChannel, Role } from '@prisma/client';
+import { NotificationChannel, Role, AuditAction } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import * as twilio from 'twilio';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
@@ -376,6 +376,20 @@ export class CommsService {
     });
   }
 
+  async getTicketById(ticketId: string) {
+    return this.prisma.supportTicket.findUniqueOrThrow({
+      where: { id: ticketId },
+      include: {
+        student: {
+          include: {
+            currentClass: true,
+            user: { select: { email: true } },
+          },
+        },
+      },
+    });
+  }
+
   async listTickets(
     query: { status?: string; category?: string; priority?: string },
     requesterId: string,
@@ -518,20 +532,39 @@ export class CommsService {
   }
 
   async getAnalyticsPulse(academicYearId?: string, userId?: string) {
-    const [enrollmentByClass, averageBySubject, attendanceSummary] =
-      await Promise.all([
-        this.prisma.classSection.findMany({
-          include: { _count: { select: { students: true } } },
-        }),
-        this.prisma.gradeEntry.groupBy({
-          by: ['subjectId'],
-          _avg: { totalScore: true },
-          _count: { id: true },
-        }),
-        this.prisma.attendanceRecord.aggregate({
-          _avg: { daysPresent: true, totalDays: true },
-        }),
-      ]);
+    const [
+      enrollmentByClass,
+      averageBySubject,
+      attendanceSummary,
+      recentAuditLogs,
+      recentTickets,
+    ] = await Promise.all([
+      this.prisma.classSection.findMany({
+        include: { _count: { select: { students: true } } },
+      }),
+      this.prisma.gradeEntry.groupBy({
+        by: ['subjectId'],
+        _avg: { totalScore: true },
+        _count: { id: true },
+      }),
+      this.prisma.attendanceRecord.aggregate({
+        _avg: { daysPresent: true, totalDays: true },
+      }),
+      this.prisma.auditLog.findMany({
+        take: 7,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: true,
+        },
+      }),
+      this.prisma.supportTicket.findMany({
+        take: 3,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          student: { include: { user: { select: { email: true } } } },
+        },
+      }),
+    ]);
 
     let teacherAssignments: any[] = [];
     if (userId) {
@@ -580,6 +613,77 @@ export class CommsService {
             studentCount: s._count.id,
           }));
 
+    const auditActivities = recentAuditLogs.map((log) => {
+      const payload = log.payload as any;
+      let event = '';
+      let type: 'system' | 'academic' | 'security' | 'comm' = 'academic';
+
+      if (payload) {
+        if (payload.action === 'FREEZE') {
+          event = `Frozen ${payload.departmentName || log.entity} department - ${payload.reason || 'No reason provided'}`;
+          type = 'security';
+        } else if (payload.action === 'TRANSFER') {
+          event = `Transferred ${payload.teacherName} from ${payload.fromDepartmentName} to ${payload.toDepartmentName}`;
+          type = 'system';
+        } else if (payload.action === 'CREDENTIAL_RESET') {
+          event = `Reset credentials for ${payload.staffName}`;
+          type = 'system';
+        } else if (payload.action === 'STRATEGY_PULSE_UPLOAD') {
+          event = `Strategy pulse uploaded for ${payload.departmentName || 'global'}`;
+          type = 'comm';
+        } else if (log.action === AuditAction.GRADE_CORRECTION) {
+          const indexOrId =
+            payload?.indexNumber || payload?.studentIndex || log.entityId;
+          const gradeInfo =
+            payload?.oldGrade && payload?.newGrade
+              ? ` (${payload.oldGrade} → ${payload.newGrade})`
+              : '';
+          event = `Corrected grade${gradeInfo} for ${indexOrId !== 'unknown' ? `index #${indexOrId}` : 'student'}`;
+          type = 'academic';
+        } else if (log.action === AuditAction.PROMOTE) {
+          const fromClass = payload?.fromClass || 'current';
+          const toClass = payload?.toClass || 'next level';
+          event = `Promoted student from ${fromClass} to ${toClass}`;
+          type = 'academic';
+        }
+      }
+
+      if (!event) {
+        const entityInfo = log.entityId
+          ? ` (${log.entityId.substring(0, 8)}...)`
+          : '';
+        event = `${log.action} on ${log.entity}${entityInfo}`;
+        type =
+          log.action === AuditAction.CREATE
+            ? 'system'
+            : log.action === AuditAction.UPDATE
+              ? 'academic'
+              : log.action === AuditAction.DELETE
+                ? 'security'
+                : 'comm';
+      }
+
+      return {
+        id: log.id,
+        time: log.createdAt.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        event,
+        type,
+      };
+    });
+
+    const ticketActivities = recentTickets.map((ticket) => ({
+      id: ticket.id,
+      time: ticket.createdAt.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      event: `Support ticket: ${ticket.title || ticket.description?.substring(0, 50) || 'New ticket'} - ${ticket.status || 'OPEN'}`,
+      type: 'comm' as const,
+    }));
+
     return {
       enrollment,
       subjectPerformance,
@@ -593,6 +697,7 @@ export class CommsService {
             className: `${a.classSection.level} ${a.classSection.name}`,
           }))
         : undefined,
+      recentActivity: [...auditActivities, ...ticketActivities].slice(0, 10),
     };
   }
 }

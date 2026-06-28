@@ -70,11 +70,36 @@ export declare class AcademicArchitectController {
         createdAt: Date;
         description: string | null;
         code: string;
+        isFrozen: boolean;
+        freezeReason: string | null;
+        frozenAt: Date | null;
     }>;
     getAllDepartments(): Promise<({
         _count: {
             staff: number;
+            subjects: number;
         };
+        staff: ({
+            user: {
+                id: string;
+                email: string;
+                role: import(".prisma/client").$Enums.Role;
+                isActive: boolean;
+            };
+        } & {
+            id: string;
+            phone: string | null;
+            userId: string;
+            firstName: string;
+            lastName: string;
+            middleName: string | null;
+            gender: import(".prisma/client").$Enums.Gender;
+            dateOfBirth: Date | null;
+            photoUrl: string | null;
+            departmentId: string | null;
+            staffId: string;
+            hiredAt: Date;
+        })[];
         subjects: {
             name: string;
             id: string;
@@ -91,6 +116,9 @@ export declare class AcademicArchitectController {
         createdAt: Date;
         description: string | null;
         code: string;
+        isFrozen: boolean;
+        freezeReason: string | null;
+        frozenAt: Date | null;
     })[]>;
     createSubject(dto: CreateSubjectDto): Promise<{
         name: string;
@@ -109,6 +137,9 @@ export declare class AcademicArchitectController {
             createdAt: Date;
             description: string | null;
             code: string;
+            isFrozen: boolean;
+            freezeReason: string | null;
+            frozenAt: Date | null;
         };
     } & {
         name: string;
@@ -144,8 +175,6 @@ export declare class AcademicArchitectController {
             departmentId: string | null;
             staffId: string;
             hiredAt: Date;
-            canTeach: boolean;
-            canOversight: boolean;
         };
     } & {
         level: import(".prisma/client").$Enums.ClassLevel;

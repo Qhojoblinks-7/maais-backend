@@ -59,6 +59,9 @@ let CommsController = class CommsController {
     listTickets(query, userId, role) {
         return this.commsService.listTickets(query, userId, role);
     }
+    getTicket(id) {
+        return this.commsService.getTicketById(id);
+    }
     updateTicketStatus(id, dto, userId, role) {
         return this.commsService.updateTicketStatus(id, dto, userId, role);
     }
@@ -195,6 +198,17 @@ __decorate([
     __metadata("design:paramtypes", [ticket_dto_1.TicketQueryDto, String, String]),
     __metadata("design:returntype", void 0)
 ], CommsController.prototype, "listTickets", null);
+__decorate([
+    (0, common_1.Get)('tickets/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get a single support ticket by ID' }),
+    openapi.ApiResponse({ status: 200, type: Object }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CommsController.prototype, "getTicket", null);
 __decorate([
     (0, common_1.Patch)('tickets/:id/status'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),

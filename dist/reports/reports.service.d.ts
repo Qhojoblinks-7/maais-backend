@@ -4,7 +4,7 @@ export declare class ReportsService {
     private prisma;
     private config;
     constructor(prisma: PrismaService, config: ConfigService);
-    generateReportCard(studentId: string, termId: string): Promise<{
+    generateReportCard(studentId: string, termId?: string): Promise<{
         reportCard: {
             term: {
                 academicYear: {
@@ -31,7 +31,6 @@ export declare class ReportsService {
                 firstName: string;
                 lastName: string;
                 middleName: string | null;
-                bio: string | null;
                 gender: import(".prisma/client").$Enums.Gender;
                 dateOfBirth: Date | null;
                 photoUrl: string | null;
@@ -78,7 +77,6 @@ export declare class ReportsService {
             updatedAt: Date;
             studentId: string;
             subjectId: string;
-            isApproved: boolean;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -93,6 +91,7 @@ export declare class ReportsService {
             lockedAt: Date | null;
             submittedById: string | null;
             submittedAt: Date | null;
+            isApproved: boolean;
             approvedById: string | null;
             approvedAt: Date | null;
         })[];
@@ -130,7 +129,6 @@ export declare class ReportsService {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -216,7 +214,6 @@ export declare class ReportsService {
                 updatedAt: Date;
                 studentId: string;
                 subjectId: string;
-                isApproved: boolean;
                 termId: string;
                 classScore: number | null;
                 examScore: number | null;
@@ -231,6 +228,7 @@ export declare class ReportsService {
                 lockedAt: Date | null;
                 submittedById: string | null;
                 submittedAt: Date | null;
+                isApproved: boolean;
                 approvedById: string | null;
                 approvedAt: Date | null;
             })[];
@@ -281,7 +279,6 @@ export declare class ReportsService {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -337,5 +334,26 @@ export declare class ReportsService {
         term?: undefined;
         generatedAt?: undefined;
         indexNumber?: undefined;
+    }>;
+    getStudentsForGeneration(query: any): Promise<{
+        id: string;
+        indexNumber: string;
+        firstName: string;
+        lastName: string;
+        middleName: string;
+        currentClass: {
+            level: import(".prisma/client").$Enums.ClassLevel;
+            name: string;
+            id: string;
+        };
+    }[]>;
+    getBlockingIssues(classSectionId: string): Promise<{
+        type: string;
+        message: string;
+        severity: string;
+    }[]>;
+    sendNudgeToTeachers(classSectionId: string, message?: string, userId?: string): Promise<{
+        sent: number;
+        teacherIds: string[];
     }>;
 }

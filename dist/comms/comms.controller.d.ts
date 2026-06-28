@@ -97,6 +97,12 @@ export declare class CommsController {
             classSectionId: any;
             className: string;
         }[];
+        recentActivity: {
+            id: string;
+            time: string;
+            event: string;
+            type: "security" | "academic" | "system" | "comm";
+        }[];
     }>;
     createTicket(dto: CreateSupportTicketDto, userId: string): Promise<{
         student: {
@@ -117,7 +123,6 @@ export declare class CommsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -134,11 +139,11 @@ export declare class CommsController {
         studentId: string;
         title: string;
         status: string;
+        resolvedAt: Date | null;
         createdById: string | null;
         category: string;
         priority: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
     getMyTickets(userId: string, role: Role): Promise<({
         student: {
@@ -159,7 +164,6 @@ export declare class CommsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -176,11 +180,11 @@ export declare class CommsController {
         studentId: string;
         title: string;
         status: string;
+        resolvedAt: Date | null;
         createdById: string | null;
         category: string;
         priority: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     })[]>;
     listTickets(query: TicketQueryDto, userId: string, role: Role): Promise<({
         student: {
@@ -201,7 +205,6 @@ export declare class CommsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -218,12 +221,53 @@ export declare class CommsController {
         studentId: string;
         title: string;
         status: string;
+        resolvedAt: Date | null;
         createdById: string | null;
         category: string;
         priority: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     })[]>;
+    getTicket(id: string): Promise<{
+        student: {
+            user: {
+                email: string;
+            };
+            currentClass: {
+                level: import(".prisma/client").$Enums.ClassLevel;
+                name: string;
+                id: string;
+                capacity: number;
+                classTeacherId: string | null;
+            };
+        } & {
+            id: string;
+            userId: string;
+            indexNumber: string;
+            firstName: string;
+            lastName: string;
+            middleName: string | null;
+            gender: import(".prisma/client").$Enums.Gender;
+            dateOfBirth: Date | null;
+            photoUrl: string | null;
+            admissionDate: Date;
+            currentClassId: string | null;
+            departmentId: string | null;
+            archivedAt: Date | null;
+        };
+    } & {
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        description: string;
+        studentId: string;
+        title: string;
+        status: string;
+        resolvedAt: Date | null;
+        createdById: string | null;
+        category: string;
+        priority: string;
+        assignedTo: string | null;
+    }>;
     updateTicketStatus(id: string, dto: UpdateTicketStatusDto, userId: string, role: Role): Promise<{
         student: {
             user: {
@@ -236,7 +280,6 @@ export declare class CommsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -253,11 +296,11 @@ export declare class CommsController {
         studentId: string;
         title: string;
         status: string;
+        resolvedAt: Date | null;
         createdById: string | null;
         category: string;
         priority: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
     addReply(id: string, dto: AddTicketReplyDto, userId: string, role: Role): Promise<{
         reply: {
@@ -277,7 +320,6 @@ export declare class CommsController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -293,10 +335,10 @@ export declare class CommsController {
         studentId: string;
         title: string;
         status: string;
+        resolvedAt: Date | null;
         createdById: string | null;
         category: string;
         priority: string;
         assignedTo: string | null;
-        resolvedAt: Date | null;
     }>;
 }

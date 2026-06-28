@@ -33,6 +33,9 @@ let ArchiveController = class ArchiveController {
     lockTerm(id) {
         return this.archiveService.lockTerm(id);
     }
+    getStats() {
+        return this.archiveService.getArchiveStats();
+    }
     health() {
         return this.archiveService.getDatabaseHealth();
     }
@@ -72,8 +75,19 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ArchiveController.prototype, "lockTerm", null);
 __decorate([
+    (0, common_1.Get)('stats'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Get archive statistics and recent promotions' }),
+    openapi.ApiResponse({ status: 200 }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ArchiveController.prototype, "getStats", null);
+__decorate([
     (0, common_1.Get)('health'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiBearerAuth)(),
     (0, swagger_1.ApiOperation)({ summary: 'Database health check' }),
     openapi.ApiResponse({ status: 200 }),
     __metadata("design:type", Function),

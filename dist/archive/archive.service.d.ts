@@ -3,8 +3,8 @@ import { ClassLevel, Role } from '@prisma/client';
 export declare class ArchiveService {
     private prisma;
     constructor(prisma: PrismaService);
-    runPromotionCycle(academicYearId: string, performedById: string): Promise<{
-        academicYear: string;
+    runPromotionCycle(academicYearId?: string, performedById?: string, studentId?: string, classId?: string): Promise<{
+        academicYear: any;
         totalProcessed: number;
         promoted: number;
         graduated: number;
@@ -51,7 +51,6 @@ export declare class ArchiveService {
             updatedAt: Date;
             studentId: string;
             subjectId: string;
-            isApproved: boolean;
             termId: string;
             classScore: number | null;
             examScore: number | null;
@@ -66,6 +65,7 @@ export declare class ArchiveService {
             lockedAt: Date | null;
             submittedById: string | null;
             submittedAt: Date | null;
+            isApproved: boolean;
             approvedById: string | null;
             approvedAt: Date | null;
         })[];
@@ -136,7 +136,6 @@ export declare class ArchiveService {
         firstName: string;
         lastName: string;
         middleName: string | null;
-        bio: string | null;
         gender: import(".prisma/client").$Enums.Gender;
         dateOfBirth: Date | null;
         photoUrl: string | null;
@@ -166,5 +165,25 @@ export declare class ArchiveService {
             totalTranscripts: number;
             pendingObservations: number;
         };
+    }>;
+    getArchiveStats(): Promise<{
+        totalStudents: number;
+        archivedStudents: number;
+        totalPromotions: number;
+        totalReportCards: number;
+        totalTranscripts: number;
+        totalDepartments: number;
+        totalSubjects: number;
+        recentPromotions: {
+            id: string;
+            studentId: string;
+            studentName: string;
+            studentIndex: string;
+            fromClass: import(".prisma/client").$Enums.ClassLevel;
+            toClass: import(".prisma/client").$Enums.ClassLevel;
+            status: import(".prisma/client").$Enums.PromotionStatus;
+            academicYear: string;
+            performedAt: Date;
+        }[];
     }>;
 }

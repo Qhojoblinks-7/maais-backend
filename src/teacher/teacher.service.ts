@@ -79,9 +79,9 @@ export class TeacherService {
               })
             : [];
 
-        const completed = grades.filter(
-          (grade) => typeof grade.totalScore === 'number',
-        ).length;
+          const completed = grades.filter(
+            (grade) => typeof grade.totalScore === 'number',
+          ).length;
           const studentCount = studentIds.length;
           const progress =
             studentCount > 0 ? Math.round((completed / studentCount) * 100) : 0;
@@ -280,66 +280,72 @@ export class TeacherService {
       const observations: any[] = [];
 
       await Promise.all(
-        assignmentStudentData.map(async ({ assignment, students, studentIds }) => {
-          const grades = activeTerm
-            ? await this.prisma.gradeEntry.findMany({
-                where: {
-                  studentId: { in: studentIds },
-                  subjectId: assignment.subjectId,
-                  termId: activeTerm.id,
-                },
-                select: {
-                  id: true,
-                  totalScore: true,
-                  remark: true,
-                  observationText: true,
-                  updatedAt: true,
-                  student: true,
-                },
-              })
-            : [];
+        assignmentStudentData.map(
+          async ({ assignment, students, studentIds }) => {
+            const grades = activeTerm
+              ? await this.prisma.gradeEntry.findMany({
+                  where: {
+                    studentId: { in: studentIds },
+                    subjectId: assignment.subjectId,
+                    termId: activeTerm.id,
+                  },
+                  select: {
+                    id: true,
+                    totalScore: true,
+                    remark: true,
+                    observationText: true,
+                    updatedAt: true,
+                    student: true,
+                  },
+                })
+              : [];
 
-          grades.forEach((grade) => {
-            const student = grade.student;
-            const score =
-              typeof grade.totalScore === 'number'
-                ? Math.round(grade.totalScore)
-                : 0;
-            const studentName = [student.firstName, student.lastName]
-              .filter(Boolean)
-              .join(' ');
-            const date = grade.updatedAt.toISOString().slice(0, 10);
-            const status =
-              typeof grade.totalScore === 'number' ? 'Active' : 'Pending';
-            const observation = {
-              id: grade.id,
-              student: studentName || 'Unknown Student',
-              class: assignment.classSection.name,
-              index: student.indexNumber,
-              type: assignment.subject.name,
-              comment:
-                grade.remark ||
-                grade.observationText ||
-                'Grade entry pending observation',
-              date,
-              status,
-            };
-            const trend = getStudentTrend(student.id, assignment.subjectId, score);
+            grades.forEach((grade) => {
+              const student = grade.student;
+              const score =
+                typeof grade.totalScore === 'number'
+                  ? Math.round(grade.totalScore)
+                  : 0;
+              const studentName = [student.firstName, student.lastName]
+                .filter(Boolean)
+                .join(' ');
+              const date = grade.updatedAt.toISOString().slice(0, 10);
+              const status =
+                typeof grade.totalScore === 'number' ? 'Active' : 'Pending';
+              const observation = {
+                id: grade.id,
+                student: studentName || 'Unknown Student',
+                class: assignment.classSection.name,
+                index: student.indexNumber,
+                type: assignment.subject.name,
+                comment:
+                  grade.remark ||
+                  grade.observationText ||
+                  'Grade entry pending observation',
+                date,
+                status,
+              };
+              const trend = getStudentTrend(
+                student.id,
+                assignment.subjectId,
+                score,
+              );
 
-            studentScores.push({
-              id: grade.id,
-              student: observation.student,
-              class: assignment.classSection.name,
-              index: student.indexNumber,
-              score,
-              trend: trend.trend,
-              trendUp: trend.trendUp,
-              type: assignment.subject.name,
-              status,
+              studentScores.push({
+                id: grade.id,
+                student: observation.student,
+                class: assignment.classSection.name,
+                index: student.indexNumber,
+                score,
+                trend: trend.trend,
+                trendUp: trend.trendUp,
+                type: assignment.subject.name,
+                status,
+              });
+              observations.push(observation);
             });
-            observations.push(observation);
-          });
-        }),
+          },
+        ),
       );
 
       const termTrends = activeTerm
@@ -383,7 +389,12 @@ export class TeacherService {
       revisions.map(async (r) => {
         const student = await this.prisma.studentProfile.findUnique({
           where: { id: r.studentId },
-          select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+          select: {
+            firstName: true,
+            lastName: true,
+            indexNumber: true,
+            currentClass: { select: { name: true } },
+          },
         });
         const subject = await this.prisma.subject.findUnique({
           where: { id: r.subjectId },
@@ -391,23 +402,29 @@ export class TeacherService {
         });
         return {
           id: r.id,
-          student: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
+          teacherId: r.teacherId,
+          student: student
+            ? `${student.firstName} ${student.lastName}`
+            : 'Unknown Student',
           index: student?.indexNumber || '',
-          class: student?.currentClass?.name || 'Unknown',
-          subject: subject?.name || 'Unknown',
+          class: student?.currentClass?.name || 'Unknown Class',
+          subject: subject?.name || 'Unknown Subject',
           issue: r.issue,
           severity: r.severity,
           status: r.status,
           time: r.createdAt.toISOString(),
           history: r.history || [],
         };
-      })
+      }),
     );
 
     return transformed;
   }
 
-  async submitGradeRevision(body: { gradeEntryId: string; issue: string; severity: string }, teacherId: string) {
+  async submitGradeRevision(
+    body: { gradeEntryId: string; issue: string; severity: string },
+    teacherId: string,
+  ) {
     const gradeEntry = await this.prisma.gradeEntry.findUnique({
       where: { id: body.gradeEntryId },
       include: { student: { include: { currentClass: true } }, subject: true },
@@ -432,7 +449,11 @@ export class TeacherService {
     });
   }
 
-  async updateGradeRevision(revisionId: string, body: { status?: string; history?: any }, teacherId: string) {
+  async updateGradeRevision(
+    revisionId: string,
+    body: { status?: string; history?: any },
+    teacherId: string,
+  ) {
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: revisionId },
     });
@@ -451,7 +472,12 @@ export class TeacherService {
 
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: updated.studentId },
-      select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+      select: {
+        firstName: true,
+        lastName: true,
+        indexNumber: true,
+        currentClass: { select: { name: true } },
+      },
     });
     const subject = await this.prisma.subject.findUnique({
       where: { id: updated.subjectId },
@@ -482,7 +508,12 @@ export class TeacherService {
       revisions.map(async (r) => {
         const student = await this.prisma.studentProfile.findUnique({
           where: { id: r.studentId },
-          select: { firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } },
+          select: {
+            firstName: true,
+            lastName: true,
+            indexNumber: true,
+            currentClass: { select: { name: true } },
+          },
         });
         const subject = await this.prisma.subject.findUnique({
           where: { id: r.subjectId },
@@ -493,9 +524,12 @@ export class TeacherService {
           id: r.id,
           recordId: r.id,
           studentId: r.studentId,
-          student: student ? `${student.firstName} ${student.lastName}` : 'Unknown Student',
+          student: student
+            ? `${student.firstName} ${student.lastName}`
+            : 'Unknown Student',
           index: student?.indexNumber || '',
-          className: r.className || student?.currentClass?.name || 'Unknown Class',
+          className:
+            r.className || student?.currentClass?.name || 'Unknown Class',
           subject: subject?.name || 'Unknown Subject',
           issue: r.issue,
           status: r.status,
@@ -527,7 +561,11 @@ export class TeacherService {
     };
   }
 
-  async getSettingsClasses(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+  async getSettingsClasses(user: {
+    id: string;
+    role: Role;
+    staffProfile?: { id: string };
+  }) {
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId: user.id },
     });
@@ -612,7 +650,10 @@ export class TeacherService {
 
     const nameParts = (data.name || '').trim().split(/\s+/);
     const firstName = nameParts[0] || staffProfile.firstName;
-    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : staffProfile.lastName;
+    const lastName =
+      nameParts.length > 1
+        ? nameParts[nameParts.length - 1]
+        : staffProfile.lastName;
 
     await this.prisma.staffProfile.update({
       where: { id: staffProfile.id },
@@ -630,7 +671,10 @@ export class TeacherService {
       });
     }
 
-    return this.getProfile({ id: userId, role: staffProfile.user?.role || 'TEACHER' } as any);
+    return this.getProfile({
+      id: userId,
+      role: staffProfile.user?.role || 'TEACHER',
+    } as any);
   }
 
   async getSubjectConfig() {
@@ -652,7 +696,13 @@ export class TeacherService {
 
   async getGradingStatusMeta() {
     return {
-      statuses: ['PENDING', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REVISION_REQUESTED'],
+      statuses: [
+        'PENDING',
+        'SUBMITTED',
+        'UNDER_REVIEW',
+        'APPROVED',
+        'REVISION_REQUESTED',
+      ],
       colors: {
         PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
         SUBMITTED: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -676,7 +726,11 @@ export class TeacherService {
         orderBy: { level: 'asc' },
       }),
       this.prisma.term.findMany({
-        select: { id: true, termNumber: true, academicYear: { select: { label: true } } },
+        select: {
+          id: true,
+          termNumber: true,
+          academicYear: { select: { label: true } },
+        },
         orderBy: { startDate: 'desc' },
         take: 10,
       }),
@@ -696,33 +750,97 @@ export class TeacherService {
   async getObservationTypes() {
     return [
       { id: 'ACADEMIC', label: 'Academic', color: 'bg-blue-100 text-blue-800' },
-      { id: 'BEHAVIOR', label: 'Behavior', color: 'bg-amber-100 text-amber-800' },
-      { id: 'ATTENDANCE', label: 'Attendance', color: 'bg-purple-100 text-purple-800' },
+      {
+        id: 'BEHAVIOR',
+        label: 'Behavior',
+        color: 'bg-amber-100 text-amber-800',
+      },
+      {
+        id: 'ATTENDANCE',
+        label: 'Attendance',
+        color: 'bg-purple-100 text-purple-800',
+      },
       { id: 'GENERAL', label: 'General', color: 'bg-gray-100 text-gray-800' },
     ];
   }
 
   async getObservationColors() {
     return {
-      ACADEMIC: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300' },
-      BEHAVIOR: { bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' },
-      ATTENDANCE: { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300' },
-      GENERAL: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' },
-      COMPLETE: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
-      MISSING: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
-      LOGGED: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300' },
-      PENDING: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+      ACADEMIC: {
+        bg: 'bg-blue-100',
+        text: 'text-blue-800',
+        border: 'border-blue-300',
+      },
+      BEHAVIOR: {
+        bg: 'bg-amber-100',
+        text: 'text-amber-800',
+        border: 'border-amber-300',
+      },
+      ATTENDANCE: {
+        bg: 'bg-purple-100',
+        text: 'text-purple-800',
+        border: 'border-purple-300',
+      },
+      GENERAL: {
+        bg: 'bg-gray-100',
+        text: 'text-gray-800',
+        border: 'border-gray-300',
+      },
+      COMPLETE: {
+        bg: 'bg-emerald-100',
+        text: 'text-emerald-800',
+        border: 'border-emerald-300',
+      },
+      MISSING: {
+        bg: 'bg-red-100',
+        text: 'text-red-800',
+        border: 'border-red-300',
+      },
+      LOGGED: {
+        bg: 'bg-cyan-100',
+        text: 'text-cyan-800',
+        border: 'border-cyan-300',
+      },
+      PENDING: {
+        bg: 'bg-orange-100',
+        text: 'text-orange-800',
+        border: 'border-orange-300',
+      },
     };
   }
 
   async getAnalyticsObservationColors() {
     return {
-      COMPLETE: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
-      MISSING: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' },
-      LOGGED: { bg: 'bg-cyan-100', text: 'text-cyan-800', border: 'border-cyan-300' },
-      PENDING: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
-      IN_PROGRESS: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300' },
-      RESOLVED: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' },
+      COMPLETE: {
+        bg: 'bg-emerald-100',
+        text: 'text-emerald-800',
+        border: 'border-emerald-300',
+      },
+      MISSING: {
+        bg: 'bg-red-100',
+        text: 'text-red-800',
+        border: 'border-red-300',
+      },
+      LOGGED: {
+        bg: 'bg-cyan-100',
+        text: 'text-cyan-800',
+        border: 'border-cyan-300',
+      },
+      PENDING: {
+        bg: 'bg-orange-100',
+        text: 'text-orange-800',
+        border: 'border-orange-300',
+      },
+      IN_PROGRESS: {
+        bg: 'bg-blue-100',
+        text: 'text-blue-800',
+        border: 'border-blue-300',
+      },
+      RESOLVED: {
+        bg: 'bg-gray-100',
+        text: 'text-gray-800',
+        border: 'border-gray-300',
+      },
     };
   }
 
@@ -798,7 +916,11 @@ export class TeacherService {
     }));
   }
 
-  async getProfile(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+  async getProfile(user: {
+    id: string;
+    role: Role;
+    staffProfile?: { id: string };
+  }) {
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId: user.id },
       include: {
@@ -829,7 +951,11 @@ export class TeacherService {
     };
   }
 
-  async getSupportObservations(user: { id: string; role: Role; staffProfile?: { id: string } }) {
+  async getSupportObservations(user: {
+    id: string;
+    role: Role;
+    staffProfile?: { id: string };
+  }) {
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId: user.id },
     });
@@ -844,7 +970,9 @@ export class TeacherService {
     });
 
     const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+    const classSectionIds = [
+      ...new Set(assignments.map((a) => a.classSectionId)),
+    ];
 
     const whereClause: any = { hasObservation: true };
 
@@ -869,9 +997,14 @@ export class TeacherService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    const filteredEntries = classSectionIds.length > 0
-      ? entries.filter((e) => e.student?.currentClassId && classSectionIds.includes(e.student.currentClassId))
-      : entries;
+    const filteredEntries =
+      classSectionIds.length > 0
+        ? entries.filter(
+            (e) =>
+              e.student?.currentClassId &&
+              classSectionIds.includes(e.student.currentClassId),
+          )
+        : entries;
 
     const teacherMap = await this.getTeacherNameMap(
       filteredEntries.map((entry) => entry.submittedById),
@@ -927,10 +1060,12 @@ export class TeacherService {
       select: { id: true, termNumber: true },
     });
 
-    const term = activeTerm || await this.prisma.term.findFirst({
-      orderBy: { startDate: 'desc' },
-      select: { id: true, termNumber: true },
-    });
+    const term =
+      activeTerm ||
+      (await this.prisma.term.findFirst({
+        orderBy: { startDate: 'desc' },
+        select: { id: true, termNumber: true },
+      }));
 
     if (!subject || !classSection || !term) {
       return {
@@ -971,10 +1106,12 @@ export class TeacherService {
       select: { id: true },
     });
 
-    const term = activeTerm || await this.prisma.term.findFirst({
-      orderBy: { startDate: 'desc' },
-      select: { id: true },
-    });
+    const term =
+      activeTerm ||
+      (await this.prisma.term.findFirst({
+        orderBy: { startDate: 'desc' },
+        select: { id: true },
+      }));
 
     if (!subject?.id || !classSection?.id || !term?.id) {
       return [];
@@ -993,7 +1130,11 @@ export class TeacherService {
       },
     });
 
-    if (user.role !== Role.SUPER_ADMIN && user.role !== Role.HEADMASTER && !isAssigned) {
+    if (
+      user.role !== Role.SUPER_ADMIN &&
+      user.role !== Role.HEADMASTER &&
+      !isAssigned
+    ) {
       return [];
     }
 
@@ -1005,10 +1146,21 @@ export class TeacherService {
 
     const gradeEntriesPromise = this.prisma.gradeEntry.findMany({
       where: { subjectId: subject.id, termId: term.id },
-      select: { studentId: true, classScore: true, examScore: true, totalScore: true, grade: true, remark: true, hasObservation: true },
+      select: {
+        studentId: true,
+        classScore: true,
+        examScore: true,
+        totalScore: true,
+        grade: true,
+        remark: true,
+        hasObservation: true,
+      },
     });
 
-    const [students, gradeEntries] = await Promise.all([studentsPromise, gradeEntriesPromise]);
+    const [students, gradeEntries] = await Promise.all([
+      studentsPromise,
+      gradeEntriesPromise,
+    ]);
 
     const gradeMap = new Map(gradeEntries.map((g) => [g.studentId, g]));
 

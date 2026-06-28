@@ -54,17 +54,35 @@ let GradingController = class GradingController {
         return this.prisma.gradeEntry.findUnique({
             where: { id },
             include: {
-                student: { select: { id: true, firstName: true, lastName: true, indexNumber: true, currentClass: { select: { name: true } } } },
+                student: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        indexNumber: true,
+                        currentClass: { select: { name: true } },
+                    },
+                },
                 subject: { select: { id: true, name: true } },
                 term: { select: { id: true, termNumber: true } },
             },
         });
     }
-    unlockGrade(id) {
-        return this.prisma.gradeEntry.update({
+    async unlockGrade(id, userId) {
+        const updated = await this.prisma.gradeEntry.update({
             where: { id },
             data: { isLocked: false, lockedById: null, lockedAt: null },
         });
+        await this.prisma.auditLog.create({
+            data: {
+                userId,
+                action: client_1.AuditAction.UNLOCK,
+                entity: 'GradeEntry',
+                entityId: id,
+                payload: { gradeEntryId: id, unlockedById: userId },
+            },
+        });
+        return updated;
     }
     getClassPerformance(classId, termId, userId, role) {
         return this.gradingService.getClassPerformanceSummary(classId, termId, userId, role);
@@ -80,6 +98,77 @@ let GradingController = class GradingController {
     }
     getSmartRemarks(grade) {
         return { grade, remarks: this.gradingService.getSmartRemarks(grade) };
+    }
+    async getGradingRules(termId) {
+        if (termId) {
+            const rules = await this.prisma.assessmentRules.findUnique({
+                where: { termId },
+                include: { term: true },
+            });
+            if (rules)
+                return rules;
+        }
+        const existing = await this.prisma.assessmentRules.findFirst();
+        if (!existing) {
+            return this.prisma.assessmentRules.create({
+                data: {
+                    termId: 'default',
+                    caWeight: 30,
+                    examWeight: 70,
+                    normalizationEnabled: true,
+                },
+            });
+        }
+        return existing;
+    }
+    async updateGradingRules(body) {
+        if (!body.termId) {
+            const existing = await this.prisma.assessmentRules.findFirst();
+            if (!existing) {
+                return this.prisma.assessmentRules.create({
+                    data: {
+                        termId: 'default',
+                        caWeight: body.caWeight ?? 30,
+                        examWeight: body.examWeight ?? 70,
+                        normalizationEnabled: body.normalizationEnabled ?? true,
+                        submissionDeadline: body.submissionDeadline
+                            ? new Date(body.submissionDeadline)
+                            : undefined,
+                    },
+                });
+            }
+            return this.prisma.assessmentRules.update({
+                where: { id: existing.id },
+                data: {
+                    caWeight: body.caWeight ?? existing.caWeight,
+                    examWeight: body.examWeight ?? existing.examWeight,
+                    normalizationEnabled: body.normalizationEnabled ?? existing.normalizationEnabled,
+                    submissionDeadline: body.submissionDeadline
+                        ? new Date(body.submissionDeadline)
+                        : existing.submissionDeadline,
+                },
+            });
+        }
+        return this.prisma.assessmentRules.upsert({
+            where: { termId: body.termId },
+            create: {
+                termId: body.termId,
+                caWeight: body.caWeight ?? 30,
+                examWeight: body.examWeight ?? 70,
+                normalizationEnabled: body.normalizationEnabled ?? true,
+                submissionDeadline: body.submissionDeadline
+                    ? new Date(body.submissionDeadline)
+                    : undefined,
+            },
+            update: {
+                caWeight: body.caWeight ?? 30,
+                examWeight: body.examWeight ?? 70,
+                normalizationEnabled: body.normalizationEnabled ?? true,
+                submissionDeadline: body.submissionDeadline
+                    ? new Date(body.submissionDeadline)
+                    : undefined,
+            },
+        });
     }
 };
 exports.GradingController = GradingController;
@@ -192,9 +281,10 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Unlock a grade entry' }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
 ], GradingController.prototype, "unlockGrade", null);
 __decorate([
     (0, common_1.Get)('classes/:classId/terms/:termId/performance'),
@@ -237,7 +327,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('students/for-grading'),
     (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
-    (0, swagger_1.ApiOperation)({ summary: 'Get students eligible for grading by subject and class' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get students eligible for grading by subject and class',
+    }),
     openapi.ApiResponse({ status: 200 }),
     __param(0, (0, common_1.Query)('subjectId')),
     __param(1, (0, common_1.Query)('classId')),
@@ -257,10 +349,31 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], GradingController.prototype, "getSmartRemarks", null);
+__decorate([
+    (0, common_1.Get)('rules'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get current grading rules configuration' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Query)('termId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], GradingController.prototype, "getGradingRules", null);
+__decorate([
+    (0, common_1.Put)('rules'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Update grading rules configuration' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], GradingController.prototype, "updateGradingRules", null);
 exports.GradingController = GradingController = __decorate([
     (0, swagger_1.ApiTags)('Grading'),
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Controller)('grading'),
-    __metadata("design:paramtypes", [grading_service_1.GradingService, prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [grading_service_1.GradingService,
+        prisma_service_1.PrismaService])
 ], GradingController);
 //# sourceMappingURL=grading.controller.js.map

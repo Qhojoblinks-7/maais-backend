@@ -24,7 +24,6 @@ export declare class GradingController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -39,7 +38,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -54,6 +52,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -75,7 +74,6 @@ export declare class GradingController {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -90,7 +88,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -105,6 +102,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     })[]>;
@@ -114,7 +112,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -129,6 +126,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -138,7 +136,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -153,6 +150,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -163,7 +161,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -178,6 +175,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -227,7 +225,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -242,16 +239,16 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }, null, import("@prisma/client/runtime/client").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
-    unlockGrade(id: string): import(".prisma/client").Prisma.Prisma__GradeEntryClient<{
+    unlockGrade(id: string, userId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -266,9 +263,10 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
-    }, never, import("@prisma/client/runtime/client").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     getClassPerformance(classId: string, termId: string, userId: string, role: Role): Promise<{
         id: string;
         name: string;
@@ -299,12 +297,12 @@ export declare class GradingController {
         corrections: {
             id: string;
             createdAt: Date;
-            changedById: string;
-            fieldChanged: string;
             oldValue: string | null;
             newValue: string;
-            reason: string;
             gradeEntryId: string;
+            changedById: string;
+            fieldChanged: string;
+            reason: string;
         }[];
     } & {
         id: string;
@@ -312,7 +310,6 @@ export declare class GradingController {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -327,6 +324,7 @@ export declare class GradingController {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     })[]>;
@@ -345,4 +343,32 @@ export declare class GradingController {
         grade: string;
         remarks: string[];
     };
+    getGradingRules(termId: string): Promise<{
+        id: string;
+        termId: string;
+        isLocked: boolean;
+        lockedById: string | null;
+        lockedAt: Date | null;
+        caWeight: number;
+        examWeight: number;
+        normalizationEnabled: boolean;
+        submissionDeadline: Date | null;
+    }>;
+    updateGradingRules(body: {
+        termId?: string;
+        caWeight?: number;
+        examWeight?: number;
+        normalizationEnabled?: boolean;
+        submissionDeadline?: string;
+    }): Promise<{
+        id: string;
+        termId: string;
+        isLocked: boolean;
+        lockedById: string | null;
+        lockedAt: Date | null;
+        caWeight: number;
+        examWeight: number;
+        normalizationEnabled: boolean;
+        submissionDeadline: Date | null;
+    }>;
 }

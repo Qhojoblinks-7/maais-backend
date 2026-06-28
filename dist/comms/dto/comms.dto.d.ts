@@ -10,7 +10,9 @@ export declare class EmergencyNotificationDto {
     message: string;
 }
 export declare class PromotionDto {
-    academicYearId: string;
+    studentId?: string;
+    classId?: string;
+    academicYearId?: string;
 }
 export declare class HODActionDto {
     teacherId: string;

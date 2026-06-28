@@ -1,4 +1,14 @@
-import { Controller, Get, Param, UseGuards, Post, Patch, Delete, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
@@ -128,8 +138,15 @@ export class TeacherController {
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update teacher profile' })
   updateProfile(
-    @Body() data: { name?: string; department?: string; email?: string; phone?: string },
-    @CurrentUser() user: { id: string; role: Role; staffProfile?: { id: string } },
+    @Body()
+    data: {
+      name?: string;
+      department?: string;
+      email?: string;
+      phone?: string;
+    },
+    @CurrentUser()
+    user: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
     return this.teacherService.updateProfile(user.id, data);
   }
@@ -173,16 +190,21 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.getGradeRevisions(user.staffProfile?.id || user.id);
+    return this.teacherService.getGradeRevisions(
+      user.staffProfile?.id || user.id,
+    );
   }
 
   @Get('grading/students')
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Get students eligible for grading by subject and class names' })
+  @ApiOperation({
+    summary: 'Get students eligible for grading by subject and class names',
+  })
   getStudentsForGrading(
     @Query('subject') subjectName: string,
     @Query('class') className: string,
-    @CurrentUser() user: { id: string; role: Role; staffProfile?: { id: string } },
+    @CurrentUser()
+    user: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
     return this.teacherService.getGradingStudents(subjectName, className, user);
   }
@@ -201,7 +223,8 @@ export class TeacherController {
   @Roles(Role.TEACHER, Role.HOD)
   @ApiOperation({ summary: 'Submit a grade revision request' })
   submitGradeRevision(
-    @Body() body: {
+    @Body()
+    body: {
       gradeEntryId: string;
       issue: string;
       severity: string;
@@ -213,7 +236,10 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.submitGradeRevision(body, user.staffProfile?.id || user.id);
+    return this.teacherService.submitGradeRevision(
+      body,
+      user.staffProfile?.id || user.id,
+    );
   }
 
   @Patch('grade-revisions/:revisionId')
@@ -229,7 +255,11 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.updateGradeRevision(revisionId, body, user.staffProfile?.id || user.id);
+    return this.teacherService.updateGradeRevision(
+      revisionId,
+      body,
+      user.staffProfile?.id || user.id,
+    );
   }
 
   @Get('observations')
@@ -274,7 +304,12 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.gradingService.updateObservation(observationId, body, user.id, user.role);
+    return this.gradingService.updateObservation(
+      observationId,
+      body,
+      user.id,
+      user.role,
+    );
   }
 
   @Delete('observations/:observationId')
@@ -289,7 +324,11 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.gradingService.deleteObservation(observationId, user.id, user.role);
+    return this.gradingService.deleteObservation(
+      observationId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get('grade-issues')
@@ -317,6 +356,8 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.getGradeIssueStatusMeta(user.staffProfile?.id || user.id);
+    return this.teacherService.getGradeIssueStatusMeta(
+      user.staffProfile?.id || user.id,
+    );
   }
 }

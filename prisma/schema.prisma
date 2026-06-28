@@ -155,10 +155,6 @@ model StaffProfile {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-  // Dual-role flags for HODs who can also teach
-  canTeach      Boolean   @default(false)
-  canOversight  Boolean   @default(true)
-
   // Teaching assignments
   teachingAssignments TeachingAssignment[]
   classTeacher        ClassSection?        @relation("ClassTeacher")
@@ -179,7 +175,6 @@ model StudentProfile {
   firstName      String
   lastName      String
   middleName     String?
-  bio            String?
   gender         Gender
   dateOfBirth    DateTime?
   photoUrl       String?
@@ -268,6 +263,7 @@ model Term {
   grades      GradeEntry[]
   attendance  AttendanceRecord[]
   reportCards ReportCard[]
+  assessmentRules AssessmentRules?
 
   @@unique([academicYearId, termNumber])
   @@map("terms")
@@ -278,6 +274,9 @@ model Department {
   name        String   @unique // e.g. "Science", "General Arts"
   code        String   @unique
   description String?
+  isFrozen    Boolean  @default(false)
+  freezeReason String?
+  frozenAt    DateTime?
   createdAt   DateTime @default(now())
 
   staff    StaffProfile[]
@@ -680,4 +679,59 @@ model TimetableEntry {
   teacher      StaffProfile @relation(fields: [teacherId], references: [id])
 
   @@map("timetable_entries")
+}
+
+model ApprovalRequest {
+  id              String    @id @default(uuid())
+  teacherId       String
+  teacherName     String
+  detail          String
+  priority        String    @default("normal")
+  category        String    @default("other")
+  status          String    @default("pending")
+  resolutionNotes String?
+  documentUrl     String?
+  requestedAt     DateTime  @default(now())
+  resolvedAt      DateTime?
+  resolvedById    String?
+
+  @@index([status])
+  @@map("approval_requests")
+}
+
+model AssessmentRules {
+  id                   String   @id @default(uuid())
+  termId               String   @unique
+  term                 Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  caWeight             Int      @default(30)
+  examWeight           Int      @default(70)
+  normalizationEnabled Boolean  @default(true)
+  submissionDeadline   DateTime?
+  isLocked             Boolean  @default(false)
+  lockedAt             DateTime?
+  lockedById           String?
+
+  @@map("assessment_rules")
+}
+
+model DigitalSeal {
+  id              String   @id @default(uuid())
+  schoolStampUrl  String?
+  signatureUrl    String?
+  assignedToStaff String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@map("digital_seals")
+}
+
+model AdminSettings {
+  id               String   @id @default(uuid())
+  maintenanceMode  Boolean  @default(false)
+  mfaEnabled       Boolean  @default(true)
+  systemFrozen     Boolean  @default(false)
+  systemFreezeReason String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("admin_settings")
 }

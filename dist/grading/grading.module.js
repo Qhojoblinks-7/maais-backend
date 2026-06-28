@@ -10,11 +10,13 @@ exports.GradingModule = void 0;
 const common_1 = require("@nestjs/common");
 const grading_service_1 = require("./grading.service");
 const grading_controller_1 = require("./grading.controller");
+const interventions_module_1 = require("../interventions/interventions.module");
 let GradingModule = class GradingModule {
 };
 exports.GradingModule = GradingModule;
 exports.GradingModule = GradingModule = __decorate([
     (0, common_1.Module)({
+        imports: [interventions_module_1.InterventionsModule],
         providers: [grading_service_1.GradingService],
         controllers: [grading_controller_1.GradingController],
         exports: [grading_service_1.GradingService],

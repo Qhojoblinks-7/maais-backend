@@ -6,9 +6,10 @@ export class GenerateReportCardDto {
   @IsString()
   studentId: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  termId: string;
+  termId?: string;
 }
 
 export class BatchGenerateDto {

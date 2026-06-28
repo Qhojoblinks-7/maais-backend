@@ -164,6 +164,14 @@ export class CommsController {
     return this.commsService.listTickets(query, userId, role);
   }
 
+  @Get('tickets/:id')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a single support ticket by ID' })
+  getTicket(@Param('id') id: string) {
+    return this.commsService.getTicketById(id);
+  }
+
   @Patch('tickets/:id/status')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiBearerAuth()

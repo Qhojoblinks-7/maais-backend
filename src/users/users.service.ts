@@ -230,7 +230,17 @@ export class UsersService {
         include: {
           currentClass: true,
           department: true,
-          user: { select: { email: true, isActive: true } },
+          user: {
+            select: {
+              email: true,
+              phone: true,
+              isActive: true,
+              role: true,
+              lastLoginAt: true,
+            },
+          },
+          parentLinks: { take: 1, include: { parent: true } },
+          grades: { take: 20, include: { subject: true } },
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       });
@@ -239,12 +249,21 @@ export class UsersService {
     return this.prisma.studentProfile.findMany({
       where: {
         archivedAt: null,
-        ...(departmentId ? { departmentId } : {}),
       },
       include: {
         currentClass: true,
         department: true,
-        user: { select: { email: true, isActive: true } },
+        user: {
+          select: {
+            email: true,
+            phone: true,
+            isActive: true,
+            role: true,
+            lastLoginAt: true,
+          },
+        },
+        parentLinks: { take: 1, include: { parent: true } },
+        grades: { take: 20, include: { subject: true } },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
@@ -329,7 +348,6 @@ export class UsersService {
       firstName?: string;
       lastName?: string;
       middleName?: string;
-      bio?: string;
       photoUrl?: string;
       dateOfBirth?: string;
     },
@@ -343,7 +361,6 @@ export class UsersService {
     if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
     if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
     if (dto.middleName !== undefined) updateData.middleName = dto.middleName;
-    if (dto.bio !== undefined) updateData.bio = dto.bio;
     if (dto.photoUrl !== undefined) updateData.photoUrl = dto.photoUrl;
     if (dto.dateOfBirth !== undefined)
       updateData.dateOfBirth = dto.dateOfBirth
@@ -361,5 +378,167 @@ export class UsersService {
     });
 
     return updatedProfile;
+  }
+
+  async getAllParents() {
+    const parents = await this.prisma.parentProfile.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        occupation: true,
+        user: {
+          select: {
+            email: true,
+            isActive: true,
+            lastLoginAt: true,
+          },
+        },
+        studentLinks: {
+          select: {
+            relationship: true,
+            isPrimary: true,
+            student: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                currentClass: {
+                  select: {
+                    id: true,
+                    name: true,
+                    level: true,
+                  },
+                },
+                user: {
+                  select: {
+                    email: true,
+                  },
+                },
+                grades: {
+                  include: {
+                    subject: true,
+                    term: {
+                      include: {
+                        academicYear: true,
+                      },
+                    },
+                  },
+                  take: 50,
+                  orderBy: {
+                    term: {
+                      academicYear: {
+                        startDate: 'desc',
+                      },
+                    },
+                  },
+                },
+                attendance: {
+                  include: {
+                    term: true,
+                  },
+                  take: 10,
+                  orderBy: {
+                    term: {
+                      academicYear: {
+                        startDate: 'desc',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { lastName: 'asc' },
+    });
+
+    return (parents as any).map((p) => {
+      const fullName = `${p.firstName} ${p.lastName}`;
+      const wards = p.studentLinks.map((link) => {
+        const student = link.student;
+        const grades = student.grades || [];
+        const totalScore = grades.reduce(
+          (sum, g) => sum + (g.totalScore || 0),
+          0,
+        );
+        const averageScore = grades.length
+          ? Math.round((totalScore / grades.length) * 10) / 10
+          : 0;
+
+        const attendance = student.attendance || [];
+        const latestAttendance = attendance[0];
+        const attendancePct =
+          latestAttendance && latestAttendance.totalDays
+            ? Math.round(
+                (latestAttendance.daysPresent / latestAttendance.totalDays) *
+                  100,
+              )
+            : 0;
+
+        return {
+          id: student.id,
+          name:
+            `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
+            student.user?.email ||
+            student.id,
+          averageScore,
+          attendance: attendancePct,
+          feesStatus: 'Paid',
+          balance: 0,
+          relationship: link.relationship,
+          isPrimary: link.isPrimary,
+        };
+      });
+
+      return {
+        id: p.id,
+        name: fullName,
+        phone: p.phone,
+        email: p.email,
+        occupation: p.occupation,
+        wards,
+        appAdopted: !!p.user.lastLoginAt,
+        accessCode: `A-${p.id.slice(0, 4).toUpperCase()}`,
+        isPTAExecutive: false,
+        ptaRole: null,
+        lastContacted: null,
+        lastMessage: null,
+        communicationLogs: [],
+      };
+    });
+  }
+
+  async batchImportStudents(students: any[]) {
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (const s of students) {
+      try {
+        const dto = {
+          indexNumber: s.indexNumber || s.index_number,
+          firstName: s.firstName || s.first_name,
+          lastName: s.lastName || s.last_name,
+          middleName: s.middleName || s.middle_name,
+          gender: (s.gender || 'MALE').toUpperCase(),
+          dateOfBirth: s.dateOfBirth || s.date_of_birth || s.dob,
+          email: s.email,
+          password: s.password || 'Student@123!',
+        };
+
+        await this.createStudent(dto);
+        results.success++;
+      } catch (err: any) {
+        results.failed++;
+        results.errors.push({
+          indexNumber: s.indexNumber,
+          error: err.message || 'Unknown error',
+        });
+      }
+    }
+
+    return results;
   }
 }

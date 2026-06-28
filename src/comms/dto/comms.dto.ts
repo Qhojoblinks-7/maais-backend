@@ -35,9 +35,20 @@ export class EmergencyNotificationDto {
 }
 
 export class PromotionDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  academicYearId: string;
+  studentId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  classId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  academicYearId?: string;
 }
 
 export class HODActionDto {

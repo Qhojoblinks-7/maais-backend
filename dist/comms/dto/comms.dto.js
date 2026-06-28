@@ -62,12 +62,25 @@ __decorate([
 ], EmergencyNotificationDto.prototype, "message", void 0);
 class PromotionDto {
     static _OPENAPI_METADATA_FACTORY() {
-        return { academicYearId: { required: true, type: () => String } };
+        return { studentId: { required: false, type: () => String }, classId: { required: false, type: () => String }, academicYearId: { required: false, type: () => String } };
     }
 }
 exports.PromotionDto = PromotionDto;
 __decorate([
-    (0, swagger_1.ApiProperty)(),
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PromotionDto.prototype, "studentId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PromotionDto.prototype, "classId", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], PromotionDto.prototype, "academicYearId", void 0);

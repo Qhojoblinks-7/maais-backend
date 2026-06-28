@@ -88,10 +88,25 @@ export class UsersController {
     return this.usersService.getAllStaff(user);
   }
 
+  @Get('parents')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all parent accounts' })
+  getAllParents() {
+    return this.usersService.getAllParents();
+  }
+
   @Delete(':id/deactivate')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Deactivate a user account' })
   deactivate(@Param('id') id: string) {
     return this.usersService.deactivateUser(id);
+  }
+
+  @Post('students/batch')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @ApiOperation({ summary: 'Batch import students from CSSPS file' })
+  batchImportStudents(@Body() body: { students: any[] }) {
+    return this.usersService.batchImportStudents(body.students);
   }
 }

@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -44,7 +45,14 @@ export class HODController {
     @Query('academicYearId') academicYearId?: string,
     @Query('termNumber') termNumber?: string,
   ) {
-    return this.hodService.getDepartmentProgress(userId, role, page, limit, academicYearId, termNumber);
+    return this.hodService.getDepartmentProgress(
+      userId,
+      role,
+      page,
+      limit,
+      academicYearId,
+      termNumber,
+    );
   }
 
   @Get('academic-years')
@@ -76,7 +84,12 @@ export class HODController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.hodService.approveGradeRevision(recordId, comment, userId, role);
+    return this.hodService.approveGradeRevision(
+      recordId,
+      comment,
+      userId,
+      role,
+    );
   }
 
   @Post('records/:recordId/reject')
@@ -114,6 +127,28 @@ export class HODController {
     return this.hodService.lockTerm(termId, userId, role);
   }
 
+  @Post('lock-class/:classId')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Lock a class matrix' })
+  lockClassMatrix(
+    @Param('classId') classId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.lockClassMatrix(classId, userId, role);
+  }
+
+  @Post('unlock-class/:classId')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Unlock a class matrix' })
+  unlockClassMatrix(
+    @Param('classId') classId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.unlockClassMatrix(classId, userId, role);
+  }
+
   @Post('unlock-matrix/:termId')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Unlock a term' })
@@ -146,6 +181,25 @@ export class HODController {
     return this.hodService.getLockedTerms(userId, role);
   }
 
+  @Get('grades/compare')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Compare grades between two terms' })
+  getGradeComparison(
+    @Query('subjectId') subjectId: string,
+    @Query('termA') termA: string,
+    @Query('termB') termB: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.getGradeComparison(
+      subjectId,
+      termA,
+      termB,
+      userId,
+      role,
+    );
+  }
+
   @Get('teachers/submissions')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get teacher submission status for department' })
@@ -155,7 +209,12 @@ export class HODController {
     @Query('academicYearId') academicYearId?: string,
     @Query('termNumber') termNumber?: string,
   ) {
-    return this.hodService.getTeacherSubmissionStatus(userId, role, academicYearId, termNumber);
+    return this.hodService.getTeacherSubmissionStatus(
+      userId,
+      role,
+      academicYearId,
+      termNumber,
+    );
   }
 
   @Get('teachers')
@@ -169,6 +228,16 @@ export class HODController {
     return this.hodService.getDepartmentTeachers(userId, role, { search });
   }
 
+  @Get('teachers/submissions/trends')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Get teacher submission trends by month' })
+  getTeacherSubmissionTrends(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.getTeacherSubmissionTrends(userId, role);
+  }
+
   @Post('teachers/:teacherId/reset-password')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Reset teacher password' })
@@ -178,7 +247,12 @@ export class HODController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.hodService.resetTeacherPassword(teacherId, newPassword, userId, role);
+    return this.hodService.resetTeacherPassword(
+      teacherId,
+      newPassword,
+      userId,
+      role,
+    );
   }
 
   @Get('audit-logs')
@@ -192,9 +266,35 @@ export class HODController {
     return this.hodService.getAuditLogs(userId, role, params);
   }
 
+  @Post('audit-logs')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Create audit log entry' })
+  createAuditLog(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+    @Body()
+    data: { action: string; entity: string; entityId: string; payload?: any },
+  ) {
+    return this.hodService.createAuditLog(userId, role, data);
+  }
+
+  @Patch('audit-logs/:logId/comment')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Add HOD comment to audit log' })
+  addAuditLogComment(
+    @Param('logId') logId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+    @Body('comment') comment: string,
+  ) {
+    return this.hodService.addAuditLogComment(userId, role, logId, comment);
+  }
+
   @Get('compliance/cohort-performance')
   @Roles(Role.HOD)
-  @ApiOperation({ summary: 'Get longitudinal cohort performance data for compliance' })
+  @ApiOperation({
+    summary: 'Get longitudinal cohort performance data for compliance',
+  })
   getComplianceCohortPerformance(
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
@@ -214,7 +314,9 @@ export class HODController {
 
   @Get('promotion-metrics')
   @Roles(Role.HOD)
-  @ApiOperation({ summary: 'Get senior class promotion metrics for department' })
+  @ApiOperation({
+    summary: 'Get senior class promotion metrics for department',
+  })
   getPromotionMetrics(
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
@@ -234,7 +336,13 @@ export class HODController {
     @Query('academicYearId') academicYearId?: string,
     @Query('termNumber') termNumber?: string,
   ) {
-    return this.hodService.getInterventionAlerts(userId, role, { startDate, endDate, semester, academicYearId, termNumber });
+    return this.hodService.getInterventionAlerts(userId, role, {
+      startDate,
+      endDate,
+      semester,
+      academicYearId,
+      termNumber,
+    });
   }
 
   @Get('settings')
@@ -266,7 +374,12 @@ export class HODController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.hodService.changePassword(body.currentPassword, body.newPassword, userId, role);
+    return this.hodService.changePassword(
+      body.currentPassword,
+      body.newPassword,
+      userId,
+      role,
+    );
   }
 
   @Post('settings/mfa/enroll')
@@ -332,6 +445,17 @@ export class HODController {
     return this.hodService.getEscalatedIssues(userId, role, params);
   }
 
+  @Post('escalations')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Create escalation' })
+  createEscalation(
+    @Body() body: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.createEscalation(userId, role, body);
+  }
+
   @Post('impersonate/:teacherId')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Start impersonating a teacher' })
@@ -341,7 +465,12 @@ export class HODController {
     @CurrentUser('role') role: Role,
     @Body() body?: { reason?: string },
   ) {
-    return this.hodService.impersonateTeacher(teacherId, body || {}, userId, role);
+    return this.hodService.impersonateTeacher(
+      teacherId,
+      body || {},
+      userId,
+      role,
+    );
   }
 
   @Post('impersonate/stop')
@@ -352,6 +481,94 @@ export class HODController {
     @CurrentUser('role') role: Role,
   ) {
     return this.hodService.stopImpersonation(userId, role);
+  }
+
+  @Get('impersonate/active')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get active impersonations' })
+  getActiveImpersonations(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.getActiveImpersonations(userId, role);
+  }
+
+  @Get('support/tickets')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get support tickets' })
+  getSupportTickets(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+    @Query() params?: any,
+  ) {
+    return this.hodService.getSupportTickets(userId, role, params);
+  }
+
+  @Post('support/tickets')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Create support ticket' })
+  createSupportTicket(
+    @Body() ticket: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.createSupportTicket(userId, role, ticket);
+  }
+
+  @Patch('support/tickets/:ticketId')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Update support ticket' })
+  updateSupportTicket(
+    @Param('ticketId') ticketId: string,
+    @Body() patch: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.updateSupportTicket(userId, role, ticketId, patch);
+  }
+
+  @Post('support/tickets/:ticketId/escalate')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Escalate a ticket' })
+  escalateTicket(
+    @Param('ticketId') ticketId: string,
+    @Body() body: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.escalateTicket(userId, role, ticketId, body);
+  }
+
+  @Get('contact-channels')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Get contact channels' })
+  getContactChannels(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.getContactChannels(userId, role);
+  }
+
+  @Patch('contact-channels')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Update contact channels' })
+  updateContactChannels(
+    @Body() channels: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.updateContactChannels(userId, role, channels);
+  }
+
+  @Get('students/:studentId/academic-history')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Get student academic history' })
+  getStudentAcademicHistory(
+    @Param('studentId') studentId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.getStudentAcademicHistory(userId, role, studentId);
   }
 
   @Get('archive')
@@ -379,12 +596,81 @@ export class HODController {
   @Post('export-waec/:termId')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Export WAEC CSV for term' })
-  exportWAECCSV(
+  async exportWAECCSV(
+    @Param('termId') termId: string,
+    @Query('class') className: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+    @Res() res: any,
+  ) {
+    const csv = await this.hodService.exportWAECCSV(
+      termId,
+      className,
+      userId,
+      role,
+    );
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="WAEC_${className}_${termId}.csv"`,
+    );
+    return res.send(csv);
+  }
+
+  @Get('export-waec/:termId/department')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export department WAEC CSV for term' })
+  exportDepartmentWAECCSV(
+    @Param('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.exportDepartmentWAECCSV(termId, userId, role);
+  }
+
+  @Get('export-waec/:termId/pdf')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export WAEC PDF for a class' })
+  exportWAECPDF(
     @Param('termId') termId: string,
     @Query('class') className: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.hodService.exportWAECCSV(termId, className, userId, role);
+    return this.hodService.exportWAECPDF(termId, className, userId, role);
+  }
+
+  @Get('export-waec/:termId/pdf/department')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export department WAEC PDF for term' })
+  exportDepartmentWAECPDF(
+    @Param('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.exportDepartmentWAECPDF(termId, userId, role);
+  }
+
+  @Post('intervention-alerts/:alertId/resolve')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Resolve an intervention alert' })
+  resolveAlert(
+    @Param('alertId') alertId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.resolveAlert(alertId, userId, role);
+  }
+
+  @Post('intervention-alerts/:alertId/notes')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'Add counseling note to intervention alert' })
+  addCounselingNote(
+    @Param('alertId') alertId: string,
+    @Body('text') text: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.addCounselingNote(alertId, text, userId, role);
   }
 }

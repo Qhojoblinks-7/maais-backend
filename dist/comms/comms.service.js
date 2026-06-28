@@ -297,6 +297,19 @@ let CommsService = CommsService_1 = class CommsService {
             take: 50,
         });
     }
+    async getTicketById(ticketId) {
+        return this.prisma.supportTicket.findUniqueOrThrow({
+            where: { id: ticketId },
+            include: {
+                student: {
+                    include: {
+                        currentClass: true,
+                        user: { select: { email: true } },
+                    },
+                },
+            },
+        });
+    }
     async listTickets(query, requesterId, role) {
         const where = {};
         if (query.status)
@@ -405,7 +418,7 @@ let CommsService = CommsService_1 = class CommsService {
         };
     }
     async getAnalyticsPulse(academicYearId, userId) {
-        const [enrollmentByClass, averageBySubject, attendanceSummary] = await Promise.all([
+        const [enrollmentByClass, averageBySubject, attendanceSummary, recentAuditLogs, recentTickets,] = await Promise.all([
             this.prisma.classSection.findMany({
                 include: { _count: { select: { students: true } } },
             }),
@@ -416,6 +429,20 @@ let CommsService = CommsService_1 = class CommsService {
             }),
             this.prisma.attendanceRecord.aggregate({
                 _avg: { daysPresent: true, totalDays: true },
+            }),
+            this.prisma.auditLog.findMany({
+                take: 7,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    user: true,
+                },
+            }),
+            this.prisma.supportTicket.findMany({
+                take: 3,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    student: { include: { user: { select: { email: true } } } },
+                },
             }),
         ]);
         let teacherAssignments = [];
@@ -458,6 +485,75 @@ let CommsService = CommsService_1 = class CommsService {
                 averageScore: s._avg.totalScore?.toFixed(2),
                 studentCount: s._count.id,
             }));
+        const auditActivities = recentAuditLogs.map((log) => {
+            const payload = log.payload;
+            let event = '';
+            let type = 'academic';
+            if (payload) {
+                if (payload.action === 'FREEZE') {
+                    event = `Frozen ${payload.departmentName || log.entity} department - ${payload.reason || 'No reason provided'}`;
+                    type = 'security';
+                }
+                else if (payload.action === 'TRANSFER') {
+                    event = `Transferred ${payload.teacherName} from ${payload.fromDepartmentName} to ${payload.toDepartmentName}`;
+                    type = 'system';
+                }
+                else if (payload.action === 'CREDENTIAL_RESET') {
+                    event = `Reset credentials for ${payload.staffName}`;
+                    type = 'system';
+                }
+                else if (payload.action === 'STRATEGY_PULSE_UPLOAD') {
+                    event = `Strategy pulse uploaded for ${payload.departmentName || 'global'}`;
+                    type = 'comm';
+                }
+                else if (log.action === client_1.AuditAction.GRADE_CORRECTION) {
+                    const indexOrId = payload?.indexNumber || payload?.studentIndex || log.entityId;
+                    const gradeInfo = payload?.oldGrade && payload?.newGrade
+                        ? ` (${payload.oldGrade} → ${payload.newGrade})`
+                        : '';
+                    event = `Corrected grade${gradeInfo} for ${indexOrId !== 'unknown' ? `index #${indexOrId}` : 'student'}`;
+                    type = 'academic';
+                }
+                else if (log.action === client_1.AuditAction.PROMOTE) {
+                    const fromClass = payload?.fromClass || 'current';
+                    const toClass = payload?.toClass || 'next level';
+                    event = `Promoted student from ${fromClass} to ${toClass}`;
+                    type = 'academic';
+                }
+            }
+            if (!event) {
+                const entityInfo = log.entityId
+                    ? ` (${log.entityId.substring(0, 8)}...)`
+                    : '';
+                event = `${log.action} on ${log.entity}${entityInfo}`;
+                type =
+                    log.action === client_1.AuditAction.CREATE
+                        ? 'system'
+                        : log.action === client_1.AuditAction.UPDATE
+                            ? 'academic'
+                            : log.action === client_1.AuditAction.DELETE
+                                ? 'security'
+                                : 'comm';
+            }
+            return {
+                id: log.id,
+                time: log.createdAt.toLocaleTimeString('en-GB', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                event,
+                type,
+            };
+        });
+        const ticketActivities = recentTickets.map((ticket) => ({
+            id: ticket.id,
+            time: ticket.createdAt.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+            }),
+            event: `Support ticket: ${ticket.title || ticket.description?.substring(0, 50) || 'New ticket'} - ${ticket.status || 'OPEN'}`,
+            type: 'comm',
+        }));
         return {
             enrollment,
             subjectPerformance,
@@ -471,6 +567,7 @@ let CommsService = CommsService_1 = class CommsService {
                     className: `${a.classSection.level} ${a.classSection.name}`,
                 }))
                 : undefined,
+            recentActivity: [...auditActivities, ...ticketActivities].slice(0, 10),
         };
     }
 };

@@ -1,6 +1,6 @@
 export declare class GenerateReportCardDto {
     studentId: string;
-    termId: string;
+    termId?: string;
 }
 export declare class BatchGenerateDto {
     classSectionId: string;

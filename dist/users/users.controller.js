@@ -47,8 +47,14 @@ let UsersController = class UsersController {
     getAllStaff(user) {
         return this.usersService.getAllStaff(user);
     }
+    getAllParents() {
+        return this.usersService.getAllParents();
+    }
     deactivate(id) {
         return this.usersService.deactivateUser(id);
+    }
+    batchImportStudents(body) {
+        return this.usersService.batchImportStudents(body.students);
     }
 };
 exports.UsersController = UsersController;
@@ -127,6 +133,16 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getAllStaff", null);
 __decorate([
+    (0, common_1.Get)('parents'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'List all parent accounts' }),
+    openapi.ApiResponse({ status: 200, type: Object }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getAllParents", null);
+__decorate([
     (0, common_1.Delete)(':id/deactivate'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),
     (0, swagger_1.ApiOperation)({ summary: 'Deactivate a user account' }),
@@ -136,6 +152,16 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "deactivate", null);
+__decorate([
+    (0, common_1.Post)('students/batch'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
+    (0, swagger_1.ApiOperation)({ summary: 'Batch import students from CSSPS file' }),
+    openapi.ApiResponse({ status: 201 }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "batchImportStudents", null);
 exports.UsersController = UsersController = __decorate([
     (0, swagger_1.ApiTags)('Users'),
     (0, swagger_1.ApiBearerAuth)(),

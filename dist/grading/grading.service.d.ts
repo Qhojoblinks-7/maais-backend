@@ -1,5 +1,6 @@
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
+import { InterventionsService } from '../interventions/interventions.service';
 export interface UpsertGradeDto {
     studentId: string;
     subjectId: string;
@@ -18,7 +19,8 @@ export interface CorrectGradeDto {
 }
 export declare class GradingService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private interventionsService;
+    constructor(prisma: PrismaService, interventionsService: InterventionsService);
     computeGrade(classScore: number, examScore: number): {
         totalScore: number;
         grade: string;
@@ -44,7 +46,6 @@ export declare class GradingService {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -59,7 +60,6 @@ export declare class GradingService {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -74,16 +74,17 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
+    private getPreviousTermId;
     approveGrade(gradeEntryId: string, approvedById: string, userRole: Role): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -98,6 +99,7 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -116,7 +118,6 @@ export declare class GradingService {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -131,6 +132,7 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -140,7 +142,6 @@ export declare class GradingService {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -155,6 +156,7 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     }>;
@@ -233,12 +235,12 @@ export declare class GradingService {
         corrections: {
             id: string;
             createdAt: Date;
-            changedById: string;
-            fieldChanged: string;
             oldValue: string | null;
             newValue: string;
-            reason: string;
             gradeEntryId: string;
+            changedById: string;
+            fieldChanged: string;
+            reason: string;
         }[];
     } & {
         id: string;
@@ -246,7 +248,6 @@ export declare class GradingService {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -261,6 +262,7 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     })[]>;
@@ -282,7 +284,6 @@ export declare class GradingService {
             firstName: string;
             lastName: string;
             middleName: string | null;
-            bio: string | null;
             gender: import(".prisma/client").$Enums.Gender;
             dateOfBirth: Date | null;
             photoUrl: string | null;
@@ -297,7 +298,6 @@ export declare class GradingService {
         updatedAt: Date;
         studentId: string;
         subjectId: string;
-        isApproved: boolean;
         termId: string;
         classScore: number | null;
         examScore: number | null;
@@ -312,6 +312,7 @@ export declare class GradingService {
         lockedAt: Date | null;
         submittedById: string | null;
         submittedAt: Date | null;
+        isApproved: boolean;
         approvedById: string | null;
         approvedAt: Date | null;
     })[]>;

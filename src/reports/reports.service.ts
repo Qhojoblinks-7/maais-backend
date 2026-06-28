@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { createHash } from 'crypto';
 import * as QRCode from 'qrcode';
-import { DocumentType } from '@prisma/client';
+import { DocumentType, ClassLevel, NotificationChannel } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -16,19 +16,34 @@ export class ReportsService {
    * Generate report card for a single student in a term.
    * Creates a unique system hash and QR code for authenticity.
    */
-  async generateReportCard(studentId: string, termId: string) {
+  async generateReportCard(studentId: string, termId?: string) {
+    // If no termId provided, find the most recent term with grades
+    let targetTermId = termId;
+    if (!targetTermId) {
+      const latestGrade = await this.prisma.gradeEntry.findFirst({
+        where: { studentId },
+        orderBy: { termId: 'desc' },
+        select: { termId: true },
+      });
+      targetTermId = latestGrade?.termId;
+    }
+
+    if (!targetTermId) {
+      throw new NotFoundException('No grades found for this student');
+    }
+
     const [student, grades, attendance] = await Promise.all([
       this.prisma.studentProfile.findUniqueOrThrow({
         where: { id: studentId },
         include: { currentClass: true, user: true },
       }),
       this.prisma.gradeEntry.findMany({
-        where: { studentId, termId },
+        where: { studentId, termId: targetTermId },
         include: { subject: true },
         orderBy: { subject: { name: 'asc' } },
       }),
       this.prisma.attendanceRecord.findFirst({
-        where: { studentId, termId },
+        where: { studentId, termId: targetTermId },
       }),
     ]);
 
@@ -44,7 +59,7 @@ export class ReportsService {
     // Build canonical content string for hashing
     const canonical = JSON.stringify({
       indexNumber: student.indexNumber,
-      termId,
+      termId: targetTermId,
       grades: grades.map((g) => ({
         subject: g.subject.code,
         total: g.totalScore,
@@ -60,10 +75,10 @@ export class ReportsService {
 
     // Upsert report card
     const reportCard = await this.prisma.reportCard.upsert({
-      where: { studentId_termId: { studentId, termId } },
+      where: { studentId_termId: { studentId, termId: targetTermId } },
       create: {
         studentId,
-        termId,
+        termId: targetTermId,
         documentType: DocumentType.REPORT_CARD,
         systemHash,
         qrCodeUrl,
@@ -264,5 +279,179 @@ export class ReportsService {
     }
 
     return { valid: false, message: 'Document not found in system' };
+  }
+
+  async getStudentsForGeneration(query: any) {
+    const where: any = {};
+
+    if (query.classSectionId) {
+      where.currentClassId = query.classSectionId;
+    }
+
+    if (query.form) {
+      const levelMap: Record<string, ClassLevel> = {
+        'SHS 1': ClassLevel.FORM_1,
+        'SHS 2': ClassLevel.FORM_2,
+        'SHS 3': ClassLevel.FORM_3,
+      };
+      const level = levelMap[query.form];
+      if (level) {
+        where.currentClass = { level };
+      }
+    }
+
+    if (query.search) {
+      where.OR = [
+        { firstName: { contains: query.search, mode: 'insensitive' } },
+        { lastName: { contains: query.search, mode: 'insensitive' } },
+        { indexNumber: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+
+    return this.prisma.studentProfile.findMany({
+      where,
+      select: {
+        id: true,
+        indexNumber: true,
+        firstName: true,
+        lastName: true,
+        middleName: true,
+        currentClass: { select: { id: true, name: true, level: true } },
+      },
+      orderBy: [{ currentClass: { level: 'asc' } }, { lastName: 'asc' }],
+    });
+  }
+
+  async getBlockingIssues(classSectionId: string) {
+    const issues: Array<{ type: string; message: string; severity: string }> =
+      [];
+
+    const classSection = await this.prisma.classSection.findUnique({
+      where: { id: classSectionId },
+      include: { teachingAssignments: true },
+    });
+
+    if (!classSection) {
+      return [
+        {
+          type: 'CLASS_NOT_FOUND',
+          message: 'Class section not found',
+          severity: 'HIGH',
+        },
+      ];
+    }
+
+    const studentCount = await this.prisma.studentProfile.count({
+      where: { currentClassId: classSectionId },
+    });
+
+    if (studentCount === 0) {
+      issues.push({
+        type: 'NO_STUDENTS',
+        message: 'No students enrolled in this class',
+        severity: 'HIGH',
+      });
+    }
+
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+    });
+
+    if (!activeTerm) {
+      issues.push({
+        type: 'NO_ACTIVE_TERM',
+        message: 'No active term found',
+        severity: 'HIGH',
+      });
+    } else {
+      if (!activeTerm.isLocked) {
+        issues.push({
+          type: 'TERM_NOT_LOCKED',
+          message: 'Active term is not locked',
+          severity: 'MEDIUM',
+        });
+      }
+
+      const gradeCount = await this.prisma.gradeEntry.count({
+        where: {
+          student: { currentClassId: classSectionId },
+          termId: activeTerm.id,
+        },
+      });
+
+      const expectedGrades =
+        studentCount * (classSection.teachingAssignments.length || 1);
+      if (gradeCount < expectedGrades) {
+        issues.push({
+          type: 'INCOMPLETE_GRADES',
+          message: 'Not all grade entries have been recorded for this class',
+          severity: 'HIGH',
+        });
+      }
+
+      const attendanceCount = await this.prisma.attendanceRecord.count({
+        where: {
+          student: { currentClassId: classSectionId },
+          termId: activeTerm.id,
+        },
+      });
+
+      if (attendanceCount < studentCount) {
+        issues.push({
+          type: 'MISSING_ATTENDANCE',
+          message: 'Not all students have attendance records for this term',
+          severity: 'MEDIUM',
+        });
+      }
+    }
+
+    return issues;
+  }
+
+  async sendNudgeToTeachers(
+    classSectionId: string,
+    message?: string,
+    userId?: string,
+  ) {
+    const classSection = await this.prisma.classSection.findUnique({
+      where: { id: classSectionId },
+      include: {
+        teachingAssignments: {
+          include: { teacher: true },
+        },
+      },
+    });
+
+    if (!classSection) {
+      throw new NotFoundException('Class section not found');
+    }
+
+    const teacherIds = [
+      ...new Set(
+        classSection.teachingAssignments
+          .map((ta) => ta.teacher?.id)
+          .filter(Boolean),
+      ),
+    ] as string[];
+
+    const title = 'Reminder: Missing Marks';
+    const body =
+      message || `Please submit missing marks for class ${classSection.name}`;
+
+    const notifications = await Promise.all(
+      teacherIds.map((staffId) =>
+        this.prisma.notification.create({
+          data: {
+            staffId,
+            title,
+            body,
+            channel: NotificationChannel.APP,
+            createdById: userId,
+          },
+        }),
+      ),
+    );
+
+    return { sent: notifications.length, teacherIds };
   }
 }
