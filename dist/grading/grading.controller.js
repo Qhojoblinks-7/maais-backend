@@ -96,6 +96,9 @@ let GradingController = class GradingController {
     async getStudentsForGrading(subjectId, classId, termId, userId, role) {
         return this.gradingService.getStudentsForGrading(subjectId, classId, termId, userId, role);
     }
+    getComplianceWarnings(userId, role) {
+        return this.gradingService.getComplianceWarnings(userId, role);
+    }
     getSmartRemarks(grade) {
         return { grade, remarks: this.gradingService.getSmartRemarks(grade) };
     }
@@ -340,6 +343,17 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], GradingController.prototype, "getStudentsForGrading", null);
+__decorate([
+    (0, common_1.Get)('compliance/warnings'),
+    (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get system compliance warnings for active term' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], GradingController.prototype, "getComplianceWarnings", null);
 __decorate([
     (0, common_1.Get)('smart-remarks/:grade'),
     (0, swagger_1.ApiOperation)({ summary: 'Get smart remark suggestions for a grade' }),

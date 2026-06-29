@@ -842,6 +842,59 @@ let GradingService = class GradingService {
             };
         });
     }
+    async getComplianceWarnings(userId, role) {
+        if (role !== client_1.Role.HEADMASTER &&
+            role !== client_1.Role.SUPER_ADMIN &&
+            role !== client_1.Role.HOD) {
+            throw new common_1.ForbiddenException('Insufficient permissions');
+        }
+        const warnings = [];
+        const activeTerm = await this.prisma.term.findFirst({
+            where: { isActive: true },
+        });
+        if (!activeTerm) {
+            warnings.push({
+                severity: 'high',
+                msg: 'No active term found. Term initialization required.',
+            });
+            return warnings;
+        }
+        const incompleteEntries = await this.prisma.gradeEntry.count({
+            where: {
+                termId: activeTerm.id,
+                OR: [{ totalScore: null }, { remark: null }],
+            },
+        });
+        if (incompleteEntries > 0) {
+            warnings.push({
+                severity: 'high',
+                msg: `${incompleteEntries} grade entries have missing scores or remarks.`,
+            });
+        }
+        const lockedTerm = await this.prisma.term.findFirst({
+            where: { id: activeTerm.id, isLocked: true },
+        });
+        if (lockedTerm) {
+            warnings.push({
+                severity: 'medium',
+                msg: 'Active term is locked. Modifications require emergency unlock.',
+            });
+        }
+        const unapprovedEntries = await this.prisma.gradeEntry.count({
+            where: {
+                termId: activeTerm.id,
+                isLocked: true,
+                isApproved: false,
+            },
+        });
+        if (unapprovedEntries > 0) {
+            warnings.push({
+                severity: 'low',
+                msg: `${unapprovedEntries} locked entries await final sign-off.`,
+            });
+        }
+        return warnings;
+    }
 };
 exports.GradingService = GradingService;
 exports.GradingService = GradingService = __decorate([

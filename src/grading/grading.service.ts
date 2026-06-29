@@ -1039,4 +1039,70 @@ export class GradingService {
       };
     });
   }
+
+  async getComplianceWarnings(userId: string, role: Role) {
+    if (
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HOD
+    ) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const warnings: { severity: 'high' | 'medium' | 'low'; msg: string }[] = [];
+
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+    });
+
+    if (!activeTerm) {
+      warnings.push({
+        severity: 'high',
+        msg: 'No active term found. Term initialization required.',
+      });
+      return warnings;
+    }
+
+    const incompleteEntries = await this.prisma.gradeEntry.count({
+      where: {
+        termId: activeTerm.id,
+        OR: [{ totalScore: null }, { remark: null }],
+      },
+    });
+
+    if (incompleteEntries > 0) {
+      warnings.push({
+        severity: 'high',
+        msg: `${incompleteEntries} grade entries have missing scores or remarks.`,
+      });
+    }
+
+    const lockedTerm = await this.prisma.term.findFirst({
+      where: { id: activeTerm.id, isLocked: true },
+    });
+
+    if (lockedTerm) {
+      warnings.push({
+        severity: 'medium',
+        msg: 'Active term is locked. Modifications require emergency unlock.',
+      });
+    }
+
+    const unapprovedEntries = await this.prisma.gradeEntry.count({
+      where: {
+        termId: activeTerm.id,
+        isLocked: true,
+        isApproved: false,
+      },
+    });
+
+    if (unapprovedEntries > 0) {
+      warnings.push({
+        severity: 'low',
+        msg: `${unapprovedEntries} locked entries await final sign-off.`,
+      });
+    }
+
+    return warnings;
+  }
 }

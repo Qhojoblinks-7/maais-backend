@@ -229,6 +229,16 @@ export class GradingController {
     );
   }
 
+   @Get('compliance/warnings')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get system compliance warnings for active term' })
+  getComplianceWarnings(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.gradingService.getComplianceWarnings(userId, role);
+  }
+
   @Get('smart-remarks/:grade')
   @ApiOperation({ summary: 'Get smart remark suggestions for a grade' })
   getSmartRemarks(@Param('grade') grade: string) {
