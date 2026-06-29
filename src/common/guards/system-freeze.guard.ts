@@ -26,6 +26,7 @@ export class SystemFreezeGuard implements CanActivate {
       '/api/v1/auth/refresh',
       '/api/v1/auth/me',
       '/api/v1/auth/logout',
+      '/api/v1/grading/rules',
     ];
 
     const isExempt = skipPaths.some((path) => url.includes(path));
