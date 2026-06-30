@@ -54,7 +54,7 @@ export class CurriculumController {
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   @ApiOperation({ summary: 'Remove a curriculum mapping' })
   removeMapping(
-    @Param('academicYearId') academicYearId: string,
+    @Query('academicYearId') academicYearId: string,
     @Param('subjectId') subjectId: string,
     @Param('classSectionId') classSectionId: string,
     @CurrentUser('id') userId: string,
