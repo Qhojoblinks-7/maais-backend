@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { AcademicArchitectService } from './academic-architect.service';
@@ -9,6 +9,7 @@ import {
   CreateDepartmentDto,
   CreateSubjectDto,
   CreateClassSectionDto,
+  UpdateClassSectionDto,
   AssignTeacherDto,
   AssignClassTeacherDto,
 } from './dto/academic-architect.dto';
@@ -120,7 +121,7 @@ export class AcademicArchitectController {
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a class section' })
   createClass(@Body() dto: CreateClassSectionDto) {
-    return this.service.createClassSection(dto.name, dto.level, dto.capacity);
+    return this.service.createClassSection(dto.name, dto.level, dto.capacity, dto.program, dto.track);
   }
 
   @Get('classes')
@@ -132,8 +133,25 @@ export class AcademicArchitectController {
     Role.STUDENT,
   )
   @ApiOperation({ summary: 'Get all class sections' })
-  getAllClasses() {
-    return this.service.getAllClassSections();
+  getAllClasses(@Query('track') track?: string) {
+    return this.service.getAllClassSections(track);
+  }
+
+  @Patch('classes/:id')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @ApiOperation({ summary: 'Update a class section' })
+  updateClass(
+    @Param('id') id: string,
+    @Body() dto: UpdateClassSectionDto,
+  ) {
+    return this.service.updateClassSection(id, dto);
+  }
+
+  @Delete('classes/:id')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @ApiOperation({ summary: 'Delete a class section' })
+  deleteClass(@Param('id') id: string) {
+    return this.service.deleteClassSection(id);
   }
 
   @Patch('classes/:id/teacher')
@@ -164,6 +182,13 @@ export class AcademicArchitectController {
       return [];
     }
     return this.service.getTeacherAssignments(teacherId);
+  }
+
+  @Get('assignments/class/:classId')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Get teaching assignments for a class' })
+  getAssignmentsByClass(@Param('classId') classId: string, @Query('track') track?: string) {
+    return this.service.getAssignmentsByClass(classId, track);
   }
 
   @Get('my-assignments')

@@ -86,11 +86,12 @@ let AcademicArchitectService = class AcademicArchitectService {
             orderBy: { name: 'asc' },
         });
     }
-    async createClassSection(name, level, capacity, program) {
-        return this.prisma.classSection.create({ data: { name, level, capacity, program } });
+    async createClassSection(name, level, capacity, program, track) {
+        return this.prisma.classSection.create({ data: { name, level, capacity, program, track } });
     }
-    async getAllClassSections() {
+    async getAllClassSections(track) {
         return this.prisma.classSection.findMany({
+            where: track ? { track } : undefined,
             include: {
                 classTeacher: true,
                 _count: { select: { students: true } },
@@ -124,7 +125,7 @@ let AcademicArchitectService = class AcademicArchitectService {
             include: { subject: true, classSection: true },
         });
     }
-    async getAssignmentsByClass(classSectionId) {
+    async getAssignmentsByClass(classSectionId, track) {
         return this.prisma.teachingAssignment.findMany({
             where: { classSectionId },
             include: {

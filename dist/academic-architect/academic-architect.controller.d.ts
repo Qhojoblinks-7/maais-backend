@@ -8,17 +8,17 @@ export declare class AcademicArchitectController {
         id: string;
         isActive: boolean;
         createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     activateYear(id: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     getActiveYear(): Promise<{
         terms: {
@@ -26,43 +26,43 @@ export declare class AcademicArchitectController {
             isActive: boolean;
             academicYearId: string;
             isLocked: boolean;
-            termNumber: import(".prisma/client").$Enums.TermNumber;
             startDate: Date;
             endDate: Date;
+            termNumber: import(".prisma/client").$Enums.TermNumber;
         }[];
     } & {
         id: string;
         isActive: boolean;
         createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }>;
     getAllYears(): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
+        label: string;
         startDate: Date;
         endDate: Date;
-        label: string;
     }[]>;
     createTerm(dto: CreateTermDto): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     activateTerm(id: string): Promise<{
         id: string;
         isActive: boolean;
         academicYearId: string;
         isLocked: boolean;
-        termNumber: import(".prisma/client").$Enums.TermNumber;
         startDate: Date;
         endDate: Date;
+        termNumber: import(".prisma/client").$Enums.TermNumber;
     }>;
     createDepartment(dto: CreateDepartmentDto): Promise<{
         name: string;
@@ -166,8 +166,9 @@ export declare class AcademicArchitectController {
         capacity: number;
         program: string | null;
         classTeacherId: string | null;
+        track: string | null;
     }>;
-    getAllClasses(): Promise<({
+    getAllClasses(track?: string): Promise<({
         _count: {
             students: number;
         };
@@ -194,6 +195,7 @@ export declare class AcademicArchitectController {
         capacity: number;
         program: string | null;
         classTeacherId: string | null;
+        track: string | null;
     })[]>;
     updateClass(id: string, dto: UpdateClassSectionDto): Promise<{
         level: import(".prisma/client").$Enums.ClassLevel;
@@ -202,6 +204,7 @@ export declare class AcademicArchitectController {
         capacity: number;
         program: string | null;
         classTeacherId: string | null;
+        track: string | null;
     }>;
     deleteClass(id: string): Promise<{
         level: import(".prisma/client").$Enums.ClassLevel;
@@ -210,6 +213,7 @@ export declare class AcademicArchitectController {
         capacity: number;
         program: string | null;
         classTeacherId: string | null;
+        track: string | null;
     }>;
     assignClassTeacher(id: string, dto: AssignClassTeacherDto): Promise<{
         level: import(".prisma/client").$Enums.ClassLevel;
@@ -218,6 +222,7 @@ export declare class AcademicArchitectController {
         capacity: number;
         program: string | null;
         classTeacherId: string | null;
+        track: string | null;
     }>;
     assignTeacher(dto: AssignTeacherDto): Promise<{
         id: string;
@@ -251,6 +256,7 @@ export declare class AcademicArchitectController {
             capacity: number;
             program: string | null;
             classTeacherId: string | null;
+            track: string | null;
         };
     } & {
         id: string;
@@ -259,7 +265,7 @@ export declare class AcademicArchitectController {
         classSectionId: string;
         academicYearId: string;
     })[]>;
-    getAssignmentsByClass(classId: string): Promise<({
+    getAssignmentsByClass(classId: string, track?: string): Promise<({
         subject: {
             department: {
                 name: string;
@@ -290,6 +296,7 @@ export declare class AcademicArchitectController {
             capacity: number;
             program: string | null;
             classTeacherId: string | null;
+            track: string | null;
         };
         teacher: {
             user: {
@@ -338,6 +345,7 @@ export declare class AcademicArchitectController {
             capacity: number;
             program: string | null;
             classTeacherId: string | null;
+            track: string | null;
         };
     } & {
         id: string;

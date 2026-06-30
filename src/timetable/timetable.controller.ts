@@ -46,11 +46,13 @@ export class TimetableController {
     @Query('classId') classId?: string,
     @Query('class_id') classIdSnake?: string,
     @Query('dayOfWeek') dayOfWeek?: DayOfWeek,
+    @Query('track') track?: string,
   ) {
     return this.timetableService.findAll({
       teacherId: teacherId || teacherIdSnake,
       classId: classId || classIdSnake,
       dayOfWeek,
+      track,
     });
   }
 
@@ -86,8 +88,8 @@ export class TimetableController {
     Role.STUDENT,
   )
   @ApiOperation({ summary: 'Get timetable for a specific class' })
-  getByClass(@Param('classId') classId: string) {
-    return this.timetableService.findByClass(classId);
+  getByClass(@Param('classId') classId: string, @Query('track') track?: string) {
+    return this.timetableService.findByClass(classId, track);
   }
 
   @Get('weekly/:teacherId')
@@ -139,5 +141,19 @@ export class TimetableController {
   @ApiOperation({ summary: 'Delete a timetable entry' })
   delete(@Param('id') id: string) {
     return this.timetableService.delete(id);
+  }
+
+  @Post('broadcast')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @ApiOperation({ summary: 'Broadcast timetable to student and teacher portals' })
+  broadcastToApps(@Body() body: { classIds?: string[]; track?: string }) {
+    return this.timetableService.broadcastToApps(body.classIds, body.track);
+  }
+
+  @Post('finalize')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @ApiOperation({ summary: 'Finalize the timetable and lock into registrar records' })
+  finalizeGrid(@Body() body: { classIds?: string[]; track?: string }) {
+    return this.timetableService.finalizeGrid(body.classIds, body.track);
   }
 }

@@ -93,6 +93,16 @@ export class CreateClassSectionDto {
   @IsOptional()
   @IsInt()
   capacity?: number;
+
+  @ApiPropertyOptional({ example: 'Science' })
+  @IsOptional()
+  @IsString()
+  program?: string;
+
+  @ApiPropertyOptional({ example: 'Gold' })
+  @IsOptional()
+  @IsString()
+  track?: string;
 }
 
 export class AssignTeacherDto {
@@ -117,4 +127,31 @@ export class AssignClassTeacherDto {
   @ApiProperty()
   @IsString()
   staffId: string;
+}
+
+export class UpdateClassSectionDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ enum: ClassLevel })
+  @IsOptional()
+  @IsEnum(ClassLevel)
+  level?: ClassLevel;
+
+  @ApiPropertyOptional({ example: 40 })
+  @IsOptional()
+  @IsInt()
+  capacity?: number;
+
+  @ApiPropertyOptional({ example: 'Science' })
+  @IsOptional()
+  @IsString()
+  program?: string;
+
+  @ApiPropertyOptional({ example: 'Gold' })
+  @IsOptional()
+  @IsString()
+  track?: string;
 }

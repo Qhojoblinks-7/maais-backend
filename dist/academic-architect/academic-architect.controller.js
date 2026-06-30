@@ -55,10 +55,10 @@ let AcademicArchitectController = class AcademicArchitectController {
         return this.service.getAllSubjects();
     }
     createClass(dto) {
-        return this.service.createClassSection(dto.name, dto.level, dto.capacity, dto.program);
+        return this.service.createClassSection(dto.name, dto.level, dto.capacity, dto.program, dto.track);
     }
-    getAllClasses() {
-        return this.service.getAllClassSections();
+    getAllClasses(track) {
+        return this.service.getAllClassSections(track);
     }
     updateClass(id, dto) {
         return this.service.updateClassSection(id, dto);
@@ -78,8 +78,8 @@ let AcademicArchitectController = class AcademicArchitectController {
         }
         return this.service.getTeacherAssignments(teacherId);
     }
-    getAssignmentsByClass(classId) {
-        return this.service.getAssignmentsByClass(classId);
+    getAssignmentsByClass(classId, track) {
+        return this.service.getAssignmentsByClass(classId, track);
     }
     getMyAssignments(user) {
         if (!user.staffProfile)
@@ -195,12 +195,14 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "createClass", null);
 __decorate([
+    openapi.ApiQuery({ name: "track", required: false }),
     (0, common_1.Get)('classes'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER, client_1.Role.STUDENT),
     (0, swagger_1.ApiOperation)({ summary: 'Get all class sections' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
+    __param(0, (0, common_1.Query)('track')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getAllClasses", null);
 __decorate([
@@ -256,13 +258,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getTeacherAssignments", null);
 __decorate([
+    openapi.ApiQuery({ name: "track", required: false }),
     (0, common_1.Get)('assignments/class/:classId'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'Get teaching assignments for a class' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, common_1.Param)('classId')),
+    __param(1, (0, common_1.Query)('track')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getAssignmentsByClass", null);
 __decorate([

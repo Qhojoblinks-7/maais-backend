@@ -118,7 +118,7 @@ __decorate([
 ], CreateSubjectDto.prototype, "description", void 0);
 class CreateClassSectionDto {
     static _OPENAPI_METADATA_FACTORY() {
-        return { name: { required: true, type: () => String }, level: { required: true, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String } };
+        return { name: { required: true, type: () => String }, level: { required: true, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String }, track: { required: false, type: () => String } };
     }
 }
 exports.CreateClassSectionDto = CreateClassSectionDto;
@@ -144,6 +144,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateClassSectionDto.prototype, "program", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Gold' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClassSectionDto.prototype, "track", void 0);
 class AssignTeacherDto {
     static _OPENAPI_METADATA_FACTORY() {
         return { teacherId: { required: true, type: () => String }, subjectId: { required: true, type: () => String }, classSectionId: { required: true, type: () => String }, academicYearId: { required: true, type: () => String } };
@@ -183,7 +189,7 @@ __decorate([
 ], AssignClassTeacherDto.prototype, "staffId", void 0);
 class UpdateClassSectionDto {
     static _OPENAPI_METADATA_FACTORY() {
-        return { name: { required: false, type: () => String }, level: { required: false, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String } };
+        return { name: { required: false, type: () => String }, level: { required: false, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String }, track: { required: false, type: () => String } };
     }
 }
 exports.UpdateClassSectionDto = UpdateClassSectionDto;
@@ -211,4 +217,10 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateClassSectionDto.prototype, "program", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Gold' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateClassSectionDto.prototype, "track", void 0);
 //# sourceMappingURL=academic-architect.dto.js.map

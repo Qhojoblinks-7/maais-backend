@@ -60,12 +60,12 @@ async function main() {
     }
     console.log('✅ Subjects:', coreSubjects.length + electiveSubjects.length, 'created');
     const classSections = [
-        { name: '1A', level: client_1.ClassLevel.FORM_1 },
-        { name: '1B', level: client_1.ClassLevel.FORM_1 },
-        { name: '2A', level: client_1.ClassLevel.FORM_2 },
-        { name: '2B', level: client_1.ClassLevel.FORM_2 },
-        { name: '3A', level: client_1.ClassLevel.FORM_3 },
-        { name: '3B', level: client_1.ClassLevel.FORM_3 },
+        { name: '1A', level: client_1.ClassLevel.FORM_1, track: 'Gold' },
+        { name: '1B', level: client_1.ClassLevel.FORM_1, track: 'Green' },
+        { name: '2A', level: client_1.ClassLevel.FORM_2, track: 'Gold' },
+        { name: '2B', level: client_1.ClassLevel.FORM_2, track: 'Green' },
+        { name: '3A', level: client_1.ClassLevel.FORM_3, track: 'Gold' },
+        { name: '3B', level: client_1.ClassLevel.FORM_3, track: 'Green' },
     ];
     for (const c of classSections) {
         await prisma.classSection.upsert({

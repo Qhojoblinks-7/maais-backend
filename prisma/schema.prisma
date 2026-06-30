@@ -313,13 +313,14 @@ model Subject {
 }
 
 model ClassSection {
-  id             String        @id @default(uuid())
-  name           String // e.g. "1A", "2B", "3Science"
-  level          ClassLevel
-  capacity       Int           @default(40)
-  program        String?       // e.g. "Science", "General Arts", "Business", "Vocational"
-  classTeacherId String?       @unique
-  classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+   id             String        @id @default(uuid())
+   name           String // e.g. "1A", "2B", "3Science"
+   level          ClassLevel
+   capacity       Int           @default(40)
+   program        String?       // e.g. "Science", "General Arts", "Business", "Vocational"
+   classTeacherId String?       @unique
+   classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+   track          String?       // "Gold" or "Green" for double-track schools
 
   students            StudentProfile[]
   teachingAssignments TeachingAssignment[]
@@ -688,27 +689,28 @@ model SupportTicket {
 }
 
 model TimetableEntry {
-  id           String   @id @default(uuid())
+   id           String   @id @default(uuid())
 
-  classId      String
-  subjectId    String
-  teacherId    String
+   classId      String
+   subjectId    String
+   teacherId    String
 
-  dayOfWeek    DayOfWeek
+   dayOfWeek    DayOfWeek
 
-  startTime    String
-  endTime      String
+   startTime    String
+   endTime      String
 
-  room         String?
+   room         String?
+   track        String?  // "Gold" or "Green" - inherits from class section
 
-  createdAt    DateTime @default(now())
+   createdAt    DateTime @default(now())
 
-  classSection         ClassSection   @relation(fields: [classId], references: [id])
-  subject      Subject  @relation(fields: [subjectId], references: [id])
-  teacher      StaffProfile @relation(fields: [teacherId], references: [id])
+   classSection         ClassSection   @relation(fields: [classId], references: [id])
+   subject      Subject  @relation(fields: [subjectId], references: [id])
+   teacher      StaffProfile @relation(fields: [teacherId], references: [id])
 
-  @@map("timetable_entries")
-}
+   @@map("timetable_entries")
+ }
 
 model ApprovalRequest {
   id              String    @id @default(uuid())

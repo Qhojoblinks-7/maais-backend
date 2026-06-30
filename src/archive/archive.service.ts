@@ -22,6 +22,7 @@ export class ArchiveService {
     performedById?: string,
     studentId?: string,
     classId?: string,
+    classLevel?: ClassLevel,
   ) {
     let yearLabel = null;
     let resolvedYearId = academicYearId;
@@ -68,6 +69,12 @@ export class ArchiveService {
 
     if (classId) {
       students = students.filter((s) => s.currentClassId === classId);
+    }
+
+    if (classLevel) {
+      students = students.filter(
+        (s) => s.currentClass?.level === classLevel,
+      );
     }
 
     const promotionRecords = [];
@@ -300,6 +307,24 @@ export class ArchiveService {
       },
     });
 
+    const recentArchives = await this.prisma.studentProfile.findMany({
+      where: { archivedAt: { not: null } },
+      take: 10,
+      orderBy: { archivedAt: 'desc' },
+      include: {
+        currentClass: true,
+        department: true,
+        grades: {
+          include: { subject: true, term: { include: { academicYear: true } } },
+          take: 6,
+          orderBy: { term: { academicYear: { startDate: 'desc' } } },
+        },
+        reportCards: {
+          include: { term: { include: { academicYear: true } } },
+        },
+      },
+    });
+
     return {
       totalStudents,
       archivedStudents,
@@ -319,6 +344,151 @@ export class ArchiveService {
         academicYear: r.academicYear?.label,
         performedAt: r.performedAt,
       })),
+      recentArchives: recentArchives.map((s) => ({
+        id: s.id,
+        studentId: s.id,
+        studentName: `${s.firstName} ${s.lastName}`,
+        studentIndex: s.indexNumber,
+        fromClass: s.currentClass?.level,
+        toClass: null,
+        status: 'ARCHIVED',
+        academicYear: null,
+        performedAt: s.archivedAt,
+        history: (s.grades || []).map((g) => ({
+          finalGrade: Math.round(g.totalScore ?? 0),
+        })),
+      })),
+    };
+  }
+
+  async archiveYearGroup(yearId: string, performedById: string) {
+    const year = await this.prisma.academicYear.findUniqueOrThrow({
+      where: { id: yearId },
+    });
+
+    const classesInYear = await this.prisma.classSection.findMany({
+      where: {
+        level: {
+          in: [ClassLevel.FORM_1, ClassLevel.FORM_2, ClassLevel.FORM_3],
+        },
+      },
+      select: { id: true },
+    });
+
+    const classIds = classesInYear.map((c) => c.id);
+
+    const studentsToArchive = await this.prisma.studentProfile.findMany({
+      where: {
+        currentClassId: { in: classIds },
+        archivedAt: null,
+      },
+      include: { currentClass: true },
+    });
+
+    const updateResult = await this.prisma.studentProfile.updateMany({
+      where: {
+        currentClassId: { in: classIds },
+        archivedAt: null,
+      },
+      data: {
+        archivedAt: new Date(),
+        currentClassId: null,
+      },
+    });
+
+    await this.prisma.promotionRecord.createMany({
+      data: studentsToArchive.map((student) => ({
+        studentId: student.id,
+        academicYearId: yearId,
+        fromClass: student.currentClass?.level || ClassLevel.FORM_1,
+        toClass: null,
+        status: 'GRADUATED',
+        performedById,
+      })),
+    });
+
+    return {
+      yearLabel: year.label,
+      archivedCount: updateResult.count,
+    };
+  }
+
+  async transferStudents(
+    sourceClassId: string,
+    targetClassId: string,
+    studentIds?: string[],
+  ) {
+    const sourceClass = await this.prisma.classSection.findUniqueOrThrow({
+      where: { id: sourceClassId },
+    });
+
+    const targetClass = await this.prisma.classSection.findUniqueOrThrow({
+      where: { id: targetClassId },
+    });
+
+    const whereClause: any = {
+      currentClassId: sourceClassId,
+      archivedAt: null,
+    };
+
+    if (studentIds && studentIds.length > 0) {
+      whereClause.id = { in: studentIds };
+    }
+
+    const updateResult = await this.prisma.studentProfile.updateMany({
+      where: whereClause,
+      data: {
+        currentClassId: targetClassId,
+      },
+    });
+
+    return {
+      transferredCount: updateResult.count,
+      from: sourceClass.name,
+      to: targetClass.name,
+    };
+  }
+
+  async updateClassCapacity(classId: string, capacity: number) {
+    return this.prisma.classSection.update({
+      where: { id: classId },
+      data: { capacity },
+    });
+  }
+
+  async rebalanceHouses(classId: string) {
+    const classSection = await this.prisma.classSection.findUniqueOrThrow({
+      where: { id: classId },
+      include: {
+        students: {
+          where: { archivedAt: null },
+          select: { id: true },
+        },
+      },
+    });
+
+    const totalStudents = classSection.students.length;
+    const houseNames = ['Guggisberg', 'Aggrey', 'Nkrumah'];
+    const basePerHouse = Math.floor(totalStudents / houseNames.length);
+    const remainder = totalStudents % houseNames.length;
+
+    let studentIndex = 0;
+    for (let i = 0; i < houseNames.length; i++) {
+      const count = basePerHouse + (i < remainder ? 1 : 0);
+      // Note: House not stored on StudentProfile in current schema.
+      // This returns the computed distribution; actual house assignment
+      // would require a 'house' field on StudentProfile.
+      studentIndex += count;
+    }
+
+    return {
+      classId,
+      className: classSection.name,
+      totalStudents,
+      distribution: houseNames.reduce((acc, house, i) => {
+        acc[house] = basePerHouse + (i < remainder ? 1 : 0);
+        return acc;
+      }, {} as Record<string, number>),
     };
   }
 }

@@ -19,6 +19,7 @@ export async function seedTimetable(prisma: PrismaClient, classes: any[], subjec
         startTime: '08:00',
         endTime: '09:30',
         room: `Room ${Math.floor(Math.random() * 10) + 1}`,
+        track: cls.track,
       },
     });
     entries.push(entry);

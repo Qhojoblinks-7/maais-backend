@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsArray } from 'class-validator';
-import { NotificationChannel } from '@prisma/client';
+import { IsString, IsEnum, IsOptional, IsArray, IsInt } from 'class-validator';
+import { NotificationChannel, ClassLevel } from '@prisma/client';
 
 export class SendNotificationDto {
   @ApiPropertyOptional({
@@ -49,6 +49,11 @@ export class PromotionDto {
   @IsOptional()
   @IsString()
   academicYearId?: string;
+
+  @ApiPropertyOptional({ enum: ClassLevel })
+  @IsOptional()
+  @IsEnum(ClassLevel)
+  classLevel?: ClassLevel;
 }
 
 export class HODActionDto {
@@ -63,6 +68,21 @@ export class HODActionDto {
   @ApiPropertyOptional()
   @IsOptional()
   details?: Record<string, any>;
+}
+
+export class TransferStudentsDto {
+  @ApiProperty()
+  @IsString()
+  sourceClassId: string;
+
+  @ApiProperty()
+  @IsString()
+  targetClassId: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  studentIds?: string[];
 }
 
 export class TeacherActionDto {

@@ -239,6 +239,17 @@ export class GradingController {
     return this.gradingService.getComplianceWarnings(userId, role);
   }
 
+  @Get('term-summary/:termId')
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get summary stats for a term (student count, grade entry count)' })
+  getTermSummary(
+    @Param('termId') termId: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.gradingService.getTermSummary(termId, userId, role);
+  }
+
   @Get('smart-remarks/:grade')
   @ApiOperation({ summary: 'Get smart remark suggestions for a grade' })
   getSmartRemarks(@Param('grade') grade: string) {

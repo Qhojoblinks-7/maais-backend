@@ -290,9 +290,11 @@ export class ReportsService {
 
     if (query.form) {
       const levelMap: Record<string, ClassLevel> = {
-        'SHS 1': ClassLevel.FORM_1,
-        'SHS 2': ClassLevel.FORM_2,
-        'SHS 3': ClassLevel.FORM_3,
+        'Form 1': ClassLevel.FORM_1,
+
+        'Form 2': ClassLevel.FORM_2,
+
+        'Form 3': ClassLevel.FORM_3,
       };
       const level = levelMap[query.form];
       if (level) {

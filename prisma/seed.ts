@@ -105,8 +105,14 @@ async function main() {
   // 10. Teaching Assignments
   await seeds.seedAssignments(prisma, teachers, subjects, classes, year.id);
 
-  // 11. Grades (Current Term)
-  await seeds.seedGrades(prisma, students, subjects, currentTerm.id, teachers);
+// 11. Grades (Current Term)
+  const gradeEntries = await seeds.seedGrades(prisma, students, subjects, currentTerm.id, teachers);
+
+  // 11b. Grade Corrections
+  await seeds.seedGradeCorrections(prisma, gradeEntries, teachers);
+
+  // 11c. Grade Revisions
+  await seeds.seedGradeRevisions(prisma, gradeEntries, teachers, subjects);
 
   // 12. Attendance (All Terms)
   await seeds.seedAttendance(prisma, students, terms);
@@ -120,14 +126,32 @@ async function main() {
   // 15. Interventions
   await seeds.seedInterventions(prisma, students);
 
-  // 16. Notifications
+  // 16. Promotions
+  await seeds.seedPromotions(prisma, students, year, admin);
+
+  // 17. Notifications
   await seeds.seedNotifications(prisma, students);
 
-  // 17. Timetable
+  // 18. Timetable
   await seeds.seedTimetable(prisma, classes, subjects, teachers);
 
-  // 18. Audit Logs
+  // 19. Audit Logs
   await seeds.seedAudit(prisma, admin.id);
+
+  // 20. Admin Settings
+  await seeds.seedAdminSettings(prisma);
+
+  // 21. Digital Seal
+  await seeds.seedDigitalSeals(prisma, teachers);
+
+  // 22. Support Tickets
+  await seeds.seedSupportTickets(prisma, students, teachers);
+
+// 23. Transcripts
+  await seeds.seedTranscripts(prisma, students);
+
+  // 24. Approval Requests
+  await seeds.seedApprovals(prisma, teachers);
 
   console.log('\n🎉 Full seed complete!');
   console.log('   Admin login: admin@mandoshts.edu.gh / Admin@2024!');

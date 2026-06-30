@@ -108,24 +108,46 @@ export class AcademicArchitectService {
 
   // ─── Class Sections ───────────────────────────────────
 
-  async createClassSection(name: string, level: ClassLevel, capacity?: number) {
-    return this.prisma.classSection.create({ data: { name, level, capacity } });
-  }
+async createClassSection(name: string, level: ClassLevel, capacity?: number, program?: string, track?: string) {
+      return this.prisma.classSection.create({ data: { name, level, capacity, program, track } });
+    }
 
-  async getAllClassSections() {
-    return this.prisma.classSection.findMany({
-      include: {
-        classTeacher: true,
-        _count: { select: { students: true } },
-      },
-      orderBy: [{ level: 'asc' }, { name: 'asc' }],
-    });
-  }
+    async getAllClassSections(track?: string) {
+      return this.prisma.classSection.findMany({
+        where: track ? { track } : undefined,
+        include: {
+          classTeacher: true,
+          _count: { select: { students: true } },
+        },
+        orderBy: [{ level: 'asc' }, { name: 'asc' }],
+      });
+    }
 
   async assignClassTeacher(classSectionId: string, staffId: string) {
     return this.prisma.classSection.update({
       where: { id: classSectionId },
       data: { classTeacherId: staffId },
+    });
+  }
+
+  async updateClassSection(
+    classSectionId: string,
+    data: {
+      name?: string;
+      level?: ClassLevel;
+      capacity?: number;
+      program?: string;
+    },
+  ) {
+    return this.prisma.classSection.update({
+      where: { id: classSectionId },
+      data,
+    });
+  }
+
+  async deleteClassSection(classSectionId: string) {
+    return this.prisma.classSection.delete({
+      where: { id: classSectionId },
     });
   }
 
@@ -146,4 +168,15 @@ export class AcademicArchitectService {
       include: { subject: true, classSection: true },
     });
   }
+
+async getAssignmentsByClass(classSectionId: string, track?: string) {
+      return this.prisma.teachingAssignment.findMany({
+        where: { classSectionId },
+        include: {
+          subject: { include: { department: true } },
+          teacher: { include: { user: { select: { email: true } } } },
+          classSection: true,
+        },
+      });
+    }
 }
