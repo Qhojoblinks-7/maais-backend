@@ -102,4 +102,11 @@ export class CurriculumController {
   getDeploymentStatus(@Query('academicYearId') academicYearId: string) {
     return this.curriculumService.getDeploymentStatus(academicYearId);
   }
+
+  @Get('classes')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Get all class sections with linked student previews' })
+  async getAllClassesWithStudents(@CurrentUser() user: any) {
+    return this.curriculumService.getAllClassesWithStudents(user);
+  }
 }

@@ -309,4 +309,49 @@ export class CurriculumService {
       isDeployed: deployedMappings > 0,
     };
   }
+
+  async getAllClassesWithStudents(user: any) {
+    let classSectionIds: string[] | undefined;
+
+    if (user?.role === Role.TEACHER) {
+      const staff = await this.prisma.staffProfile.findUnique({
+        where: { userId: user.id },
+      });
+      if (!staff) return [];
+      const assignments = await this.prisma.teachingAssignment.findMany({
+        where: { teacherId: staff.id },
+        select: { classSectionId: true },
+      });
+      classSectionIds = assignments.map(a => a.classSectionId);
+    }
+
+    const classes = await this.prisma.classSection.findMany({
+      where: classSectionIds ? { id: { in: classSectionIds } } : undefined,
+      include: {
+        classTeacher: true,
+        _count: { select: { students: true } },
+        students: {
+          where: { archivedAt: null },
+          select: { id: true, firstName: true, lastName: true },
+          take: 8,
+          orderBy: { firstName: 'asc' },
+        },
+      },
+      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+    });
+
+    return classes.map((c) => ({
+      id: c.id,
+      name: c.name,
+      level: c.level,
+      capacity: c.capacity,
+      studentsCount: c._count.students,
+      studentPreviews: c.students.map((s) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        initial: (s.firstName || '?')[0].toUpperCase(),
+      })),
+    }));
+  }
 }
