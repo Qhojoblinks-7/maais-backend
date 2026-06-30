@@ -155,11 +155,14 @@ model StaffProfile {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-  // Teaching assignments
-  teachingAssignments TeachingAssignment[]
-  classTeacher        ClassSection?        @relation("ClassTeacher")
-  timetableEntries    TimetableEntry[]
-  behaviorsRecorded   StudentBehavior[]
+// Teaching assignments
+   teachingAssignments TeachingAssignment[]
+   classTeacher        ClassSection?        @relation("ClassTeacher")
+   timetableEntries    TimetableEntry[]
+   behaviorsRecorded   StudentBehavior[]
+
+   canTeach   Boolean @default(false)
+   canOversight Boolean @default(false)
 
   // Notifications
   notifications       Notification[]
@@ -246,6 +249,7 @@ model AcademicYear {
 
   terms      Term[]
   promotions PromotionRecord[]
+  curriculumMappings CurriculumMapping[]
 
   @@map("academic_years")
 }
@@ -296,11 +300,14 @@ model Subject {
   description  String?
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
+  creditHours  Int         @default(3)
+  applicablePrograms String[] @default([])
 
   // Assignments and grades
   teachingAssignments TeachingAssignment[]
   grades              GradeEntry[]
   timetableEntries     TimetableEntry[]
+  curriculumMappings CurriculumMapping[]
 
   @@map("subjects")
 }
@@ -310,12 +317,14 @@ model ClassSection {
   name           String // e.g. "1A", "2B", "3Science"
   level          ClassLevel
   capacity       Int           @default(40)
+  program        String?       // e.g. "Science", "General Arts", "Business", "Vocational"
   classTeacherId String?       @unique
   classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
 
   students            StudentProfile[]
   teachingAssignments TeachingAssignment[]
   timetableEntries      TimetableEntry[]
+  curriculumMappings CurriculumMapping[]
 
   @@unique([name, level])
   @@map("class_sections")
@@ -331,8 +340,28 @@ model TeachingAssignment {
   classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   academicYearId String
 
-  @@unique([teacherId, subjectId, classSectionId, academicYearId])
-  @@map("teaching_assignments")
+   @@unique([teacherId, subjectId, classSectionId, academicYearId])
+   @@map("teaching_assignments")
+ }
+
+// ─────────────────────────────────────────────
+// CURRICULUM MATRIX MODULE
+// ─────────────────────────────────────────────
+
+model CurriculumMapping {
+  id             String       @id @default(uuid())
+  subjectId      String
+  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classSectionId String
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  isActive       Boolean      @default(true)
+  deployedAt     DateTime?
+  deployedById   String?
+
+  @@unique([subjectId, classSectionId, academicYearId])
+  @@map("curriculum_mappings")
 }
 
 // ─────────────────────────────────────────────

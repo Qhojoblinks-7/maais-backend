@@ -10,11 +10,13 @@ exports.AcademicArchitectModule = void 0;
 const common_1 = require("@nestjs/common");
 const academic_architect_service_1 = require("./academic-architect.service");
 const academic_architect_controller_1 = require("./academic-architect.controller");
+const curriculum_module_1 = require("./curriculum/curriculum.module");
 let AcademicArchitectModule = class AcademicArchitectModule {
 };
 exports.AcademicArchitectModule = AcademicArchitectModule;
 exports.AcademicArchitectModule = AcademicArchitectModule = __decorate([
     (0, common_1.Module)({
+        imports: [curriculum_module_1.CurriculumModule],
         providers: [academic_architect_service_1.AcademicArchitectService],
         controllers: [academic_architect_controller_1.AcademicArchitectController],
         exports: [academic_architect_service_1.AcademicArchitectService],

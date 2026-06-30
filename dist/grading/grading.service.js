@@ -895,6 +895,50 @@ let GradingService = class GradingService {
         }
         return warnings;
     }
+    async getTermSummary(termId, userId, role) {
+        if (role !== client_1.Role.HEADMASTER &&
+            role !== client_1.Role.SUPER_ADMIN &&
+            role !== client_1.Role.HOD) {
+            throw new common_1.ForbiddenException('Insufficient permissions');
+        }
+        const term = await this.prisma.term.findUnique({
+            where: { id: termId },
+            include: { academicYear: true },
+        });
+        if (!term) {
+            throw new common_1.NotFoundException('Term not found');
+        }
+        const classSections = await this.prisma.classSection.findMany({
+            where: {
+                teachingAssignments: {
+                    some: { academicYearId: term.academicYearId },
+                },
+            },
+            select: { id: true },
+        });
+        const studentCount = await this.prisma.studentProfile.count({
+            where: {
+                currentClassId: { in: classSections.map((c) => c.id) },
+                archivedAt: null,
+            },
+        });
+        const gradeEntryCount = await this.prisma.gradeEntry.count({
+            where: { termId },
+        });
+        const TERM_DISPLAY = {
+            TERM_1: 'Term 1',
+            TERM_2: 'Term 2',
+            TERM_3: 'Term 3',
+        };
+        const termLabel = term.academicYear
+            ? `${term.academicYear.label} — ${TERM_DISPLAY[term.termNumber] || term.termNumber}`
+            : TERM_DISPLAY[term.termNumber] || `Term ${term.termNumber}`;
+        return {
+            termLabel,
+            studentCount,
+            gradeEntryCount,
+        };
+    }
 };
 exports.GradingService = GradingService;
 exports.GradingService = GradingService = __decorate([

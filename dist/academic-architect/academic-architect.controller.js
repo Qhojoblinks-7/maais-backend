@@ -55,10 +55,16 @@ let AcademicArchitectController = class AcademicArchitectController {
         return this.service.getAllSubjects();
     }
     createClass(dto) {
-        return this.service.createClassSection(dto.name, dto.level, dto.capacity);
+        return this.service.createClassSection(dto.name, dto.level, dto.capacity, dto.program);
     }
     getAllClasses() {
         return this.service.getAllClassSections();
+    }
+    updateClass(id, dto) {
+        return this.service.updateClassSection(id, dto);
+    }
+    deleteClass(id) {
+        return this.service.deleteClassSection(id);
     }
     assignClassTeacher(id, dto) {
         return this.service.assignClassTeacher(id, dto.staffId);
@@ -71,6 +77,9 @@ let AcademicArchitectController = class AcademicArchitectController {
             return [];
         }
         return this.service.getTeacherAssignments(teacherId);
+    }
+    getAssignmentsByClass(classId) {
+        return this.service.getAssignmentsByClass(classId);
     }
     getMyAssignments(user) {
         if (!user.staffProfile)
@@ -195,6 +204,27 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getAllClasses", null);
 __decorate([
+    (0, common_1.Patch)('classes/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),
+    (0, swagger_1.ApiOperation)({ summary: 'Update a class section' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, academic_architect_dto_1.UpdateClassSectionDto]),
+    __metadata("design:returntype", void 0)
+], AcademicArchitectController.prototype, "updateClass", null);
+__decorate([
+    (0, common_1.Delete)('classes/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete a class section' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AcademicArchitectController.prototype, "deleteClass", null);
+__decorate([
     (0, common_1.Patch)('classes/:id/teacher'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),
     (0, swagger_1.ApiOperation)({ summary: 'Assign class teacher' }),
@@ -225,6 +255,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], AcademicArchitectController.prototype, "getTeacherAssignments", null);
+__decorate([
+    (0, common_1.Get)('assignments/class/:classId'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiOperation)({ summary: 'Get teaching assignments for a class' }),
+    openapi.ApiResponse({ status: 200, type: [Object] }),
+    __param(0, (0, common_1.Param)('classId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], AcademicArchitectController.prototype, "getAssignmentsByClass", null);
 __decorate([
     (0, common_1.Get)('my-assignments'),
     (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),

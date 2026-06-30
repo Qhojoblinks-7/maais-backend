@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AssignClassTeacherDto = exports.AssignTeacherDto = exports.CreateClassSectionDto = exports.CreateSubjectDto = exports.CreateDepartmentDto = exports.CreateTermDto = exports.CreateAcademicYearDto = void 0;
+exports.UpdateClassSectionDto = exports.AssignClassTeacherDto = exports.AssignTeacherDto = exports.CreateClassSectionDto = exports.CreateSubjectDto = exports.CreateDepartmentDto = exports.CreateTermDto = exports.CreateAcademicYearDto = void 0;
 const openapi = require("@nestjs/swagger");
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
@@ -118,7 +118,7 @@ __decorate([
 ], CreateSubjectDto.prototype, "description", void 0);
 class CreateClassSectionDto {
     static _OPENAPI_METADATA_FACTORY() {
-        return { name: { required: true, type: () => String }, level: { required: true, type: () => Object }, capacity: { required: false, type: () => Number } };
+        return { name: { required: true, type: () => String }, level: { required: true, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String } };
     }
 }
 exports.CreateClassSectionDto = CreateClassSectionDto;
@@ -138,6 +138,12 @@ __decorate([
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], CreateClassSectionDto.prototype, "capacity", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Science' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateClassSectionDto.prototype, "program", void 0);
 class AssignTeacherDto {
     static _OPENAPI_METADATA_FACTORY() {
         return { teacherId: { required: true, type: () => String }, subjectId: { required: true, type: () => String }, classSectionId: { required: true, type: () => String }, academicYearId: { required: true, type: () => String } };
@@ -175,4 +181,34 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AssignClassTeacherDto.prototype, "staffId", void 0);
+class UpdateClassSectionDto {
+    static _OPENAPI_METADATA_FACTORY() {
+        return { name: { required: false, type: () => String }, level: { required: false, type: () => Object }, capacity: { required: false, type: () => Number }, program: { required: false, type: () => String } };
+    }
+}
+exports.UpdateClassSectionDto = UpdateClassSectionDto;
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateClassSectionDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ enum: client_1.ClassLevel }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.ClassLevel),
+    __metadata("design:type", String)
+], UpdateClassSectionDto.prototype, "level", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 40 }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    __metadata("design:type", Number)
+], UpdateClassSectionDto.prototype, "capacity", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ example: 'Science' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateClassSectionDto.prototype, "program", void 0);
 //# sourceMappingURL=academic-architect.dto.js.map

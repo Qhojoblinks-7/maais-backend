@@ -26,6 +26,7 @@ export declare class CreateClassSectionDto {
     name: string;
     level: ClassLevel;
     capacity?: number;
+    program?: string;
 }
 export declare class AssignTeacherDto {
     teacherId: string;
@@ -35,4 +36,10 @@ export declare class AssignTeacherDto {
 }
 export declare class AssignClassTeacherDto {
     staffId: string;
+}
+export declare class UpdateClassSectionDto {
+    name?: string;
+    level?: ClassLevel;
+    capacity?: number;
+    program?: string;
 }

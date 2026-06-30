@@ -86,8 +86,8 @@ let AcademicArchitectService = class AcademicArchitectService {
             orderBy: { name: 'asc' },
         });
     }
-    async createClassSection(name, level, capacity) {
-        return this.prisma.classSection.create({ data: { name, level, capacity } });
+    async createClassSection(name, level, capacity, program) {
+        return this.prisma.classSection.create({ data: { name, level, capacity, program } });
     }
     async getAllClassSections() {
         return this.prisma.classSection.findMany({
@@ -104,6 +104,17 @@ let AcademicArchitectService = class AcademicArchitectService {
             data: { classTeacherId: staffId },
         });
     }
+    async updateClassSection(classSectionId, data) {
+        return this.prisma.classSection.update({
+            where: { id: classSectionId },
+            data,
+        });
+    }
+    async deleteClassSection(classSectionId) {
+        return this.prisma.classSection.delete({
+            where: { id: classSectionId },
+        });
+    }
     async assignTeacher(dto) {
         return this.prisma.teachingAssignment.create({ data: dto });
     }
@@ -111,6 +122,16 @@ let AcademicArchitectService = class AcademicArchitectService {
         return this.prisma.teachingAssignment.findMany({
             where: { teacherId },
             include: { subject: true, classSection: true },
+        });
+    }
+    async getAssignmentsByClass(classSectionId) {
+        return this.prisma.teachingAssignment.findMany({
+            where: { classSectionId },
+            include: {
+                subject: { include: { department: true } },
+                teacher: { include: { user: { select: { email: true } } } },
+                classSection: true,
+            },
         });
     }
 };

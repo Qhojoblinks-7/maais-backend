@@ -54,6 +54,8 @@ export declare class UsersService {
             departmentId: string | null;
             staffId: string;
             hiredAt: Date;
+            canTeach: boolean;
+            canOversight: boolean;
         };
     } & {
         id: string;
@@ -83,6 +85,7 @@ export declare class UsersService {
                 name: string;
                 id: string;
                 capacity: number;
+                program: string | null;
                 classTeacherId: string | null;
             };
         } & {
@@ -158,6 +161,7 @@ export declare class UsersService {
             name: string;
             id: string;
             capacity: number;
+            program: string | null;
             classTeacherId: string | null;
         };
         grades: ({
@@ -170,6 +174,8 @@ export declare class UsersService {
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
                 code: string;
+                creditHours: number;
+                applicablePrograms: string[];
             };
         } & {
             id: string;
@@ -247,6 +253,7 @@ export declare class UsersService {
             name: string;
             id: string;
             capacity: number;
+            program: string | null;
             classTeacherId: string | null;
         };
         grades: ({
@@ -255,18 +262,18 @@ export declare class UsersService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
-                    label: string;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
             };
             subject: {
                 name: string;
@@ -277,6 +284,8 @@ export declare class UsersService {
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
                 code: string;
+                creditHours: number;
+                applicablePrograms: string[];
             };
         } & {
             id: string;
@@ -308,18 +317,18 @@ export declare class UsersService {
                     id: string;
                     isActive: boolean;
                     createdAt: Date;
-                    label: string;
                     startDate: Date;
                     endDate: Date;
+                    label: string;
                 };
             } & {
                 id: string;
                 isActive: boolean;
                 academicYearId: string;
                 isLocked: boolean;
+                termNumber: import(".prisma/client").$Enums.TermNumber;
                 startDate: Date;
                 endDate: Date;
-                termNumber: import(".prisma/client").$Enums.TermNumber;
             };
         } & {
             id: string;
@@ -403,12 +412,15 @@ export declare class UsersService {
                 type: import(".prisma/client").$Enums.SubjectType;
                 description: string | null;
                 code: string;
+                creditHours: number;
+                applicablePrograms: string[];
             };
             classSection: {
                 level: import(".prisma/client").$Enums.ClassLevel;
                 name: string;
                 id: string;
                 capacity: number;
+                program: string | null;
                 classTeacherId: string | null;
             };
         } & {
@@ -431,6 +443,8 @@ export declare class UsersService {
         departmentId: string | null;
         staffId: string;
         hiredAt: Date;
+        canTeach: boolean;
+        canOversight: boolean;
     })[]>;
     deactivateUser(userId: string): Promise<{
         id: string;
@@ -469,6 +483,7 @@ export declare class UsersService {
             name: string;
             id: string;
             capacity: number;
+            program: string | null;
             classTeacherId: string | null;
         };
     } & {
