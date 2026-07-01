@@ -67,6 +67,40 @@ export class PortalService {
       targetStudentId = student.id;
     }
 
+    // Restrict access for non-student roles
+    if (requesterRole && requesterRole !== Role.STUDENT) {
+      if (requesterRole === Role.TEACHER && requesterId) {
+        const staff = await this.prisma.staffProfile.findUnique({
+          where: { userId: requesterId },
+          select: { id: true },
+        });
+        if (!staff) {
+          throw new ForbiddenException('Teacher profile not found');
+        }
+        const assignment = await this.prisma.teachingAssignment.findFirst({
+          where: {
+            teacherId: staff.id,
+            classSectionId: student.currentClassId,
+          },
+        });
+        if (!assignment) {
+          throw new ForbiddenException('You do not have access to this student profile');
+        }
+      } else if (requesterRole === Role.HOD && requesterId) {
+        const staff = await this.prisma.staffProfile.findUnique({
+          where: { userId: requesterId },
+          select: { departmentId: true },
+        });
+        if (!staff?.departmentId) {
+          throw new ForbiddenException('HOD department not assigned');
+        }
+        if (student.departmentId !== staff.departmentId) {
+          throw new ForbiddenException('You do not have access to students outside your department');
+        }
+      }
+      // HEADMASTER and SUPER_ADMIN have no additional restrictions
+    }
+
     // Fetch related data separately to avoid column issues
     const [currentClass, department] = await Promise.all([
       student.currentClassId
@@ -93,11 +127,16 @@ export class PortalService {
       where: { studentId: targetStudentId },
     });
 
-    const notifications = await this.prisma.notification.findMany({
-      where: { studentId: targetStudentId },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
+    // Only include student notifications when the requester is the student viewing their own profile.
+    // Staff and admin can view student records but do not see private notification inbox.
+    const notifications =
+      requesterRole === Role.STUDENT && targetStudentId
+        ? await this.prisma.notification.findMany({
+            where: { studentId: targetStudentId },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          })
+        : [];
 
     const gradeEntries = await this.prisma.gradeEntry.findMany({
       where: { studentId: targetStudentId },

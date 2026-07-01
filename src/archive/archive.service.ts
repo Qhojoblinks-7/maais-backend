@@ -206,6 +206,7 @@ export class ArchiveService {
         ],
       },
       include: {
+        currentClass: { select: { id: true, name: true, level: true } },
         grades: {
           include: {
             subject: true,
@@ -230,6 +231,72 @@ export class ArchiveService {
     return this.prisma.term.update({
       where: { id: termId },
       data: { isLocked: true },
+    });
+  }
+
+  /**
+   * Get unlocked terms for an academic year
+   */
+  async getUnlockedTerms(academicYearId: string) {
+    return this.prisma.term.findMany({
+      where: { academicYearId, isLocked: false },
+      select: { id: true, termNumber: true, startDate: true, endDate: true },
+      orderBy: { termNumber: 'asc' },
+    });
+  }
+
+  /**
+   * Bulk-lock all terms for an academic year
+   */
+  async lockAllTerms(academicYearId: string) {
+    return this.prisma.term.updateMany({
+      where: { academicYearId, isLocked: false },
+      data: { isLocked: true },
+    });
+  }
+
+  /**
+   * Get per-term class benchmark averages (the "ghost" marker)
+   */
+  async getClassBenchmarks(classId: string) {
+    const students = await this.prisma.studentProfile.findMany({
+      where: { currentClassId: classId },
+      select: { id: true },
+    });
+
+    const studentIds = students.map((s) => s.id);
+    if (studentIds.length === 0) return [];
+
+    const gradeEntries = await this.prisma.gradeEntry.findMany({
+      where: {
+        studentId: { in: studentIds },
+        totalScore: { not: null },
+      },
+      include: { term: { include: { academicYear: true } } },
+    });
+
+    const termMap = new Map<string, { termNumber: string; academicYearLabel: string; scores: number[] }>();
+
+    for (const entry of gradeEntries) {
+      const key = entry.termId;
+      if (!termMap.has(key)) {
+        termMap.set(key, {
+          termNumber: entry.term.termNumber.replace('TERM_', 'Term '),
+          academicYearLabel: entry.term.academicYear?.label || '',
+          scores: [],
+        });
+      }
+      const termData = termMap.get(key)!;
+      termData.scores.push(entry.totalScore as number);
+    }
+
+    return Array.from(termMap.values()).map(({ termNumber, academicYearLabel, scores }) => {
+      const avg = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
+      return {
+        termNumber,
+        termLabel: `${academicYearLabel} ${termNumber}`.trim(),
+        averageScore: avg,
+      };
     });
   }
 
@@ -270,6 +337,14 @@ export class ArchiveService {
         pendingObservations,
       },
     };
+  }
+
+  async getPromotionHistory(studentId: string) {
+    return this.prisma.promotionRecord.findMany({
+      where: { studentId },
+      include: { academicYear: true },
+      orderBy: { performedAt: 'desc' },
+    });
   }
 
   async getArchiveStats() {

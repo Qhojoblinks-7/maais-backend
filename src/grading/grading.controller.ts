@@ -281,6 +281,33 @@ export class GradingController {
     return existing;
   }
 
+  @Get('last-saved')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get the last time a grade entry was saved for the current user' })
+  async getLastSaved(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!staffProfile) {
+      return { lastSaved: null };
+    }
+
+    const lastEntry = await this.prisma.gradeEntry.findFirst({
+      where: { submittedById: userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    });
+
+    return {
+      lastSaved: lastEntry?.updatedAt || null,
+    };
+  }
+
   @Put('rules')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update grading rules configuration' })

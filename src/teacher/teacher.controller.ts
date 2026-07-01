@@ -179,6 +179,20 @@ export class TeacherController {
     return this.teacherService.getSupportObservations(user);
   }
 
+  @Get('observations')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get observation logs for a teacher' })
+  getObservations(
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
+  ) {
+    return this.teacherService.getSupportObservations(user);
+  }
+
   @Get('grade-revisions')
   @Roles(Role.TEACHER, Role.HOD)
   @ApiOperation({ summary: 'Get grade revision requests for a teacher' })

@@ -32,6 +32,7 @@ const timetable_module_1 = require("./timetable/timetable.module");
 const teacher_module_1 = require("./teacher/teacher.module");
 const hod_module_1 = require("./hod/hod.module");
 const database_init_service_1 = require("./common/services/database-init.service");
+const health_controller_1 = require("./health.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -56,7 +57,6 @@ exports.AppModule = AppModule = __decorate([
             timetable_module_1.TimetableModule,
             teacher_module_1.TeacherModule,
             hod_module_1.HODModule,
-            admin_module_1.AdminModule,
         ],
         providers: [
             {
@@ -77,6 +77,7 @@ exports.AppModule = AppModule = __decorate([
             },
             database_init_service_1.DatabaseInitService,
         ],
+        controllers: [health_controller_1.HealthController],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

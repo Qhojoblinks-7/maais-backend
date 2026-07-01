@@ -127,6 +127,23 @@ let GradingController = class GradingController {
         }
         return existing;
     }
+    async getLastSaved(userId, role) {
+        const staffProfile = await this.prisma.staffProfile.findUnique({
+            where: { userId },
+            select: { id: true },
+        });
+        if (!staffProfile) {
+            return { lastSaved: null };
+        }
+        const lastEntry = await this.prisma.gradeEntry.findFirst({
+            where: { submittedById: userId },
+            orderBy: { updatedAt: 'desc' },
+            select: { updatedAt: true },
+        });
+        return {
+            lastSaved: lastEntry?.updatedAt || null,
+        };
+    }
     async updateGradingRules(body) {
         if (!body.termId) {
             const existing = await this.prisma.assessmentRules.findFirst();
@@ -388,6 +405,17 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], GradingController.prototype, "getGradingRules", null);
+__decorate([
+    (0, common_1.Get)('last-saved'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get the last time a grade entry was saved for the current user' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, roles_decorator_1.CurrentUser)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)('role')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], GradingController.prototype, "getLastSaved", null);
 __decorate([
     (0, common_1.Put)('rules'),
     (0, roles_decorator_1.Roles)(client_1.Role.HOD, client_1.Role.HEADMASTER, client_1.Role.SUPER_ADMIN),

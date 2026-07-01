@@ -45,8 +45,8 @@ export class UsersController {
   @Get('students')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
   @ApiOperation({ summary: 'List all active students' })
-  getAllStudents(@CurrentUser() user: { id: string; role: Role }) {
-    return this.usersService.getAllStudents(user);
+  getAllStudents(@CurrentUser() user: { id: string; role: Role }, @Query('search') search?: string) {
+    return this.usersService.getAllStudents(user, search);
   }
 
   @Get('students/:id')
@@ -88,12 +88,47 @@ export class UsersController {
     return this.usersService.getAllStaff(user);
   }
 
+  @Get('staff/:id')
+  @Roles(
+    Role.SUPER_ADMIN,
+    Role.HEADMASTER,
+    Role.HOD,
+    Role.TEACHER,
+  )
+  @ApiOperation({ summary: 'Get full staff/teacher profile' })
+  getStaffProfile(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; role: Role },
+  ) {
+    return this.usersService.getStaffProfile(id, user);
+  }
+
+  @Get('teachers')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Search teachers by name' })
+  searchTeachers(
+    @CurrentUser() user: { id: string; role: Role },
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.searchTeachers(user, search);
+  }
+
   @Get('parents')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all parent accounts' })
   getAllParents() {
     return this.usersService.getAllParents();
+  }
+
+  @Get('parents/search')
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Search parents by name, phone, or email' })
+  searchParents(
+    @CurrentUser() user: { id: string; role: Role },
+    @Query('search') search?: string,
+  ) {
+    return this.usersService.searchParents(user, search);
   }
 
   @Delete(':id/deactivate')

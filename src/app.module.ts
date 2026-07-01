@@ -23,6 +23,7 @@ import { TimetableModule } from './timetable/timetable.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { HODModule } from './hod/hod.module';
 import { DatabaseInitService } from './common/services/database-init.service';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -44,7 +45,6 @@ import { DatabaseInitService } from './common/services/database-init.service';
     TimetableModule,
     TeacherModule,
     HODModule,
-    AdminModule,
   ],
   providers: [
     {
@@ -65,5 +65,6 @@ import { DatabaseInitService } from './common/services/database-init.service';
     },
     DatabaseInitService,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

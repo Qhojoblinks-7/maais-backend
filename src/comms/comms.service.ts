@@ -129,6 +129,11 @@ export class CommsService {
       targetStudentId = lookupStudent.id;
     }
 
+    // Only the student themselves may view their notification inbox
+    if (requesterRole !== Role.STUDENT) {
+      return [];
+    }
+
     return this.prisma.notification.findMany({
       where: { studentId: targetStudentId },
       orderBy: { createdAt: 'desc' },

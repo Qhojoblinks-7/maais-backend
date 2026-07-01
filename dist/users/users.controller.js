@@ -34,8 +34,8 @@ let UsersController = class UsersController {
     createParent(dto) {
         return this.usersService.createParent(dto);
     }
-    getAllStudents(user) {
-        return this.usersService.getAllStudents(user);
+    getAllStudents(user, search) {
+        return this.usersService.getAllStudents(user, search);
     }
     getStudentProfile(id, role, user) {
         const teacherStaffId = role === client_1.Role.TEACHER ? user?.staffProfile?.id : undefined;
@@ -47,8 +47,17 @@ let UsersController = class UsersController {
     getAllStaff(user) {
         return this.usersService.getAllStaff(user);
     }
+    getStaffProfile(id, user) {
+        return this.usersService.getStaffProfile(id, user);
+    }
+    searchTeachers(user, search) {
+        return this.usersService.searchTeachers(user, search);
+    }
     getAllParents() {
         return this.usersService.getAllParents();
+    }
+    searchParents(user, search) {
+        return this.usersService.searchParents(user, search);
     }
     deactivate(id) {
         return this.usersService.deactivateUser(id);
@@ -88,13 +97,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "createParent", null);
 __decorate([
+    openapi.ApiQuery({ name: "search", required: false }),
     (0, common_1.Get)('students'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
     (0, swagger_1.ApiOperation)({ summary: 'List all active students' }),
     openapi.ApiResponse({ status: 200, type: [Object] }),
     __param(0, (0, roles_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('search')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getAllStudents", null);
 __decorate([
@@ -133,6 +144,29 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getAllStaff", null);
 __decorate([
+    (0, common_1.Get)('staff/:id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiOperation)({ summary: 'Get full staff/teacher profile' }),
+    openapi.ApiResponse({ status: 200, type: Object }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, roles_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getStaffProfile", null);
+__decorate([
+    openapi.ApiQuery({ name: "search", required: false }),
+    (0, common_1.Get)('teachers'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiOperation)({ summary: 'Search teachers by name' }),
+    openapi.ApiResponse({ status: 200, type: [Object] }),
+    __param(0, (0, roles_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "searchTeachers", null);
+__decorate([
     (0, common_1.Get)('parents'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD),
     (0, swagger_1.ApiBearerAuth)(),
@@ -142,6 +176,18 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getAllParents", null);
+__decorate([
+    openapi.ApiQuery({ name: "search", required: false }),
+    (0, common_1.Get)('parents/search'),
+    (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER, client_1.Role.HOD, client_1.Role.TEACHER),
+    (0, swagger_1.ApiOperation)({ summary: 'Search parents by name, phone, or email' }),
+    openapi.ApiResponse({ status: 200 }),
+    __param(0, (0, roles_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('search')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "searchParents", null);
 __decorate([
     (0, common_1.Delete)(':id/deactivate'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPER_ADMIN, client_1.Role.HEADMASTER),

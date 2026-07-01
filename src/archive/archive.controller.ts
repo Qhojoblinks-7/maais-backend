@@ -12,6 +12,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role, ClassLevel } from '@prisma/client';
 import { ArchiveService } from './archive.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { PromotionDto, TransferStudentsDto } from '../comms/dto/comms.dto';
 
 @ApiTags('Archive')
@@ -21,7 +22,7 @@ export class ArchiveController {
   constructor(private archiveService: ArchiveService) {}
 
   @Post('promote')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
   @ApiOperation({ summary: 'Run annual promotion cycle' })
   runPromotion(@Body() dto: PromotionDto, @CurrentUser('id') userId: string) {
     return this.archiveService.runPromotionCycle(
@@ -44,11 +45,39 @@ export class ArchiveController {
     return this.archiveService.searchVault(query, userId, role);
   }
 
+  @Get('students/:id/promotions')
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Get promotion history for a student' })
+  getPromotionHistory(@Param('id') studentId: string) {
+    return this.archiveService.getPromotionHistory(studentId);
+  }
+
+  @Get('class-benchmarks')
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
+  @ApiOperation({ summary: 'Get per-term class benchmark averages (ghost markers)' })
+  getClassBenchmarks(@Query('classId') classId: string) {
+    return this.archiveService.getClassBenchmarks(classId);
+  }
+
   @Patch('terms/:id/lock')
   @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Lock a term' })
   lockTerm(@Param('id') id: string) {
     return this.archiveService.lockTerm(id);
+  }
+
+  @Get('terms/unlocked')
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get unlocked terms for an academic year' })
+  getUnlockedTerms(@Query('academicYearId') academicYearId: string) {
+    return this.archiveService.getUnlockedTerms(academicYearId);
+  }
+
+  @Post('terms/lock-all')
+  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Bulk-lock all terms for an academic year' })
+  lockAllTerms(@Body('academicYearId') academicYearId: string) {
+    return this.archiveService.lockAllTerms(academicYearId);
   }
 
   @Get('stats')

@@ -166,16 +166,16 @@ export class AdminController {
   }
 
   @Get('settings/freeze')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT, Role.PARENT)
   @ApiOperation({ summary: 'Get system freeze status' })
-  getSystemFreeze() {
+  getSystemFreeze(@CurrentUser() user: any) {
     return this.adminService.getSystemFreeze();
   }
 
   @Post('settings/freeze')
   @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Toggle emergency system freeze' })
-  toggleSystemFreeze(@Body() body: { enabled: boolean; reason?: string }) {
+  toggleSystemFreeze(@CurrentUser() user: any, @Body() body: { enabled: boolean; reason?: string }) {
     return this.adminService.toggleSystemFreeze(body.enabled, body.reason);
   }
 

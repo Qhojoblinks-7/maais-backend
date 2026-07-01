@@ -218,7 +218,7 @@ export class HODController {
   }
 
   @Get('teachers')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Get department teachers' })
   getDepartmentTeachers(
     @CurrentUser('id') userId: string,

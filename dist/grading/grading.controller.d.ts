@@ -369,6 +369,9 @@ export declare class GradingController {
         normalizationEnabled: boolean;
         submissionDeadline: Date | null;
     }>;
+    getLastSaved(userId: string, role: Role): Promise<{
+        lastSaved: Date;
+    }>;
     updateGradingRules(body: {
         termId?: string;
         caWeight?: number;
