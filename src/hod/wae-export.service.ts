@@ -4,7 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HODExportService } from '../hod/hod-export.service';
+import { HODExportService } from './hod-export.service';
 import { WAECValidationService } from './waec-validation.service';
 import { Role } from '@prisma/client';
 
