@@ -28,9 +28,9 @@ export class TimetableService {
     const classSection = await this.prisma.classSection.findUnique({
       where: { id: dto.classId },
     });
-    
+
     const track = dto.track || classSection?.track;
-    
+
     const whereClash: any = {
       teacherId: dto.teacherId,
       dayOfWeek: dto.dayOfWeek,
@@ -50,8 +50,10 @@ export class TimetableService {
       ],
     };
     if (track) whereClash.track = track;
-    
-    const clash = await this.prisma.timetableEntry.findFirst({ where: whereClash });
+
+    const clash = await this.prisma.timetableEntry.findFirst({
+      where: whereClash,
+    });
 
     if (clash) {
       throw new Error(
@@ -170,7 +172,7 @@ export class TimetableService {
     const where: any = {};
     if (classIds?.length) where.classId = { in: classIds };
     if (track) where.track = track;
-    
+
     const entries = await this.prisma.timetableEntry.findMany({
       where,
       include: {
@@ -190,7 +192,7 @@ export class TimetableService {
     const where: any = {};
     if (classIds?.length) where.classId = { in: classIds };
     if (track) where.track = track;
-    
+
     const entries = await this.prisma.timetableEntry.findMany({
       where,
     });

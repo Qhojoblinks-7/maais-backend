@@ -117,7 +117,7 @@ export class HODController {
   }
 
   @Post('lock-matrix/:termId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Lock a term' })
   lockTerm(
     @Param('termId') termId: string,
@@ -128,7 +128,7 @@ export class HODController {
   }
 
   @Post('lock-class/:classId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Lock a class matrix' })
   lockClassMatrix(
     @Param('classId') classId: string,
@@ -139,7 +139,7 @@ export class HODController {
   }
 
   @Post('unlock-class/:classId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Unlock a class matrix' })
   unlockClassMatrix(
     @Param('classId') classId: string,
@@ -150,7 +150,7 @@ export class HODController {
   }
 
   @Post('unlock-matrix/:termId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Unlock a term' })
   unlockTerm(
     @Param('termId') termId: string,
@@ -218,7 +218,7 @@ export class HODController {
   }
 
   @Get('teachers')
-  @Roles(Role.HOD, Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get department teachers' })
   getDepartmentTeachers(
     @CurrentUser('id') userId: string,
@@ -239,7 +239,7 @@ export class HODController {
   }
 
   @Post('teachers/:teacherId/reset-password')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Reset teacher password' })
   resetTeacherPassword(
     @Param('teacherId') teacherId: string,
@@ -425,7 +425,7 @@ export class HODController {
   }
 
   @Get('system-health')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get system health status' })
   getSystemHealth(
     @CurrentUser('id') userId: string,
@@ -435,7 +435,7 @@ export class HODController {
   }
 
   @Get('escalations')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get escalated issues' })
   getEscalatedIssues(
     @CurrentUser('id') userId: string,
@@ -446,7 +446,7 @@ export class HODController {
   }
 
   @Post('escalations')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Create escalation' })
   createEscalation(
     @Body() body: any,
@@ -457,7 +457,7 @@ export class HODController {
   }
 
   @Post('impersonate/:teacherId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Start impersonating a teacher' })
   impersonateTeacher(
     @Param('teacherId') teacherId: string,
@@ -474,7 +474,7 @@ export class HODController {
   }
 
   @Post('impersonate/stop')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Stop impersonating teacher' })
   stopImpersonation(
     @CurrentUser('id') userId: string,
@@ -484,7 +484,7 @@ export class HODController {
   }
 
   @Get('impersonate/active')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get active impersonations' })
   getActiveImpersonations(
     @CurrentUser('id') userId: string,
@@ -494,7 +494,7 @@ export class HODController {
   }
 
   @Get('support/tickets')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get support tickets' })
   getSupportTickets(
     @CurrentUser('id') userId: string,
@@ -505,7 +505,7 @@ export class HODController {
   }
 
   @Post('support/tickets')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Create support ticket' })
   createSupportTicket(
     @Body() ticket: any,
@@ -516,7 +516,7 @@ export class HODController {
   }
 
   @Patch('support/tickets/:ticketId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Update support ticket' })
   updateSupportTicket(
     @Param('ticketId') ticketId: string,
@@ -528,7 +528,7 @@ export class HODController {
   }
 
   @Post('support/tickets/:ticketId/escalate')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Escalate a ticket' })
   escalateTicket(
     @Param('ticketId') ticketId: string,
@@ -583,7 +583,7 @@ export class HODController {
   }
 
   @Get('archive/promotions')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get promotion recommendations' })
   getPromotionRecommendations(
     @CurrentUser('id') userId: string,
@@ -593,8 +593,8 @@ export class HODController {
     return this.hodService.getPromotionRecommendations(userId, role, params);
   }
 
-  @Post('export-waec/:termId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Get('export-waec/:termId')
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export WAEC CSV for term' })
   async exportWAECCSV(
     @Param('termId') termId: string,
@@ -610,15 +610,16 @@ export class HODController {
       role,
     );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    const schoolCode = 'MAAIS';
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="WAEC_${className}_${termId}.csv"`,
+      `attachment; filename="${schoolCode}_SHS1_${termId}.csv"`,
     );
     return res.send(csv);
   }
 
   @Get('export-waec/:termId/department')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export department WAEC CSV for term' })
   exportDepartmentWAECCSV(
     @Param('termId') termId: string,
@@ -629,7 +630,7 @@ export class HODController {
   }
 
   @Get('export-waec/:termId/pdf')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export WAEC PDF for a class' })
   exportWAECPDF(
     @Param('termId') termId: string,
@@ -641,7 +642,7 @@ export class HODController {
   }
 
   @Get('export-waec/:termId/pdf/department')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export department WAEC PDF for term' })
   exportDepartmentWAECPDF(
     @Param('termId') termId: string,

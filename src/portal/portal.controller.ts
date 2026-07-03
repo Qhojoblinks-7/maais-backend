@@ -14,13 +14,7 @@ export class PortalController {
   constructor(private readonly portalService: PortalService) {}
 
   @Get('students/:id/portal-data')
-  @Roles(
-    Role.STUDENT,
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get portal dashboard data for a student' })
   getPortalData(
     @Param('id') studentId: string,

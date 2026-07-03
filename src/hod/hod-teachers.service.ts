@@ -16,10 +16,12 @@ export class HODTeacherService {
     academicYearId?: string,
     termNumber?: string,
   ) {
-    if (role !== Role.HOD)
-      throw new ForbiddenException(
-        'Only HODs can view teacher submission status',
-      );
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
+      throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId },
@@ -104,7 +106,11 @@ export class HODTeacherService {
     role: Role,
     params?: { search?: string },
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can view department teachers');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -193,7 +199,11 @@ export class HODTeacherService {
   }
 
   async getAuditLogs(userId: string, role: Role, params?: any) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -378,7 +388,11 @@ export class HODTeacherService {
       metadata?: any;
     },
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -468,7 +482,11 @@ export class HODTeacherService {
     logId: string,
     comment: string,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -506,7 +524,11 @@ export class HODTeacherService {
   }
 
   async getTeacherSubmissionTrends(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException(
         'Only HODs can view teacher submission trends',
       );

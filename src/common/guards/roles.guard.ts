@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { hasInheritedRole } from '../constants/role-hierarchy.constant';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -20,9 +21,21 @@ export class RolesGuard implements CanActivate {
     if (!requiredRoles || requiredRoles.length === 0) return true;
 
     const { user } = context.switchToHttp().getRequest();
-    const hasRole = requiredRoles.some((role) => user?.role === role);
+    if (!user) {
+      throw new ForbiddenException('Access denied. No user context.');
+    }
 
-    if (!hasRole) {
+    const userRole = user?.role;
+    console.log('[RolesGuard] userRole=', userRole, 'required=', requiredRoles);
+    if (
+      userRole === Role.SUPER_ADMIN ||
+      userRole === Role.HEADMASTER ||
+      String(userRole).toUpperCase() === 'ADMIN'
+    ) {
+      return true;
+    }
+
+    if (!hasInheritedRole(userRole, requiredRoles)) {
       throw new ForbiddenException(
         `Access denied. Required roles: ${requiredRoles.join(', ')}`,
       );

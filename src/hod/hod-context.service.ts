@@ -11,7 +11,11 @@ export class HODContextService {
   constructor(private prisma: PrismaService) {}
 
   async getContext(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -36,7 +40,11 @@ export class HODContextService {
   }
 
   async getAllAcademicYears(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -64,7 +72,11 @@ export class HODContextService {
     academicYearId?: string,
     termNumber?: string,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({

@@ -19,9 +19,11 @@ import { AdminModule } from './admin/admin.module';
 import { ApprovalsModule } from './approvals/approvals.module';
 import { BehaviorModule } from './behavior/behavior.module';
 import { InterventionsModule } from './interventions/interventions.module';
+import { MedicalModule } from './medical/medical.module';
 import { TimetableModule } from './timetable/timetable.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { HODModule } from './hod/hod.module';
+import { WAEExportModule } from './wae-export/wae-export.module';
 import { DatabaseInitService } from './common/services/database-init.service';
 import { HealthController } from './health.controller';
 
@@ -42,9 +44,11 @@ import { HealthController } from './health.controller';
     ApprovalsModule,
     BehaviorModule,
     InterventionsModule,
+    MedicalModule,
     TimetableModule,
     TeacherModule,
     HODModule,
+    WAEExportModule,
   ],
   providers: [
     {

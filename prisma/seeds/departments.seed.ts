@@ -7,6 +7,7 @@ export async function seedDepartments(prisma: PrismaClient) {
     { name: 'Business', code: 'BUS' },
     { name: 'Vocational & Technical', code: 'VTG' },
     { name: 'General Arts', code: 'ART' },
+    { name: 'Languages', code: 'LAN' },
   ];
 
   const results = [];

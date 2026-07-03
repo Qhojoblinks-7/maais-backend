@@ -9,9 +9,7 @@ export class DatabaseInitService implements OnModuleInit {
 
   async onModuleInit() {
     try {
-      const result = await this.prisma.$queryRaw<
-        { trigger_exists: boolean }[]
-      >`
+      const result = await this.prisma.$queryRaw<{ trigger_exists: boolean }[]>`
         SELECT EXISTS (
           SELECT 1 FROM pg_trigger WHERE tgname = 'audit_logs_insert_only'
         ) AS trigger_exists

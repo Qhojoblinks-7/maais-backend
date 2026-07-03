@@ -23,21 +23,28 @@ export class CurriculumController {
   constructor(private curriculumService: CurriculumService) {}
 
   @Get('matrix')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get full curriculum matrix for an academic year' })
   getMatrix(
     @Query('academicYearId') academicYearId: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.curriculumService.getCurriculumMatrix(academicYearId, userId, role);
+    return this.curriculumService.getCurriculumMatrix(
+      academicYearId,
+      userId,
+      role,
+    );
   }
 
   @Post('matrix')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
-  @ApiOperation({ summary: 'Add or update a curriculum mapping (subject ↔ class)' })
+  @Roles(Role.HOD)
+  @ApiOperation({
+    summary: 'Add or update a curriculum mapping (subject ↔ class)',
+  })
   upsertMapping(
-    @Body() body: { academicYearId: string; subjectId: string; classSectionId: string },
+    @Body()
+    body: { academicYearId: string; subjectId: string; classSectionId: string },
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
@@ -51,7 +58,7 @@ export class CurriculumController {
   }
 
   @Delete('matrix/:subjectId/:classSectionId')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Remove a curriculum mapping' })
   removeMapping(
     @Query('academicYearId') academicYearId: string,
@@ -70,10 +77,14 @@ export class CurriculumController {
   }
 
   @Post('matrix/bulk')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Bulk upsert curriculum mappings' })
   bulkUpsert(
-    @Body() body: { academicYearId: string; mappings: { subjectId: string; classSectionId: string }[] },
+    @Body()
+    body: {
+      academicYearId: string;
+      mappings: { subjectId: string; classSectionId: string }[];
+    },
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
@@ -86,26 +97,32 @@ export class CurriculumController {
   }
 
   @Post('deploy')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Deploy curriculum for an academic year' })
   deploy(
     @Body() body: { academicYearId: string },
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.curriculumService.deployCurriculum(body.academicYearId, userId, role);
+    return this.curriculumService.deployCurriculum(
+      body.academicYearId,
+      userId,
+      role,
+    );
   }
 
   @Get('deployment/status')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get deployment status for an academic year' })
   getDeploymentStatus(@Query('academicYearId') academicYearId: string) {
     return this.curriculumService.getDeploymentStatus(academicYearId);
   }
 
   @Get('classes')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
-  @ApiOperation({ summary: 'Get all class sections with linked student previews' })
+  @Roles(Role.TEACHER)
+  @ApiOperation({
+    summary: 'Get all class sections with linked student previews',
+  })
   async getAllClassesWithStudents(@CurrentUser() user: any) {
     return this.curriculumService.getAllClassesWithStudents(user);
   }

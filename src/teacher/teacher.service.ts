@@ -280,72 +280,70 @@ export class TeacherService {
       const observations: any[] = [];
 
       await Promise.all(
-        assignmentStudentData.map(
-          async ({ assignment, students, studentIds }) => {
-            const grades = activeTerm
-              ? await this.prisma.gradeEntry.findMany({
-                  where: {
-                    studentId: { in: studentIds },
-                    subjectId: assignment.subjectId,
-                    termId: activeTerm.id,
-                  },
-                  select: {
-                    id: true,
-                    totalScore: true,
-                    remark: true,
-                    observationText: true,
-                    updatedAt: true,
-                    student: true,
-                  },
-                })
-              : [];
+        assignmentStudentData.map(async ({ assignment, studentIds }) => {
+          const grades = activeTerm
+            ? await this.prisma.gradeEntry.findMany({
+                where: {
+                  studentId: { in: studentIds },
+                  subjectId: assignment.subjectId,
+                  termId: activeTerm.id,
+                },
+                select: {
+                  id: true,
+                  totalScore: true,
+                  remark: true,
+                  observationText: true,
+                  updatedAt: true,
+                  student: true,
+                },
+              })
+            : [];
 
-            grades.forEach((grade) => {
-              const student = grade.student;
-              const score =
-                typeof grade.totalScore === 'number'
-                  ? Math.round(grade.totalScore)
-                  : 0;
-              const studentName = [student.firstName, student.lastName]
-                .filter(Boolean)
-                .join(' ');
-              const date = grade.updatedAt.toISOString().slice(0, 10);
-              const status =
-                typeof grade.totalScore === 'number' ? 'Active' : 'Pending';
-              const observation = {
-                id: grade.id,
-                student: studentName || 'Unknown Student',
-                class: assignment.classSection.name,
-                index: student.indexNumber,
-                type: assignment.subject.name,
-                comment:
-                  grade.remark ||
-                  grade.observationText ||
-                  'Grade entry pending observation',
-                date,
-                status,
-              };
-              const trend = getStudentTrend(
-                student.id,
-                assignment.subjectId,
-                score,
-              );
+          grades.forEach((grade) => {
+            const student = grade.student;
+            const score =
+              typeof grade.totalScore === 'number'
+                ? Math.round(grade.totalScore)
+                : 0;
+            const studentName = [student.firstName, student.lastName]
+              .filter(Boolean)
+              .join(' ');
+            const date = grade.updatedAt.toISOString().slice(0, 10);
+            const status =
+              typeof grade.totalScore === 'number' ? 'Active' : 'Pending';
+            const observation = {
+              id: grade.id,
+              student: studentName || 'Unknown Student',
+              class: assignment.classSection.name,
+              index: student.indexNumber,
+              type: assignment.subject.name,
+              comment:
+                grade.remark ||
+                grade.observationText ||
+                'Grade entry pending observation',
+              date,
+              status,
+            };
+            const trend = getStudentTrend(
+              student.id,
+              assignment.subjectId,
+              score,
+            );
 
-              studentScores.push({
-                id: grade.id,
-                student: observation.student,
-                class: assignment.classSection.name,
-                index: student.indexNumber,
-                score,
-                trend: trend.trend,
-                trendUp: trend.trendUp,
-                type: assignment.subject.name,
-                status,
-              });
-              observations.push(observation);
+            studentScores.push({
+              id: grade.id,
+              student: observation.student,
+              class: assignment.classSection.name,
+              index: student.indexNumber,
+              score,
+              trend: trend.trend,
+              trendUp: trend.trendUp,
+              type: assignment.subject.name,
+              status,
             });
-          },
-        ),
+            observations.push(observation);
+          });
+        }),
       );
 
       const termTrends = activeTerm
@@ -423,20 +421,28 @@ export class TeacherService {
 
   async submitGradeRevision(
     body: { gradeEntryId: string; issue: string; severity: string },
-    teacherId: string,
+    requester: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
     const gradeEntry = await this.prisma.gradeEntry.findUnique({
       where: { id: body.gradeEntryId },
-      include: { student: { include: { currentClass: true } }, subject: true },
+      include: {
+        student: { include: { currentClass: true } },
+        subject: true,
+      },
     });
 
     if (!gradeEntry) {
       throw new Error('Grade entry not found');
     }
 
-    return this.prisma.gradeRevision.create({
+    const isHod = requester.role === Role.HOD;
+    const targetTeacherId = isHod
+      ? await this.resolveTeacherStaffId(gradeEntry.submittedById)
+      : requester.staffProfile?.id || requester.id;
+
+    const revision = await this.prisma.gradeRevision.create({
       data: {
-        teacherId,
+        teacherId: targetTeacherId,
         studentId: gradeEntry.studentId,
         subjectId: gradeEntry.subjectId,
         gradeEntryId: body.gradeEntryId,
@@ -447,12 +453,88 @@ export class TeacherService {
         history: [],
       },
     });
+
+    if (isHod) {
+      await this.notifyStaff(
+        targetTeacherId,
+        'Grade Revision Requested',
+        `HOD has requested a revision for ${revision.className || 'a class'} — ${body.issue}`,
+        requester.id,
+      );
+    } else {
+      const hodStaffIds = await this.resolveHodStaffIdsForRequester(requester);
+      await Promise.all(
+        hodStaffIds.map((hodId) =>
+          this.notifyStaff(
+            hodId,
+            'Grade Revision Requested',
+            `Teacher has requested a grade revision for ${revision.className || 'a class'}`,
+            requester.id,
+          ),
+        ),
+      );
+    }
+
+    return revision;
+  }
+
+  private async resolveHodStaffIdsForRequester(requester: {
+    id: string;
+    staffProfile?: { id: string };
+  }): Promise<string[]> {
+    const staffProfileId = requester.staffProfile?.id;
+    if (!staffProfileId) return [];
+    const staff = await this.prisma.staffProfile.findFirst({
+      where: { id: staffProfileId },
+      select: { departmentId: true },
+    });
+    if (!staff?.departmentId) return [];
+    const hodProfiles = await this.prisma.staffProfile.findMany({
+      where: {
+        departmentId: staff.departmentId,
+        user: { role: Role.HOD },
+      },
+      select: { id: true },
+    });
+    return hodProfiles.map((p) => p.id);
+  }
+
+  private async notifyStaff(
+    staffId: string | null,
+    title: string,
+    body: string,
+    createdById?: string,
+  ) {
+    if (!staffId) return;
+    try {
+      await this.prisma.notification.create({
+        data: {
+          staffId,
+          title,
+          body,
+          channel: 'APP',
+          createdById: createdById || staffId,
+        },
+      });
+    } catch {
+      // notification failure must not break main flow
+    }
+  }
+
+  private async resolveTeacherStaffId(
+    userId: string | null | undefined,
+  ): Promise<string> {
+    if (!userId) return userId || '';
+    const staff = await this.prisma.staffProfile.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
+    return staff?.id || userId;
   }
 
   async updateGradeRevision(
     revisionId: string,
     body: { status?: string; history?: any },
-    teacherId: string,
   ) {
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: revisionId },
@@ -1147,6 +1229,7 @@ export class TeacherService {
     const gradeEntriesPromise = this.prisma.gradeEntry.findMany({
       where: { subjectId: subject.id, termId: term.id },
       select: {
+        id: true,
         studentId: true,
         classScore: true,
         examScore: true,
@@ -1178,6 +1261,7 @@ export class TeacherService {
         id: s.id,
         name: `${s.firstName} ${s.lastName}`,
         index: s.indexNumber,
+        gradeEntryId: g?.id,
         sba: g?.classScore ?? 0,
         exam: g?.examScore ?? 0,
         final: g?.totalScore ?? 0,

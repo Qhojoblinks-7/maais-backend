@@ -22,7 +22,11 @@ export class HODArchiveService {
       resolved?: boolean;
     },
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -129,7 +133,11 @@ export class HODArchiveService {
   }
 
   async getArchivedDepartmentData(userId: string, role: Role, params?: any) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access archived data');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -310,7 +318,11 @@ export class HODArchiveService {
   }
 
   async resolveAlert(alertId: string, userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can resolve alerts');
 
     const alert = await this.prisma.interventionAlert.findUnique({
@@ -333,7 +345,11 @@ export class HODArchiveService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can add notes');
 
     const alert = await this.prisma.interventionAlert.findUnique({

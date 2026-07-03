@@ -89,7 +89,7 @@ export class AdminController {
   constructor(private adminService: AdminService) {}
 
   @Post('departments/:id/freeze')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({
     summary: 'Freeze a department (suspend assessment operations)',
   })
@@ -102,7 +102,7 @@ export class AdminController {
   }
 
   @Post('departments/:id/transfer-teacher')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Transfer a teacher to another department' })
   transferTeacher(
     @Param('id') toDeptId: string,
@@ -113,7 +113,7 @@ export class AdminController {
   }
 
   @Post('departments/:id/template')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Authorize a department template update' })
   authorizeTemplate(
     @Param('id') deptId: string,
@@ -124,7 +124,7 @@ export class AdminController {
   }
 
   @Post('strategy-pulse')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Upload strategy pulse files' })
   uploadStrategyPulse(
     @Body() dto: StrategyPulseDto,
@@ -134,7 +134,7 @@ export class AdminController {
   }
 
   @Post('staff/:id/reset-credentials')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({
     summary: 'Reset staff credentials and generate temporary password',
   })
@@ -151,7 +151,7 @@ export class AdminController {
   }
 
   @Get('audit-logs')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get system-wide audit logs' })
   getAuditLogs(@Query() query: AuditLogQueryDto) {
@@ -159,42 +159,42 @@ export class AdminController {
   }
 
   @Get('settings')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Get admin settings and profile' })
   getSettings() {
     return this.adminService.getSettings();
   }
 
   @Get('settings/freeze')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT, Role.PARENT)
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get system freeze status' })
-  getSystemFreeze(@CurrentUser() user: any) {
+  getSystemFreeze() {
     return this.adminService.getSystemFreeze();
   }
 
   @Post('settings/freeze')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Toggle emergency system freeze' })
-  toggleSystemFreeze(@CurrentUser() user: any, @Body() body: { enabled: boolean; reason?: string }) {
+  toggleSystemFreeze(@Body() body: { enabled: boolean; reason?: string }) {
     return this.adminService.toggleSystemFreeze(body.enabled, body.reason);
   }
 
   @Patch('settings/mfa')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Update MFA setting' })
   updateMfa(@Body() body: { enabled: boolean }) {
     return this.adminService.updateMfa(body.enabled);
   }
 
   @Patch('settings/maintenance')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Toggle maintenance mode' })
   toggleMaintenance(@Body() body: { enabled: boolean }) {
     return this.adminService.toggleMaintenance(body.enabled);
   }
 
   @Post('settings/credentials')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Update admin credentials' })
   updateCredentials(
     @Body() body: { currentPassword?: string; newPassword?: string },
@@ -203,7 +203,7 @@ export class AdminController {
   }
 
   @Patch('departments/:id/hod')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Assign or revoke HOD for a department' })
   assignHOD(
     @Param('id') deptId: string,
@@ -214,7 +214,7 @@ export class AdminController {
   }
 
   @Delete('departments/:id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Delete a department' })
   deleteDepartment(
     @Param('id') deptId: string,

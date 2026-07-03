@@ -29,14 +29,14 @@ export class GradingController {
   ) {}
 
   @Post('entries')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Submit or update a grade entry' })
   upsertGrade(@Body() dto: UpsertGradeDto, @CurrentUser('id') userId: string) {
     return this.gradingService.upsertGrade(dto, userId);
   }
 
   @Post('entries/bulk')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Bulk grade entry for a class/subject' })
   bulkUpsert(
     @Body() dto: BulkUpsertGradeDto,
@@ -46,7 +46,7 @@ export class GradingController {
   }
 
   @Patch('entries/:id/lock')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Lock a grade entry' })
   lockGrade(
     @Param('id') id: string,
@@ -57,7 +57,7 @@ export class GradingController {
   }
 
   @Patch('entries/:id/approve')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Approve a grade entry' })
   approveGrade(
     @Param('id') id: string,
@@ -68,7 +68,7 @@ export class GradingController {
   }
 
   @Post('entries/bulk-approve')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Bulk approve grade entries' })
   bulkApprove(
     @Body('ids') ids: string[],
@@ -79,7 +79,7 @@ export class GradingController {
   }
 
   @Post('corrections')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Submit a grade correction with audit trail' })
   correctGrade(
     @Body() dto: CorrectGradeDto,
@@ -89,7 +89,7 @@ export class GradingController {
   }
 
   @Get('audit-tray')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations tray' })
   getMissingObservations(
     @Query('termId') termId: string,
@@ -100,7 +100,7 @@ export class GradingController {
   }
 
   @Get('missing-observations')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations (flat list)' })
   getMissingObservationsFlat(
     @Query('termId') termId: string,
@@ -111,7 +111,7 @@ export class GradingController {
   }
 
   @Get('entries/:id')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get a single grade entry' })
   getGradeEntry(@Param('id') id: string) {
     return this.prisma.gradeEntry.findUnique({
@@ -133,7 +133,7 @@ export class GradingController {
   }
 
   @Patch('entries/:id/unlock')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Unlock a grade entry' })
   async unlockGrade(
     @Param('id') id: string,
@@ -158,7 +158,7 @@ export class GradingController {
   }
 
   @Get('classes/:classId/terms/:termId/performance')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get class performance summary' })
   getClassPerformance(
     @Param('classId') classId: string,
@@ -175,7 +175,7 @@ export class GradingController {
   }
 
   @Get('class-summary/:classId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get class performance summary' })
   getClassSummary(
     @Param('classId') classId: string,
@@ -192,13 +192,7 @@ export class GradingController {
   }
 
   @Get('students/:studentId/terms/:termId')
-  @Roles(
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-    Role.STUDENT,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get all grades for a student in a term' })
   getStudentTermGrades(
     @Param('studentId') studentId: string,
@@ -209,7 +203,7 @@ export class GradingController {
   }
 
   @Get('students/for-grading')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({
     summary: 'Get students eligible for grading by subject and class',
   })
@@ -229,8 +223,8 @@ export class GradingController {
     );
   }
 
-   @Get('compliance/warnings')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Get('compliance/warnings')
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get system compliance warnings for active term' })
   getComplianceWarnings(
     @CurrentUser('id') userId: string,
@@ -240,8 +234,10 @@ export class GradingController {
   }
 
   @Get('term-summary/:termId')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Get summary stats for a term (student count, grade entry count)' })
+  @Roles(Role.HOD)
+  @ApiOperation({
+    summary: 'Get summary stats for a term (student count, grade entry count)',
+  })
   getTermSummary(
     @Param('termId') termId: string,
     @CurrentUser('id') userId: string,
@@ -257,7 +253,7 @@ export class GradingController {
   }
 
   @Get('rules')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get current grading rules configuration' })
   async getGradingRules(@Query('termId') termId: string) {
     if (termId) {
@@ -282,12 +278,11 @@ export class GradingController {
   }
 
   @Get('last-saved')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Get the last time a grade entry was saved for the current user' })
-  async getLastSaved(
-    @CurrentUser('id') userId: string,
-    @CurrentUser('role') role: Role,
-  ) {
+  @Roles(Role.TEACHER)
+  @ApiOperation({
+    summary: 'Get the last time a grade entry was saved for the current user',
+  })
+  async getLastSaved(@CurrentUser('id') userId: string) {
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId },
       select: { id: true },
@@ -309,7 +304,7 @@ export class GradingController {
   }
 
   @Put('rules')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Update grading rules configuration' })
   async updateGradingRules(
     @Body()

@@ -184,7 +184,12 @@ export class GradingService {
         subjectId: dto.subjectId,
         termId: dto.termId,
       },
-      select: { classScore: true, examScore: true, totalScore: true, grade: true },
+      select: {
+        classScore: true,
+        examScore: true,
+        totalScore: true,
+        grade: true,
+      },
     });
 
     const entry = await this.prisma.gradeEntry.upsert({
@@ -236,9 +241,19 @@ export class GradingService {
           subjectId: dto.subjectId,
           termId: dto.termId,
           oldValue: existing
-            ? { classScore: existing.classScore, examScore: existing.examScore, totalScore: existing.totalScore, grade: existing.grade }
+            ? {
+                classScore: existing.classScore,
+                examScore: existing.examScore,
+                totalScore: existing.totalScore,
+                grade: existing.grade,
+              }
             : null,
-          newValue: { classScore: dto.classScore, examScore: dto.examScore, totalScore, grade },
+          newValue: {
+            classScore: dto.classScore,
+            examScore: dto.examScore,
+            totalScore,
+            grade,
+          },
           justification: null,
         },
       },

@@ -1,16 +1,65 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { TermNumber, ClassLevel, SubjectType } from '@prisma/client';
 
 @Injectable()
 export class AcademicArchitectService {
+  private readonly validSubjectCodes = [
+    302,
+    402,
+    502,
+    204, // Core
+    512,
+    505,
+    504,
+    401,
+    507,
+    319,
+    608, // Science electives
+    103,
+    104,
+    113,
+    203,
+    114,
+    112, // Business electives
+    210,
+    205,
+    207,
+    202,
+    208,
+    304,
+    301,
+    321,
+    322,
+    323,
+    324,
+    325,
+    326,
+    330,
+    705,
+    706, // Arts electives
+    327,
+    328,
+    329, // Languages
+    216,
+    508,
+    511,
+    702,
+    703, // Other
+  ];
+
   constructor(private prisma: PrismaService) {}
+
+  validateSubjectCode(code: string): boolean {
+    const numericCode = Number(code);
+    return this.validSubjectCodes.includes(numericCode);
+  }
 
   // ─── Academic Years ───────────────────────────────────
 
-  async createAcademicYear(label: string, startDate: Date, endDate: Date) {
+  async createAcademicYear(label: string, startDate: Date, endDate: Date, termSystem?: string) {
     return this.prisma.academicYear.create({
-      data: { label, startDate, endDate },
+      data: { label, startDate, endDate, termSystem: termSystem || 'THREE_TERMS' },
     });
   }
 
@@ -35,7 +84,7 @@ export class AcademicArchitectService {
     });
   }
 
-  // ─── Terms ────────────────────────────────────────────
+  // ─── Terms ─────────────────────────────────────────────
 
   async createTerm(
     academicYearId: string,
@@ -95,6 +144,11 @@ export class AcademicArchitectService {
     departmentId?: string;
     description?: string;
   }) {
+    if (!this.validateSubjectCode(dto.code)) {
+      throw new BadRequestException(
+        `Invalid WAEC subject code: ${dto.code}. Must be one of: ${this.validSubjectCodes.join(', ')}`,
+      );
+    }
     return this.prisma.subject.create({ data: dto });
   }
 
@@ -108,20 +162,28 @@ export class AcademicArchitectService {
 
   // ─── Class Sections ───────────────────────────────────
 
-async createClassSection(name: string, level: ClassLevel, capacity?: number, program?: string, track?: string) {
-      return this.prisma.classSection.create({ data: { name, level, capacity, program, track } });
-    }
+  async createClassSection(
+    name: string,
+    level: ClassLevel,
+    capacity?: number,
+    program?: string,
+    track?: string,
+  ) {
+    return this.prisma.classSection.create({
+      data: { name, level, capacity, program, track },
+    });
+  }
 
-    async getAllClassSections(track?: string) {
-      return this.prisma.classSection.findMany({
-        where: track ? { track } : undefined,
-        include: {
-          classTeacher: true,
-          _count: { select: { students: true } },
-        },
-        orderBy: [{ level: 'asc' }, { name: 'asc' }],
-      });
-    }
+  async getAllClassSections(track?: string) {
+    return this.prisma.classSection.findMany({
+      where: track ? { track } : undefined,
+      include: {
+        classTeacher: true,
+        _count: { select: { students: true } },
+      },
+      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+    });
+  }
 
   async assignClassTeacher(classSectionId: string, staffId: string) {
     return this.prisma.classSection.update({
@@ -151,7 +213,7 @@ async createClassSection(name: string, level: ClassLevel, capacity?: number, pro
     });
   }
 
-  // ─── Teaching Assignments ─────────────────────────────
+  // ─── Teaching Assignments ──────────────────────────────
 
   async assignTeacher(dto: {
     teacherId: string;
@@ -169,14 +231,14 @@ async createClassSection(name: string, level: ClassLevel, capacity?: number, pro
     });
   }
 
-async getAssignmentsByClass(classSectionId: string, track?: string) {
-      return this.prisma.teachingAssignment.findMany({
-        where: { classSectionId },
-        include: {
-          subject: { include: { department: true } },
-          teacher: { include: { user: { select: { email: true } } } },
-          classSection: true,
-        },
-      });
-    }
+  async getAssignmentsByClass(classSectionId: string, track?: string) {
+    return this.prisma.teachingAssignment.findMany({
+      where: { classSectionId },
+      include: {
+        subject: { include: { department: true } },
+        teacher: { include: { user: { select: { email: true } } } },
+        classSection: true,
+      },
+    });
+  }
 }

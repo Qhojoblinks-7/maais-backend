@@ -28,7 +28,7 @@ export class TeacherController {
   ) {}
 
   @Get('classes/:teacherId')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get classes assigned to a teacher' })
   getClasses(
     @Param('teacherId') teacherId: string,
@@ -43,7 +43,7 @@ export class TeacherController {
   }
 
   @Get('classes/:teacherId/analytics')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get teacher analytics dashboard data' })
   getAnalytics(
     @Param('teacherId') teacherId: string,
@@ -58,7 +58,7 @@ export class TeacherController {
   }
 
   @Get('settings/classes')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get classes for teacher settings' })
   getSettingsClasses(
     @CurrentUser()
@@ -72,70 +72,70 @@ export class TeacherController {
   }
 
   @Get('settings/preferences')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get notification preferences' })
   getNotificationPreferences() {
     return this.teacherService.getNotificationPreferences();
   }
 
   @Get('subject-config')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get subject configuration' })
   getSubjectConfig() {
     return this.teacherService.getSubjectConfig();
   }
 
   @Get('grading/status-meta')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grading status metadata' })
   getGradingStatusMeta() {
     return this.teacherService.getGradingStatusMeta();
   }
 
   @Get('grading/filters')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grading filter options' })
   getGradingFilterOptions() {
     return this.teacherService.getGradingFilterOptions();
   }
 
   @Get('observation-types')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get observation types' })
   getObservationTypes() {
     return this.teacherService.getObservationTypes();
   }
 
   @Get('observation-colors')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get observation colors' })
   getObservationColors() {
     return this.teacherService.getObservationColors();
   }
 
   @Get('analytics-observation-colors')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get analytics observation colors' })
   getAnalyticsObservationColors() {
     return this.teacherService.getAnalyticsObservationColors();
   }
 
   @Get('grade-config')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grade configuration' })
   getGradeConfig() {
     return this.teacherService.getGradeConfig();
   }
 
   @Get('missing-observations')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations tray' })
   getMissingObservations() {
     return this.teacherService.getMissingObservationsTray();
   }
 
   @Patch('profile')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Update teacher profile' })
   updateProfile(
     @Body()
@@ -152,7 +152,7 @@ export class TeacherController {
   }
 
   @Get('profile')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get current teacher profile' })
   getProfile(
     @CurrentUser()
@@ -166,7 +166,7 @@ export class TeacherController {
   }
 
   @Get('support/observations')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get support observations for a teacher' })
   getSupportObservations(
     @CurrentUser()
@@ -180,7 +180,7 @@ export class TeacherController {
   }
 
   @Get('observations')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get observation logs for a teacher' })
   getObservations(
     @CurrentUser()
@@ -194,7 +194,7 @@ export class TeacherController {
   }
 
   @Get('grade-revisions')
-  @Roles(Role.TEACHER, Role.HOD)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grade revision requests for a teacher' })
   getGradeRevisions(
     @CurrentUser()
@@ -210,7 +210,7 @@ export class TeacherController {
   }
 
   @Get('grading/students')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({
     summary: 'Get students eligible for grading by subject and class names',
   })
@@ -224,7 +224,7 @@ export class TeacherController {
   }
 
   @Get('grading/ids')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Resolve subject, class, and term IDs by name' })
   getGradingIds(
     @Query('subject') subjectName: string,
@@ -234,7 +234,7 @@ export class TeacherController {
   }
 
   @Post('grade-revisions')
-  @Roles(Role.TEACHER, Role.HOD)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Submit a grade revision request' })
   submitGradeRevision(
     @Body()
@@ -250,34 +250,24 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.submitGradeRevision(
-      body,
-      user.staffProfile?.id || user.id,
-    );
+    return this.teacherService.submitGradeRevision(body, {
+      id: user.staffProfile?.id || user.id,
+      role: user.role,
+    });
   }
 
   @Patch('grade-revisions/:revisionId')
-  @Roles(Role.TEACHER, Role.HOD)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Update a grade revision request' })
   updateGradeRevision(
     @Param('revisionId') revisionId: string,
     @Body() body: { status?: string; history?: any },
-    @CurrentUser()
-    user: {
-      id: string;
-      role: Role;
-      staffProfile?: { id: string };
-    },
   ) {
-    return this.teacherService.updateGradeRevision(
-      revisionId,
-      body,
-      user.staffProfile?.id || user.id,
-    );
+    return this.teacherService.updateGradeRevision(revisionId, body);
   }
 
   @Get('observations')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get teacher observation audit logs' })
   getObservationLogs(
     @CurrentUser()
@@ -291,7 +281,7 @@ export class TeacherController {
   }
 
   @Post('observations')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Create or resolve a grade observation' })
   createObservation(
     @Body() body: any,
@@ -306,7 +296,7 @@ export class TeacherController {
   }
 
   @Patch('observations/:observationId')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Update a grade observation' })
   updateObservation(
     @Param('observationId') observationId: string,
@@ -327,7 +317,7 @@ export class TeacherController {
   }
 
   @Delete('observations/:observationId')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Clear a grade observation' })
   deleteObservation(
     @Param('observationId') observationId: string,
@@ -346,7 +336,7 @@ export class TeacherController {
   }
 
   @Get('grade-issues')
-  @Roles(Role.TEACHER, Role.HOD)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grade issues for a teacher' })
   getGradeIssues(
     @CurrentUser()
@@ -360,7 +350,7 @@ export class TeacherController {
   }
 
   @Get('grade-issues/meta')
-  @Roles(Role.TEACHER, Role.HOD)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grade issue status metadata for a teacher' })
   getGradeIssueStatusMeta(
     @CurrentUser()

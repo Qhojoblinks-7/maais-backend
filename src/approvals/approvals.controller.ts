@@ -13,7 +13,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { ApprovalsService } from './approvals.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
-import { IsString, IsOptional, IsEnum, IsInt } from 'class-validator';
+import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class CreateApprovalDto {
@@ -88,35 +88,35 @@ export class ApprovalsController {
   constructor(private approvalsService: ApprovalsService) {}
 
   @Get()
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'List approval requests with optional filters' })
   findAll(@Query() query: ApprovalQueryDto) {
     return this.approvalsService.findAll(query);
   }
 
   @Get('stats')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get approval statistics' })
   getStats() {
     return this.approvalsService.getStats();
   }
 
   @Post()
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Create a new approval request' })
   create(@Body() dto: CreateApprovalDto, @CurrentUser('id') userId: string) {
     return this.approvalsService.create(dto, userId);
   }
 
   @Get(':id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get a single approval request' })
   findOne(@Param('id') id: string) {
     return this.approvalsService.findOne(id);
   }
 
   @Patch(':id/resolve')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Resolve an approval request (approve/reject)' })
   resolve(
     @Param('id') id: string,
@@ -127,7 +127,7 @@ export class ApprovalsController {
   }
 
   @Delete(':id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Delete an approval request' })
   remove(@Param('id') id: string) {
     return this.approvalsService.remove(id);

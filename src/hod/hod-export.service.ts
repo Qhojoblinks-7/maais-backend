@@ -9,6 +9,114 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 @Injectable()
 export class HODExportService {
+  private readonly validSubjectCodes = [
+    // Core subjects
+    302, // English Language
+    402, // Mathematics (Core)
+    502, // Integrated Science
+    204, // Social Studies
+
+    // Science electives
+    512, // Physics
+    505, // Chemistry
+    504, // Biology
+    401, // Elective Mathematics
+    507, // Agricultural Science
+    216, // Geography
+    319, // ICT
+    608, // Technical Drawing
+
+    // Business electives
+    103, // Commerce
+    104, // Financial Accounting
+    113, // Business Management
+    203, // Economics
+    114, // Office Practice
+    112, // Marketing
+
+    // Arts electives
+    210, // Literature in English
+    205, // Government
+    207, // History
+    202, // Christian Religious Studies
+    208, // Islamic Religious Studies
+    304, // French
+    301, // Arabic
+    321, // Akan/Fante
+    322, // Ewe
+    323, // Ga
+    324, // Nzema
+    325, // Dagbani
+    326, // Gonja
+    330, // Dagaare
+    705, // Music
+    706, // Visual Art
+
+    // Technical/Trade electives
+    327, // Hausa
+    328, // Igbo
+    329, // Yoruba
+
+    // Other common subjects
+    508, // Health Education
+    511, // Physical Education
+    702, // Food and Nutrition
+    703, // Home Management
+  ];
+
+  validateExportData(data: {
+    indexNumber: string;
+    lastName: string;
+    firstName: string;
+    dateOfBirth: Date | null;
+    gender: string;
+    subjectCode: string;
+    classScore: number | null;
+    examScore: number | null;
+  }): string[] {
+    const errors: string[] = [];
+
+    if (
+      !data.indexNumber ||
+      !/^\d{7,10}$/.test(String(data.indexNumber).trim())
+    ) {
+      errors.push('CandidateNumber must be 7-10 digits');
+    }
+
+    if (!data.lastName) {
+      errors.push('Surname is required');
+    }
+
+    if (!data.firstName) {
+      errors.push('OtherNames is required');
+    }
+
+    if (!data.dateOfBirth) {
+      errors.push('DateOfBirth is required');
+    }
+
+    if (!['M', 'F'].includes(String(data.gender).trim().toUpperCase())) {
+      errors.push('Gender must be M or F');
+    }
+
+    const subjectCode = Number(data.subjectCode);
+    if (!data.subjectCode || !this.validSubjectCodes.includes(subjectCode)) {
+      errors.push(`Invalid SubjectCode: ${data.subjectCode}`);
+    }
+
+    const caScore = data.classScore ?? 0;
+    if (caScore < 0 || caScore > 30) {
+      errors.push('ContinuousAssessment must be between 0 and 30');
+    }
+
+    const exam = data.examScore ?? 0;
+    if (exam < 0 || exam > 70) {
+      errors.push('ExamScore must be between 0 and 70');
+    }
+
+    return errors;
+  }
+
   constructor(private prisma: PrismaService) {}
 
   private async getDepartmentContext(userId: string, role: Role) {
@@ -42,7 +150,7 @@ export class HODExportService {
     className: string,
     userId: string,
     role: Role,
-  ) {
+  ): Promise<string> {
     if (
       role !== Role.HOD &&
       role !== Role.HEADMASTER &&
@@ -67,74 +175,101 @@ export class HODExportService {
       orderBy: { indexNumber: 'asc' },
     });
 
-    const rows: string[] = [];
+    const headers = [
+      'CandidateNumber',
+      'Surname',
+      'OtherNames',
+      'DateOfBirth',
+      'Gender',
+      'SubjectCode',
+      'ContinuousAssessment',
+      'ExamScore',
+    ];
+
+    const rows: { data: any; errors: string[] }[] = [];
 
     for (const student of students) {
       const subjects = student.grades;
-      const gpa =
-        subjects.length > 0
-          ? (
-              subjects.reduce(
-                (sum, g) => sum + this.getGradePoint(g.grade || 'F9'),
-                0,
-              ) / subjects.length
-            ).toFixed(2)
-          : '0.00';
+
+      if (subjects.length === 0) {
+        const gender = student.gender === 'FEMALE' ? 'F' : 'M';
+
+        const rowData = {
+          indexNumber: student.indexNumber || '',
+          lastName: student.lastName || '',
+          firstName: student.firstName || '',
+          dateOfBirth: student.dateOfBirth,
+          gender: gender,
+          subjectCode: '',
+          classScore: 0,
+          examScore: 0,
+        };
+
+        rows.push({
+          data: rowData,
+          errors: this.validateExportData(rowData),
+        });
+      }
 
       for (const g of subjects) {
         const sba = g.classScore ?? 0;
         const exam = g.examScore ?? 0;
-        const finalScore = g.totalScore ?? sba + exam;
-        const grade = g.grade ?? 'F9';
+        const gender = student.gender === 'FEMALE' ? 'F' : 'M';
+        const subjectCode = g.subject?.code || '';
 
-        rows.push(
-          [
-            student.indexNumber || '',
-            `${student.lastName}, ${student.firstName}`,
-            student.gender === 'FEMALE' ? 'F' : 'M',
-            g.subject?.name || '',
-            sba.toFixed(0),
-            exam.toFixed(0),
-            finalScore.toFixed(0),
-            grade,
-            g.remark || '',
-          ].join(','),
-        );
-      }
+        const rowData = {
+          indexNumber: student.indexNumber || '',
+          lastName: student.lastName || '',
+          firstName: student.firstName || '',
+          dateOfBirth: student.dateOfBirth,
+          gender: gender,
+          subjectCode: subjectCode,
+          classScore: sba,
+          examScore: exam,
+        };
 
-      if (subjects.length === 0) {
-        rows.push(
-          [
-            student.indexNumber || '',
-            `${student.lastName}, ${student.firstName}`,
-            student.gender === 'FEMALE' ? 'F' : 'M',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-          ].join(','),
-        );
+        rows.push({
+          data: rowData,
+          errors: this.validateExportData(rowData),
+        });
       }
     }
 
-    const headers = [
-      'Index Number',
-      'Student Name',
-      'Sex',
-      'Subject',
-      'SBA (30)',
-      'Exam (70)',
-      'Final Score',
-      'Grade',
-      'Remark',
-    ];
+    const hasValidationErrors = rows.some((r) => r.errors.length > 0);
+    if (hasValidationErrors) {
+      const allErrors = rows
+        .filter((r) => r.errors.length > 0)
+        .map((r, i) => ({ row: i + 2, issues: r.errors }));
+      throw new ForbiddenException(
+        `CSV validation failed: ${JSON.stringify(allErrors)}`,
+      );
+    }
 
-    return [headers.join(','), ...rows].join('\r\n');
+    const csvRows = rows.map((r) =>
+      [
+        r.data.indexNumber,
+        r.data.lastName,
+        r.data.firstName,
+        r.data.dateOfBirth
+          ? new Date(r.data.dateOfBirth).toISOString().split('T')[0]
+          : '',
+        r.data.gender,
+        r.data.subjectCode,
+        r.data.classScore.toFixed(0),
+        r.data.examScore.toFixed(0),
+      ]
+        .map((f) => `"${String(f).replace(/"/g, '""')}"`)
+        .join(','),
+    );
+
+    return [headers.join(','), ...csvRows].join('\r\n');
   }
 
-  async exportDepartmentWAECCSV(termId: string, userId: string, role: Role) {
+  async exportDepartmentWAECCSV(
+    termId: string,
+    userId: string,
+    role: Role,
+  ): Promise<string> {
     if (
       role !== Role.HOD &&
       role !== Role.HEADMASTER &&
@@ -148,7 +283,7 @@ export class HODExportService {
 
     const departmentSubjects = await this.prisma.subject.findMany({
       where: { departmentId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, code: true },
     });
     const subjectIds = departmentSubjects.map((s) => s.id);
 
@@ -180,77 +315,94 @@ export class HODExportService {
       ],
     });
 
-    const rows: string[] = [];
+    const headers = [
+      'CandidateNumber',
+      'Surname',
+      'OtherNames',
+      'DateOfBirth',
+      'Gender',
+      'SubjectCode',
+      'ContinuousAssessment',
+      'ExamScore',
+    ];
+
+    const rows: { data: any; errors: string[] }[] = [];
 
     for (const student of students) {
       const subjects = student.grades;
-      const gpa =
-        subjects.length > 0
-          ? (
-              subjects.reduce(
-                (sum, g) => sum + this.getGradePoint(g.grade || 'F9'),
-                0,
-              ) / subjects.length
-            ).toFixed(2)
-          : '0.00';
+
+      if (subjects.length === 0) {
+        const gender = student.gender === 'FEMALE' ? 'F' : 'M';
+
+        const rowData = {
+          indexNumber: student.indexNumber || '',
+          lastName: student.lastName || '',
+          firstName: student.firstName || '',
+          dateOfBirth: student.dateOfBirth,
+          gender: gender,
+          subjectCode: '',
+          classScore: 0,
+          examScore: 0,
+        };
+
+        rows.push({
+          data: rowData,
+          errors: this.validateExportData(rowData),
+        });
+      }
 
       for (const g of subjects) {
         const sba = g.classScore ?? 0;
         const exam = g.examScore ?? 0;
-        const finalScore = g.totalScore ?? sba + exam;
-        const grade = g.grade ?? 'F9';
+        const gender = student.gender === 'FEMALE' ? 'F' : 'M';
+        const subjectCode = g.subject?.code || '';
 
-        rows.push(
-          [
-            student.currentClass?.name || '',
-            student.indexNumber || '',
-            `${student.lastName}, ${student.firstName}`,
-            student.gender === 'FEMALE' ? 'F' : 'M',
-            g.subject?.name || '',
-            sba.toFixed(0),
-            exam.toFixed(0),
-            finalScore.toFixed(0),
-            grade,
-            g.remark || '',
-            gpa,
-          ].join(','),
-        );
-      }
+        const rowData = {
+          indexNumber: student.indexNumber || '',
+          lastName: student.lastName || '',
+          firstName: student.firstName || '',
+          dateOfBirth: student.dateOfBirth,
+          gender: gender,
+          subjectCode: subjectCode,
+          classScore: sba,
+          examScore: exam,
+        };
 
-      if (subjects.length === 0) {
-        rows.push(
-          [
-            student.currentClass?.name || '',
-            student.indexNumber || '',
-            `${student.lastName}, ${student.firstName}`,
-            student.gender === 'FEMALE' ? 'F' : 'M',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-          ].join(','),
-        );
+        rows.push({
+          data: rowData,
+          errors: this.validateExportData(rowData),
+        });
       }
     }
 
-    const headers = [
-      'Class',
-      'Index Number',
-      'Student Name',
-      'Sex',
-      'Subject',
-      'SBA (30)',
-      'Exam (70)',
-      'Final Score',
-      'Grade',
-      'Remark',
-      'GPA',
-    ];
+    const hasValidationErrors = rows.some((r) => r.errors.length > 0);
+    if (hasValidationErrors) {
+      const allErrors = rows
+        .filter((r) => r.errors.length > 0)
+        .map((r, i) => ({ row: i + 2, issues: r.errors }));
+      throw new ForbiddenException(
+        `CSV validation failed: ${JSON.stringify(allErrors)}`,
+      );
+    }
 
-    return [headers.join(','), ...rows].join('\r\n');
+    const csvRows = rows.map((r) =>
+      [
+        r.data.indexNumber,
+        r.data.lastName,
+        r.data.firstName,
+        r.data.dateOfBirth
+          ? new Date(r.data.dateOfBirth).toISOString().split('T')[0]
+          : '',
+        r.data.gender,
+        r.data.subjectCode,
+        r.data.classScore.toFixed(0),
+        r.data.examScore.toFixed(0),
+      ]
+        .map((f) => `"${String(f).replace(/"/g, '""')}"`)
+        .join(','),
+    );
+
+    return [headers.join(','), ...csvRows].join('\r\n');
   }
 
   async exportWAECPDF(
@@ -682,7 +834,6 @@ export class HODExportService {
     let globalIndex = 0;
 
     for (const student of students) {
-      const sex = student.gender === 'FEMALE' ? 'F' : 'M';
       const grades = student.grades.length > 0 ? student.grades : [null];
 
       for (let gi = 0; gi < grades.length; gi++) {

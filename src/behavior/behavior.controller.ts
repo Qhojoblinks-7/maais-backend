@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { BehaviorService } from './behavior.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
@@ -13,7 +13,7 @@ export class BehaviorController {
   constructor(private readonly behaviorService: BehaviorService) {}
 
   @Post(':id/behavior')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Create behavior observation for a student' })
   createBahavior(
     @Param('id') studentId: string,
@@ -28,13 +28,7 @@ export class BehaviorController {
   }
 
   @Get(':id/behavior')
-  @Roles(
-    Role.STUDENT,
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get behavior observations for a student' })
   getBehavior(
     @Param('id') studentId: string,

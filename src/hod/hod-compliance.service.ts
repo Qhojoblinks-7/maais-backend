@@ -11,7 +11,11 @@ export class HODComplianceService {
   constructor(private prisma: PrismaService) {}
 
   async getComplianceCohortPerformance(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access compliance data');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -72,7 +76,11 @@ export class HODComplianceService {
   }
 
   async getComplianceTimeline(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access compliance data');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -141,7 +149,11 @@ export class HODComplianceService {
   }
 
   async getPromotionMetrics(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access promotion metrics');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({

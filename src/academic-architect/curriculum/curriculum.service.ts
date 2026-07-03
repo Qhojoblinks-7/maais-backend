@@ -32,7 +32,11 @@ export class CurriculumService {
     userId: string,
     role: Role,
   ): Promise<CurriculumMappingDto[]> {
-    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD
+    ) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
@@ -69,7 +73,7 @@ export class CurriculumService {
       subjectId: m.subjectId,
       classSectionId: m.classSectionId,
       academicYearId: m.academicYearId,
-    subjectName: m.subject.name,
+      subjectName: m.subject.name,
       subjectCode: m.subject.code,
       subjectType: m.subject.type,
       creditHours: m.subject.creditHours,
@@ -87,7 +91,11 @@ export class CurriculumService {
     userId: string,
     role: Role,
   ): Promise<CurriculumMappingDto> {
-    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD
+    ) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
@@ -181,7 +189,11 @@ export class CurriculumService {
     userId: string,
     role: Role,
   ): Promise<void> {
-    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD
+    ) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
@@ -210,7 +222,11 @@ export class CurriculumService {
     userId: string,
     role: Role,
   ): Promise<{ created: number; updated: number; total: number }> {
-    if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER && role !== Role.HOD) {
+    if (
+      role !== Role.SUPER_ADMIN &&
+      role !== Role.HEADMASTER &&
+      role !== Role.HOD
+    ) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
@@ -256,7 +272,9 @@ export class CurriculumService {
     role: Role,
   ): Promise<{ success: boolean; message: string; deployedAt: string }> {
     if (role !== Role.SUPER_ADMIN && role !== Role.HEADMASTER) {
-      throw new ForbiddenException('Only Super Admin and Headmaster can deploy curriculum');
+      throw new ForbiddenException(
+        'Only Super Admin and Headmaster can deploy curriculum',
+      );
     }
 
     const activeMappings = await this.prisma.curriculumMapping.count({
@@ -322,7 +340,7 @@ export class CurriculumService {
         where: { teacherId: staff.id },
         select: { classSectionId: true },
       });
-      classSectionIds = assignments.map(a => a.classSectionId);
+      classSectionIds = assignments.map((a) => a.classSectionId);
     }
 
     const classes = await this.prisma.classSection.findMany({

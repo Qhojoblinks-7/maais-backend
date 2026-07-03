@@ -2,7 +2,7 @@ import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { NotificationChannel, Role, AuditAction } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import * as twilio from 'twilio';
+import twilio from 'twilio';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
 
 export interface SendNotificationDto {
@@ -297,6 +297,8 @@ export class CommsService {
       GRADE_DRAFT_SAVED: 'Grade Draft Saved',
       GRADE_SUBMITTED_TO_HOD: 'Grade Submitted for Review',
       GRADE_REVISION_REQUESTED: 'Grade Revision Requested',
+      GRADE_REVISION_REQUESTED_BY_HOD: 'HOD Requested Grade Revision',
+      GRADE_REVISION_APPROVED: 'Grade Revision Approved',
       HOD_COMMENT_ADDED: 'HOD Feedback Added',
       GRADE_REVISION_REJECTED: 'Grade Revision Rejected',
       DIRECT_MESSAGE: 'New Direct Message',
@@ -309,6 +311,8 @@ export class CommsService {
       GRADE_DRAFT_SAVED: `A grade draft has been saved for ${details?.className || 'a class'}`,
       GRADE_SUBMITTED_TO_HOD: `Grades have been submitted for review for ${details?.className || 'a class'}`,
       GRADE_REVISION_REQUESTED: `A grade revision has been requested for ${details?.className || 'a class'}`,
+      GRADE_REVISION_REQUESTED_BY_HOD: `HOD has requested a revision for ${details?.className || 'a class'}`,
+      GRADE_REVISION_APPROVED: `Your grade revision for ${details?.className || 'a class'} has been approved by HOD.`,
       HOD_COMMENT_ADDED: `HOD feedback has been added: ${details?.message || ''}`,
       GRADE_REVISION_REJECTED: `Grade revision rejected: ${details?.reason || ''}`,
       DIRECT_MESSAGE: details?.message || 'You have a new direct message',
@@ -321,6 +325,8 @@ export class CommsService {
       GRADE_DRAFT_SAVED: 'Teacher Saved Grade Draft',
       GRADE_SUBMITTED_TO_HOD: 'Teacher Submitted Grades for Review',
       GRADE_REVISION_REQUESTED: 'Teacher Requested Grade Revision',
+      GRADE_REVISION_REQUESTED_BY_HOD: 'HOD Requested Grade Revision',
+      GRADE_REVISION_APPROVED: 'Grade Revision Approved',
       DIRECT_MESSAGE: 'New Direct Message from Teacher',
     };
     return titles[action] || 'Notification';
@@ -334,6 +340,8 @@ export class CommsService {
       GRADE_DRAFT_SAVED: `Teacher has saved a draft for ${details?.className || 'a class'}`,
       GRADE_SUBMITTED_TO_HOD: `Teacher has submitted grades for review for ${details?.className || 'a class'}`,
       GRADE_REVISION_REQUESTED: `Teacher has requested a grade revision for ${details?.className || 'a class'}`,
+      GRADE_REVISION_REQUESTED_BY_HOD: `HOD has requested a grade revision for ${details?.className || 'a class'}`,
+      GRADE_REVISION_APPROVED: `Grade revision approved for ${details?.className || 'a class'}`,
       DIRECT_MESSAGE:
         details?.message || 'You have received a direct message from a teacher',
     };
@@ -346,15 +354,16 @@ export class CommsService {
       include: { studentProfile: true },
     });
 
-    if (!user || !user.studentProfile) {
-      throw new ForbiddenException('Only students can create support tickets');
+    if (!user) {
+      throw new ForbiddenException('User not found');
     }
 
-    const student = user.studentProfile;
+    const isStudent = !!user.studentProfile;
+    const studentId = isStudent ? user.studentProfile.id : null;
 
     return this.prisma.supportTicket.create({
       data: {
-        studentId: student.id,
+        studentId,
         title: dto.title,
         description: dto.description,
         category: dto.category || 'General',
@@ -391,6 +400,7 @@ export class CommsService {
             user: { select: { email: true } },
           },
         },
+        createdBy: { select: { id: true, email: true, role: true } },
       },
     });
   }
@@ -439,7 +449,11 @@ export class CommsService {
         select: { id: true },
       });
 
-      where.studentId = { in: students.map((s) => s.id) };
+      const studentIds = students.map((s) => s.id);
+      where.OR = [
+        { studentId: { in: studentIds } },
+        { createdById: requesterId },
+      ];
     }
 
     return this.prisma.supportTicket.findMany({
@@ -451,6 +465,7 @@ export class CommsService {
             user: { select: { email: true } },
           },
         },
+        createdBy: { select: { id: true, email: true, role: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,

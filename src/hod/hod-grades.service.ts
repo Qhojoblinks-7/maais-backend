@@ -11,7 +11,11 @@ export class HODGradeService {
   constructor(private prisma: PrismaService) {}
 
   async getGradeRevisions(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -84,7 +88,11 @@ export class HODGradeService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can approve grade revisions');
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: recordId },
@@ -103,10 +111,19 @@ export class HODGradeService {
       },
     ];
 
-    return this.prisma.gradeRevision.update({
+    const updated = await this.prisma.gradeRevision.update({
       where: { id: recordId },
       data: { status: 'RESOLVED', history: updatedHistory },
     });
+
+    await this.notifyTeacher(
+      revision.teacherId,
+      'Grade Revision Approved',
+      `Your grade revision for ${revision.className || 'a class'} has been approved by HOD.`,
+      userId,
+    );
+
+    return updated;
   }
 
   async rejectGradeRevision(
@@ -115,7 +132,11 @@ export class HODGradeService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can reject grade revisions');
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: recordId },
@@ -134,10 +155,41 @@ export class HODGradeService {
       },
     ];
 
-    return this.prisma.gradeRevision.update({
+    const updated = await this.prisma.gradeRevision.update({
       where: { id: recordId },
       data: { status: 'REJECTED', history: updatedHistory },
     });
+
+    await this.notifyTeacher(
+      revision.teacherId,
+      'Grade Revision Rejected',
+      `Your grade revision for ${revision.className || 'a class'} was reviewed and requires further action.`,
+      userId,
+    );
+
+    return updated;
+  }
+
+  private async notifyTeacher(
+    staffId: string | null,
+    title: string,
+    body: string,
+    createdById?: string,
+  ) {
+    if (!staffId) return;
+    try {
+      await this.prisma.notification.create({
+        data: {
+          staffId,
+          title,
+          body,
+          channel: 'APP',
+          createdById: createdById || staffId,
+        },
+      });
+    } catch {
+      // notification failure must not break main flow
+    }
   }
 
   async updateHODComment(
@@ -146,7 +198,11 @@ export class HODGradeService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can add comments');
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: recordId },
@@ -396,7 +452,11 @@ export class HODGradeService {
   }
 
   async validateLock(termId: string, userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can validate locks');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -497,7 +557,11 @@ export class HODGradeService {
   }
 
   async getLockedTerms(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can view locked terms');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -526,7 +590,11 @@ export class HODGradeService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({

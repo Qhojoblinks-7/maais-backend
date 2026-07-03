@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   Patch,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -23,40 +22,37 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Post('staff')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a staff account' })
   createStaff(@Body() dto: CreateStaffDto) {
     return this.usersService.createStaff(dto);
   }
 
   @Post('students')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   createStudent(@Body() dto: CreateStudentDto) {
     return this.usersService.createStudent(dto);
   }
 
   @Post('parents')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Enrol a new parent' })
   createParent(@Body() dto: CreateParentDto) {
     return this.usersService.createParent(dto);
   }
 
   @Get('students')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'List all active students' })
-  getAllStudents(@CurrentUser() user: { id: string; role: Role }, @Query('search') search?: string) {
+  getAllStudents(
+    @CurrentUser() user: { id: string; role: Role },
+    @Query('search') search?: string,
+  ) {
     return this.usersService.getAllStudents(user, search);
   }
 
   @Get('students/:id')
-  @Roles(
-    Role.SUPER_ADMIN,
-    Role.HEADMASTER,
-    Role.HOD,
-    Role.TEACHER,
-    Role.STUDENT,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get full student profile' })
   getStudentProfile(
     @Param('id') id: string,
@@ -70,31 +66,22 @@ export class UsersController {
   }
 
   @Patch('students/:id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update student profile (name, bio, DOB, photo)' })
-  updateStudentProfile(
-    @Param('id') id: string,
-    @Body() body: any,
-    @CurrentUser('role') role: Role,
-  ) {
+  updateStudentProfile(@Param('id') id: string, @Body() body: any) {
     return this.usersService.updateStudentProfile(id, body);
   }
 
   @Get('staff')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'List all staff members' })
   getAllStaff(@CurrentUser() user: { id: string; role: Role }) {
     return this.usersService.getAllStaff(user);
   }
 
   @Get('staff/:id')
-  @Roles(
-    Role.SUPER_ADMIN,
-    Role.HEADMASTER,
-    Role.HOD,
-    Role.TEACHER,
-  )
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get full staff/teacher profile' })
   getStaffProfile(
     @Param('id') id: string,
@@ -104,7 +91,7 @@ export class UsersController {
   }
 
   @Get('teachers')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Search teachers by name' })
   searchTeachers(
     @CurrentUser() user: { id: string; role: Role },
@@ -114,7 +101,7 @@ export class UsersController {
   }
 
   @Get('parents')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all parent accounts' })
   getAllParents() {
@@ -122,7 +109,7 @@ export class UsersController {
   }
 
   @Get('parents/search')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Search parents by name, phone, or email' })
   searchParents(
     @CurrentUser() user: { id: string; role: Role },
@@ -132,14 +119,14 @@ export class UsersController {
   }
 
   @Delete(':id/deactivate')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Deactivate a user account' })
   deactivate(@Param('id') id: string) {
     return this.usersService.deactivateUser(id);
   }
 
   @Post('students/batch')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Batch import students from CSSPS file' })
   batchImportStudents(@Body() body: { students: any[] }) {
     return this.usersService.batchImportStudents(body.students);

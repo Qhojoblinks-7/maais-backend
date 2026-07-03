@@ -20,6 +20,7 @@ export async function seedSupportTickets(prisma: PrismaClient, students: any[], 
   for (let i = 0; i < students.length; i++) {
     const student = students[i];
     const status = statuses[i % statuses.length];
+    const creatorUserId = teachers[i % teachers.length]?.userId || student.userId;
     const ticket = await prisma.supportTicket.create({
       data: {
         studentId: student.id,
@@ -28,10 +29,13 @@ export async function seedSupportTickets(prisma: PrismaClient, students: any[], 
         category: categories[i % categories.length],
         priority: priorities[i % priorities.length],
         status,
-        createdById: teachers[i % teachers.length]?.userId,
+        createdById: creatorUserId,
         assignedTo: status !== 'OPEN' ? teachers[(i + 1) % teachers.length]?.userId : undefined,
         createdAt: new Date(Date.now() - i * 86400000),
         resolvedAt: status === 'RESOLVED' ? new Date(Date.now() - i * 43200000) : undefined,
+      },
+      include: {
+        createdBy: { select: { id: true, email: true, role: true } },
       },
     });
     tickets.push(ticket);

@@ -115,54 +115,7 @@ export class UsersService {
       },
     });
 
-    // Handle parent creation if info provided
-    if (dto.parentFirstName && dto.parentLastName && dto.parentPhone) {
-      const parentEmail = dto.parentEmail || `${dto.parentPhone}@parent.com`;
-      let parentUser = await this.prisma.user.findUnique({
-        where: { email: parentEmail },
-        include: { parentProfile: true },
-      });
-
-      if (!parentUser) {
-        const parentPassHash = await argon2.hash('Parent@123!');
-        parentUser = await this.prisma.user.create({
-          data: {
-            email: parentEmail,
-            passwordHash: parentPassHash,
-            role: Role.PARENT,
-            phone: dto.parentPhone,
-            parentProfile: {
-              create: {
-                firstName: dto.parentFirstName,
-                lastName: dto.parentLastName,
-                phone: dto.parentPhone,
-                email: dto.parentEmail,
-              },
-            },
-          },
-          include: { parentProfile: true },
-        });
-      }
-
-      if (parentUser.parentProfile) {
-        await this.prisma.studentParentLink.upsert({
-          where: {
-            studentId_parentId: {
-              studentId: student.studentProfile!.id,
-              parentId: parentUser.parentProfile.id,
-            },
-          },
-          create: {
-            studentId: student.studentProfile!.id,
-            parentId: parentUser.parentProfile.id,
-            relationship: dto.parentRelationship || 'Guardian',
-            isPrimary: true,
-          },
-          update: {},
-        });
-      }
-    }
-
+    // Parent contact info is stored in student profile only; no separate parent user accounts
     return student;
   }
 
@@ -356,10 +309,7 @@ export class UsersService {
     });
   }
 
-  async searchTeachers(
-    user?: { id: string; role: Role },
-    search?: string,
-  ) {
+  async searchTeachers(user?: { id: string; role: Role }, search?: string) {
     let departmentId: string | undefined;
 
     if (user?.role === Role.HOD) {
@@ -423,7 +373,7 @@ export class UsersService {
       dateOfBirth?: string;
     },
   ) {
-    const profile = await this.prisma.studentProfile.findUniqueOrThrow({
+    await this.prisma.studentProfile.findUniqueOrThrow({
       where: { id: studentId },
       include: { user: true },
     });
@@ -583,10 +533,7 @@ export class UsersService {
     });
   }
 
-  async searchParents(
-    user?: { id: string; role: Role },
-    search?: string,
-  ) {
+  async searchParents(user?: { id: string; role: Role }, search?: string) {
     let departmentId: string | undefined;
 
     if (user?.role === Role.HOD) {
@@ -640,11 +587,22 @@ export class UsersService {
     });
   }
 
-  async getStaffProfile(staffId: string, requester: { id: string; role: Role }) {
+  async getStaffProfile(
+    staffId: string,
+    requester: { id: string; role: Role },
+  ) {
     const staffProfile = await this.prisma.staffProfile.findFirst({
       where: { OR: [{ id: staffId }, { userId: staffId }] },
       include: {
-        user: { select: { email: true, phone: true, role: true, isActive: true, lastLoginAt: true } },
+        user: {
+          select: {
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            lastLoginAt: true,
+          },
+        },
         department: true,
         teachingAssignments: {
           include: { subject: true, classSection: true },

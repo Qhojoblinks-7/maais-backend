@@ -25,20 +25,14 @@ export class TimetableController {
   constructor(private timetableService: TimetableService) {}
 
   @Post()
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Create a timetable entry' })
   create(@Body() body: any) {
     return this.timetableService.create(body);
   }
 
   @Get()
-  @Roles(
-    Role.SUPER_ADMIN,
-    Role.HEADMASTER,
-    Role.HOD,
-    Role.TEACHER,
-    Role.STUDENT,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,
@@ -57,7 +51,7 @@ export class TimetableController {
   }
 
   @Get('my-schedule')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get current teacher weekly schedule' })
   getMySchedule(@CurrentUser() user: { staffProfile?: { id: string } }) {
     if (!user?.staffProfile?.id) return [];
@@ -65,7 +59,7 @@ export class TimetableController {
   }
 
   @Get('teacher/:teacherId')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get timetable for a specific teacher' })
   getByTeacher(
     @Param('teacherId') teacherId: string,
@@ -80,20 +74,17 @@ export class TimetableController {
   }
 
   @Get('class/:classId')
-  @Roles(
-    Role.SUPER_ADMIN,
-    Role.HEADMASTER,
-    Role.HOD,
-    Role.TEACHER,
-    Role.STUDENT,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get timetable for a specific class' })
-  getByClass(@Param('classId') classId: string, @Query('track') track?: string) {
+  getByClass(
+    @Param('classId') classId: string,
+    @Query('track') track?: string,
+  ) {
     return this.timetableService.findByClass(classId, track);
   }
 
   @Get('weekly/:teacherId')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get weekly schedule grouped by day' })
   getWeekly(
     @Param('teacherId') teacherId: string,
@@ -108,7 +99,7 @@ export class TimetableController {
   }
 
   @Get('clashes/:teacherId')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Detect scheduling clashes for a teacher' })
   getClashes(
     @Param('teacherId') teacherId: string,
@@ -123,36 +114,40 @@ export class TimetableController {
   }
 
   @Get(':id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get a timetable entry by ID' })
   findOne(@Param('id') id: string) {
     return this.timetableService.findOne(id);
   }
 
   @Put(':id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Update a timetable entry' })
   update(@Param('id') id: string, @Body() body: any) {
     return this.timetableService.update(id, body);
   }
 
   @Delete(':id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Delete a timetable entry' })
   delete(@Param('id') id: string) {
     return this.timetableService.delete(id);
   }
 
   @Post('broadcast')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
-  @ApiOperation({ summary: 'Broadcast timetable to student and teacher portals' })
+  @Roles(Role.HOD)
+  @ApiOperation({
+    summary: 'Broadcast timetable to student and teacher portals',
+  })
   broadcastToApps(@Body() body: { classIds?: string[]; track?: string }) {
     return this.timetableService.broadcastToApps(body.classIds, body.track);
   }
 
   @Post('finalize')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD)
-  @ApiOperation({ summary: 'Finalize the timetable and lock into registrar records' })
+  @Roles(Role.HOD)
+  @ApiOperation({
+    summary: 'Finalize the timetable and lock into registrar records',
+  })
   finalizeGrid(@Body() body: { classIds?: string[]; track?: string }) {
     return this.timetableService.finalizeGrid(body.classIds, body.track);
   }

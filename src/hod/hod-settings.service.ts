@@ -11,7 +11,11 @@ export class HODSettingsService {
   constructor(private prisma: PrismaService) {}
 
   async getHODSettings(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access settings');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -57,7 +61,11 @@ export class HODSettingsService {
   }
 
   async updateHODSettings(settings: any, userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can update settings');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -94,7 +102,11 @@ export class HODSettingsService {
     userId: string,
     role: Role,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can change password');
 
     const argon2 = require('argon2');
@@ -113,7 +125,11 @@ export class HODSettingsService {
   }
 
   async mfaEnroll(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can enroll MFA');
     return {
       qrCode:
@@ -124,13 +140,21 @@ export class HODSettingsService {
   }
 
   async mfaVerify(code: string, userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can verify MFA');
     return { success: true, message: 'MFA enabled successfully' };
   }
 
   async getActiveSessions(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can view sessions');
     return [
       {
@@ -144,7 +168,11 @@ export class HODSettingsService {
   }
 
   async revokeSession(sessionId: string, userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can revoke sessions');
     return { success: true, message: 'Session revoked' };
   }
@@ -393,16 +421,32 @@ export class HODSettingsService {
     )
       throw new ForbiddenException('Access denied');
 
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      select: { description: true },
+    });
+
+    const escalationNote = body?.reason
+      ? `\n\n[Escalation note: ${body.reason}]`
+      : '';
+
     await this.prisma.supportTicket.update({
       where: { id: ticketId },
-      data: { status: 'ESCALATED' },
+      data: {
+        status: 'ESCALATED',
+        description: (ticket?.description || '') + escalationNote,
+      },
     });
 
     return { success: true, message: 'Ticket escalated', ticketId };
   }
 
   async getContactChannels(userId: string, role: Role) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
@@ -419,7 +463,11 @@ export class HODSettingsService {
   }
 
   async updateContactChannels(userId: string, role: Role, channels: any) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can update contact channels');
 
     return channels;
@@ -430,7 +478,11 @@ export class HODSettingsService {
     role: Role,
     studentId: string,
   ) {
-    if (role !== Role.HOD)
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
       throw new ForbiddenException('Only HODs can access this endpoint');
 
     const student = await this.prisma.studentProfile.findUnique({

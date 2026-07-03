@@ -83,7 +83,12 @@ export class SystemFreezeGuard implements CanActivate {
 
     const isTermLocked = activeTerm?.isLocked ?? false;
 
-    if (settings.systemFrozen || isTermExpired || isTermLocked || departmentFrozen) {
+    if (
+      settings.systemFrozen ||
+      isTermExpired ||
+      isTermLocked ||
+      departmentFrozen
+    ) {
       const reason =
         departmentFreezeReason ||
         settings.systemFreezeReason ||

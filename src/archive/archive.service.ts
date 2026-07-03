@@ -72,9 +72,7 @@ export class ArchiveService {
     }
 
     if (classLevel) {
-      students = students.filter(
-        (s) => s.currentClass?.level === classLevel,
-      );
+      students = students.filter((s) => s.currentClass?.level === classLevel);
     }
 
     const promotionRecords = [];
@@ -275,7 +273,10 @@ export class ArchiveService {
       include: { term: { include: { academicYear: true } } },
     });
 
-    const termMap = new Map<string, { termNumber: string; academicYearLabel: string; scores: number[] }>();
+    const termMap = new Map<
+      string,
+      { termNumber: string; academicYearLabel: string; scores: number[] }
+    >();
 
     for (const entry of gradeEntries) {
       const key = entry.termId;
@@ -290,14 +291,19 @@ export class ArchiveService {
       termData.scores.push(entry.totalScore as number);
     }
 
-    return Array.from(termMap.values()).map(({ termNumber, academicYearLabel, scores }) => {
-      const avg = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
-      return {
-        termNumber,
-        termLabel: `${academicYearLabel} ${termNumber}`.trim(),
-        averageScore: avg,
-      };
-    });
+    return Array.from(termMap.values()).map(
+      ({ termNumber, academicYearLabel, scores }) => {
+        const avg =
+          scores.length > 0
+            ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+            : 0;
+        return {
+          termNumber,
+          termLabel: `${academicYearLabel} ${termNumber}`.trim(),
+          averageScore: avg,
+        };
+      },
+    );
   }
 
   /**
@@ -560,10 +566,13 @@ export class ArchiveService {
       classId,
       className: classSection.name,
       totalStudents,
-      distribution: houseNames.reduce((acc, house, i) => {
-        acc[house] = basePerHouse + (i < remainder ? 1 : 0);
-        return acc;
-      }, {} as Record<string, number>),
+      distribution: houseNames.reduce(
+        (acc, house, i) => {
+          acc[house] = basePerHouse + (i < remainder ? 1 : 0);
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     };
   }
 }

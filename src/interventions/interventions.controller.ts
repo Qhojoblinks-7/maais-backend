@@ -14,13 +14,7 @@ export class InterventionController {
   constructor(private readonly interventionService: InterventionsService) {}
 
   @Get(':id/interventions')
-  @Roles(
-    Role.STUDENT,
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Get intervention alerts for a student' })
   getInterventions(
     @Param('id') studentId: string,

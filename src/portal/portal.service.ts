@@ -84,7 +84,9 @@ export class PortalService {
           },
         });
         if (!assignment) {
-          throw new ForbiddenException('You do not have access to this student profile');
+          throw new ForbiddenException(
+            'You do not have access to this student profile',
+          );
         }
       } else if (requesterRole === Role.HOD && requesterId) {
         const staff = await this.prisma.staffProfile.findUnique({
@@ -95,7 +97,9 @@ export class PortalService {
           throw new ForbiddenException('HOD department not assigned');
         }
         if (student.departmentId !== staff.departmentId) {
-          throw new ForbiddenException('You do not have access to students outside your department');
+          throw new ForbiddenException(
+            'You do not have access to students outside your department',
+          );
         }
       }
       // HEADMASTER and SUPER_ADMIN have no additional restrictions
@@ -165,6 +169,27 @@ export class PortalService {
     const characterTraits = await this.prisma.characterTrait.findFirst({
       where: { studentId: targetStudentId },
       orderBy: { createdAt: 'desc' },
+    });
+
+    const medicalRecords = await this.prisma.medicalRecord.findMany({
+      where: { studentId: targetStudentId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const parentLinks = await this.prisma.studentParentLink.findMany({
+      where: { studentId: targetStudentId },
+      include: {
+        parent: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+            occupation: true,
+          },
+        },
+      },
     });
 
     const cgpa =
@@ -281,6 +306,28 @@ export class PortalService {
       programName: currentClass?.name || '—',
       program: department?.name || '—',
       recentResults: gradeEntries,
+      parents: parentLinks.map((link) => ({
+        id: link.parent.id,
+        firstName: link.parent.firstName,
+        lastName: link.parent.lastName,
+        phone: link.parent.phone,
+        email: link.parent.email,
+        occupation: link.parent.occupation,
+        relationship: link.relationship,
+        isPrimary: link.isPrimary,
+      })),
+      medicalRecords: medicalRecords.map((record) => ({
+        id: record.id,
+        condition: record.condition,
+        onsetDate: record.onsetDate?.toISOString() || null,
+        resolvedAt: record.resolvedAt?.toISOString() || null,
+        treatment: record.treatment,
+        medication: record.medication,
+        dosage: record.dosage,
+        notes: record.notes,
+        status: record.status,
+        createdAt: record.createdAt.toISOString(),
+      })),
     };
   }
 

@@ -31,7 +31,7 @@ export class CommsController {
   constructor(private commsService: CommsService) {}
 
   @Post('notify')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Send notification to students' })
   sendNotification(
     @Body() dto: SendNotificationDto,
@@ -41,7 +41,7 @@ export class CommsController {
   }
 
   @Post('emergency')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Broadcast emergency SMS to all parents' })
   emergency(
     @Body() dto: EmergencyNotificationDto,
@@ -51,13 +51,7 @@ export class CommsController {
   }
 
   @Get('notifications/:studentId')
-  @Roles(
-    Role.STUDENT,
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: "Get student's notification inbox" })
   getNotifications(
     @Param('studentId') studentId: string,
@@ -69,20 +63,14 @@ export class CommsController {
   }
 
   @Patch('notifications/:id/read')
-  @Roles(
-    Role.STUDENT,
-    Role.TEACHER,
-    Role.HOD,
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Mark notification as read' })
   markRead(@Param('id') id: string) {
     return this.commsService.markAsRead(id);
   }
 
   @Get('notifications/unread')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get unread notifications for staff user' })
   getUnread(
     @CurrentUser('id') userId: string,
@@ -92,7 +80,7 @@ export class CommsController {
   }
 
   @Post('notifications/hod-action')
-  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Send HOD action notification' })
   sendHODAction(@Body() dto: HODActionDto, @CurrentUser('id') userId: string) {
     return this.commsService.sendHODAction(
@@ -104,7 +92,7 @@ export class CommsController {
   }
 
   @Post('notifications/teacher-action')
-  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Send teacher action notification' })
   sendTeacherAction(
     @Body() dto: TeacherActionDto,
@@ -120,7 +108,7 @@ export class CommsController {
   }
 
   @Get('analytics/pulse')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get academic pulse dashboard data' })
   getPulse(
@@ -153,7 +141,7 @@ export class CommsController {
   }
 
   @Get('tickets')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List tickets (filtered by role)' })
   listTickets(
@@ -165,7 +153,7 @@ export class CommsController {
   }
 
   @Get('tickets/:id')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a single support ticket by ID' })
   getTicket(@Param('id') id: string) {
@@ -173,7 +161,7 @@ export class CommsController {
   }
 
   @Patch('tickets/:id/status')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update ticket status and notes' })
   updateTicketStatus(
@@ -186,7 +174,7 @@ export class CommsController {
   }
 
   @Post('tickets/:id/reply')
-  @Roles(Role.SUPER_ADMIN, Role.HEADMASTER, Role.HOD, Role.TEACHER)
+  @Roles(Role.TEACHER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a reply to a ticket' })
   addReply(

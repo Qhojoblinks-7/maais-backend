@@ -43,10 +43,12 @@ enum GradeRemark {
 }
 
 enum TermNumber {
-   TERM_1
-   TERM_2
-   TERM_3
- }
+  TERM_1
+  TERM_2
+  TERM_3
+  SEMESTER_1
+  SEMESTER_2
+}
 
 enum ClassLevel {
   FORM_1
@@ -88,6 +90,7 @@ enum InterventionStatus {
   IN_PROGRESS
   RESOLVED
 }
+
 enum DayOfWeek {
   MONDAY
   TUESDAY
@@ -95,6 +98,7 @@ enum DayOfWeek {
   THURSDAY
   FRIDAY
 }
+
 // ─────────────────────────────────────────────
 // USERS & AUTHENTICATION
 // ─────────────────────────────────────────────
@@ -119,7 +123,8 @@ model User {
   refreshTokens RefreshToken[]
 
   // Audit
-  auditLogs AuditLog[]
+  auditLogs      AuditLog[]
+  createdTickets SupportTicket[] @relation("CreatedTickets")
 
   @@map("users")
 }
@@ -155,17 +160,17 @@ model StaffProfile {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
 
-// Teaching assignments
-   teachingAssignments TeachingAssignment[]
-   classTeacher        ClassSection?        @relation("ClassTeacher")
-   timetableEntries    TimetableEntry[]
-   behaviorsRecorded   StudentBehavior[]
+  // Teaching assignments
+  teachingAssignments TeachingAssignment[]
+  classTeacher        ClassSection?        @relation("ClassTeacher")
+  timetableEntries    TimetableEntry[]
+  behaviorsRecorded   StudentBehavior[]
 
-   canTeach   Boolean @default(false)
-   canOversight Boolean @default(false)
+  canTeach     Boolean @default(false)
+  canOversight Boolean @default(false)
 
   // Notifications
-  notifications       Notification[]
+  notifications Notification[]
 
   @@map("staff_profiles")
 }
@@ -176,7 +181,7 @@ model StudentProfile {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   indexNumber    String        @unique // e.g. MSHTS/2024/001
   firstName      String
-  lastName      String
+  lastName       String
   middleName     String?
   gender         Gender
   dateOfBirth    DateTime?
@@ -194,12 +199,15 @@ model StudentProfile {
   reportCards   ReportCard[]
   notifications Notification[]
 
+  // Medical records
+  medicalRecords MedicalRecord[]
+
   // Parent link
-  parentLinks StudentParentLink[]
-  behaviors   StudentBehavior[]
-  characterTraits CharacterTrait[]
+  parentLinks        StudentParentLink[]
+  behaviors          StudentBehavior[]
+  characterTraits    CharacterTrait[]
   interventionAlerts InterventionAlert[]
-  supportTickets SupportTicket[]
+  supportTickets     SupportTicket[]
 
   // Archived after graduation
   archivedAt DateTime?
@@ -235,20 +243,45 @@ model StudentParentLink {
   @@map("student_parent_links")
 }
 
+model MedicalRecord {
+  id        String         @id @default(uuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  condition  String // e.g. "Malaria", "Asthma", "Diabetes"
+  onsetDate  DateTime?
+  resolvedAt DateTime?
+
+  treatment  String?
+  medication String?
+  dosage     String?
+
+  notes String?
+
+  status String @default("ACTIVE") // ACTIVE, RESOLVED, ONGOING
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@map("medical_records")
+}
+
 // ─────────────────────────────────────────────
 // ACADEMIC ARCHITECT MODULE
 // ─────────────────────────────────────────────
 
 model AcademicYear {
-  id        String   @id @default(uuid())
-  label     String   @unique // e.g. "2024/2025"
-  startDate DateTime
-  endDate   DateTime
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  label      String   @unique // e.g. "2024/2025"
+  startDate  DateTime
+  endDate    DateTime
+  isActive   Boolean  @default(false)
+  termSystem String   @default("THREE_TERMS") // "THREE_TERMS" or "TWO_SEMESTERS"
+  createdAt  DateTime @default(now())
 
-  terms      Term[]
-  promotions PromotionRecord[]
+  terms              Term[]
+  promotions         PromotionRecord[]
   curriculumMappings CurriculumMapping[]
 
   @@map("academic_years")
@@ -264,9 +297,9 @@ model Term {
   isActive       Boolean      @default(false)
   isLocked       Boolean      @default(false) // Locked after reports are released
 
-  grades      GradeEntry[]
-  attendance  AttendanceRecord[]
-  reportCards ReportCard[]
+  grades          GradeEntry[]
+  attendance      AttendanceRecord[]
+  reportCards     ReportCard[]
   assessmentRules AssessmentRules?
 
   @@unique([academicYearId, termNumber])
@@ -274,14 +307,14 @@ model Term {
 }
 
 model Department {
-  id          String   @id @default(uuid())
-  name        String   @unique // e.g. "Science", "General Arts"
-  code        String   @unique
-  description String?
-  isFrozen    Boolean  @default(false)
+  id           String    @id @default(uuid())
+  name         String    @unique // e.g. "Science", "General Arts"
+  code         String    @unique
+  description  String?
+  isFrozen     Boolean   @default(false)
   freezeReason String?
-  frozenAt    DateTime?
-  createdAt   DateTime @default(now())
+  frozenAt     DateTime?
+  createdAt    DateTime  @default(now())
 
   staff    StaffProfile[]
   subjects Subject[]
@@ -291,41 +324,41 @@ model Department {
 }
 
 model Subject {
-  id           String      @id @default(uuid())
-  name         String
-  code         String      @unique // e.g. "MATH101"
-  type         SubjectType
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
-  description  String?
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  creditHours  Int         @default(3)
-  applicablePrograms String[] @default([])
+  id                 String      @id @default(uuid())
+  name               String
+  code               String      @unique // e.g. "MATH101"
+  type               SubjectType
+  departmentId       String?
+  department         Department? @relation(fields: [departmentId], references: [id])
+  description        String?
+  isActive           Boolean     @default(true)
+  createdAt          DateTime    @default(now())
+  creditHours        Int         @default(3)
+  applicablePrograms String[]    @default([])
 
   // Assignments and grades
   teachingAssignments TeachingAssignment[]
   grades              GradeEntry[]
-  timetableEntries     TimetableEntry[]
-  curriculumMappings CurriculumMapping[]
+  timetableEntries    TimetableEntry[]
+  curriculumMappings  CurriculumMapping[]
 
   @@map("subjects")
 }
 
 model ClassSection {
-   id             String        @id @default(uuid())
-   name           String // e.g. "1A", "2B", "3Science"
-   level          ClassLevel
-   capacity       Int           @default(40)
-   program        String?       // e.g. "Science", "General Arts", "Business", "Vocational"
-   classTeacherId String?       @unique
-   classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
-   track          String?       // "Gold" or "Green" for double-track schools
+  id             String        @id @default(uuid())
+  name           String // e.g. "1A", "2B", "3Science"
+  level          ClassLevel
+  capacity       Int           @default(40)
+  program        String? // e.g. "Science", "General Arts", "Business", "Vocational"
+  classTeacherId String?       @unique
+  classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  track          String? // "Gold" or "Green" for double-track schools
 
   students            StudentProfile[]
   teachingAssignments TeachingAssignment[]
-  timetableEntries      TimetableEntry[]
-  curriculumMappings CurriculumMapping[]
+  timetableEntries    TimetableEntry[]
+  curriculumMappings  CurriculumMapping[]
 
   @@unique([name, level])
   @@map("class_sections")
@@ -341,9 +374,9 @@ model TeachingAssignment {
   classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   academicYearId String
 
-   @@unique([teacherId, subjectId, classSectionId, academicYearId])
-   @@map("teaching_assignments")
- }
+  @@unique([teacherId, subjectId, classSectionId, academicYearId])
+  @@map("teaching_assignments")
+}
 
 // ─────────────────────────────────────────────
 // CURRICULUM MATRIX MODULE
@@ -392,81 +425,81 @@ model GradeBoundary {
 }
 
 model GradeEntry {
-   id        String         @id @default(uuid())
-   studentId String
-   student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-   subjectId String
-   subject   Subject        @relation(fields: [subjectId], references: [id])
-   termId    String
-   term      Term           @relation(fields: [termId], references: [id])
+  id        String         @id @default(uuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject        @relation(fields: [subjectId], references: [id])
+  termId    String
+  term      Term           @relation(fields: [termId], references: [id])
 
-   // Score breakdown (GH SHS standard)
-   classScore Float? // Out of 30 (continuous assessment)
-   examScore  Float? // Out of 70
-   totalScore Float? // Computed: classScore + examScore
-   grade      String? // A1-F9
-   remark     String? // Selected from smart remarks pool
-   position   Int? // Position in class for this subject
+  // Score breakdown (GH SHS standard)
+  classScore Float? // Out of 30 (continuous assessment)
+  examScore  Float? // Out of 70
+  totalScore Float? // Computed: classScore + examScore
+  grade      String? // A1-F9
+  remark     String? // Selected from smart remarks pool
+  position   Int? // Position in class for this subject
 
-   // Observations (missing = flagged)
-    hasObservation  Boolean @default(false)
-    observationText String?
+  // Observations (missing = flagged)
+  hasObservation  Boolean @default(false)
+  observationText String?
 
-    // Locking & audit
-    isLocked      Boolean   @default(false)
-    lockedById    String?
-    lockedAt      DateTime?
-    submittedById String?
-    submittedAt   DateTime?
+  // Locking & audit
+  isLocked      Boolean   @default(false)
+  lockedById    String?
+  lockedAt      DateTime?
+  submittedById String?
+  submittedAt   DateTime?
 
-    // Approval
-    isApproved   Boolean   @default(false)
-    approvedById String?
-    approvedAt   DateTime?
+  // Approval
+  isApproved   Boolean   @default(false)
+  approvedById String?
+  approvedAt   DateTime?
 
-    // Corrections tracked
-    corrections GradeCorrection[]
+  // Corrections tracked
+  corrections GradeCorrection[]
 
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-   @@unique([studentId, subjectId, termId])
-   @@map("grade_entries")
+  @@unique([studentId, subjectId, termId])
+  @@map("grade_entries")
 }
 
 model GradeCorrection {
-   id           String     @id @default(uuid())
-   gradeEntryId String
-   gradeEntry   GradeEntry @relation(fields: [gradeEntryId], references: [id], onDelete: Cascade)
-   changedById  String
-   fieldChanged String // "classScore" | "examScore" | "remark"
-   oldValue     String?
-   newValue     String
-   reason       String
-   createdAt    DateTime   @default(now())
+  id           String     @id @default(uuid())
+  gradeEntryId String
+  gradeEntry   GradeEntry @relation(fields: [gradeEntryId], references: [id], onDelete: Cascade)
+  changedById  String
+  fieldChanged String // "classScore" | "examScore" | "remark"
+  oldValue     String?
+  newValue     String
+  reason       String
+  createdAt    DateTime   @default(now())
 
-   @@map("grade_corrections")
+  @@map("grade_corrections")
 }
 
 model GradeRevision {
-   id           String   @id @default(uuid())
-   teacherId    String
-   studentId    String
-   subjectId    String
-   gradeEntryId String
-   className    String?
-   
-   issue        String
-   severity     String
-   status       String
-   
-   history      Json? 
-   
-   createdAt    DateTime @default(now())
-   updatedAt    DateTime @updatedAt
-   
-   @@map("grade_revisions")
- }
+  id           String  @id @default(uuid())
+  teacherId    String
+  studentId    String
+  subjectId    String
+  gradeEntryId String
+  className    String?
+
+  issue    String
+  severity String
+  status   String
+
+  history Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("grade_revisions")
+}
 
 model AttendanceRecord {
   id          String         @id @default(uuid())
@@ -624,93 +657,94 @@ model StudentBehavior {
 }
 
 model CharacterTrait {
-  id               String   @id @default(uuid())
-  studentId        String
+  id             String @id @default(uuid())
+  studentId      String
 
-  leadership       Int
-  discipline       Int
-  teamwork         Int
-  ethics           Int
-  communication    Int
-  responsibility   Int
+  leadership     Int
+  discipline     Int
+  teamwork       Int
+  ethics         Int
+  communication  Int
+  responsibility Int
 
-  termId           String?
+  termId String?
 
-  createdAt        DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  student          StudentProfile @relation(fields: [studentId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id])
 
   @@index([studentId])
 }
 
 model InterventionAlert {
-  id               String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  studentId        String
+  studentId String
 
-  previousAverage  Float
-  currentAverage   Float
+  previousAverage Float
+  currentAverage  Float
 
-  dropPercentage   Float
+  dropPercentage Float
 
-  status           InterventionStatus
+  status InterventionStatus
 
-  notes            String?
+  notes String?
 
-  createdAt        DateTime @default(now())
-  resolvedAt       DateTime?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
 
-  student          StudentProfile @relation(fields: [studentId], references: [id])
+  student StudentProfile @relation(fields: [studentId], references: [id])
 
   @@index([studentId])
 }
 
 model SupportTicket {
-  id          String    @id @default(uuid())
-  studentId   String
-  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id        String          @id @default(uuid())
+  studentId String?
+  student   StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   title       String
   description String
   category    String // Academic, Technical, Finance, General
   priority    String // HIGH, MEDIUM, LOW
 
-  status      String @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED
+  status String @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, ESCALATED
 
-  createdById String?
+  createdById String
+  createdBy   User    @relation("CreatedTickets", fields: [createdById], references: [id])
   assignedTo  String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  resolvedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
 
   @@index([studentId])
   @@map("support_tickets")
 }
 
 model TimetableEntry {
-   id           String   @id @default(uuid())
+  id String @id @default(uuid())
 
-   classId      String
-   subjectId    String
-   teacherId    String
+  classId   String
+  subjectId String
+  teacherId String
 
-   dayOfWeek    DayOfWeek
+  dayOfWeek DayOfWeek
 
-   startTime    String
-   endTime      String
+  startTime String
+  endTime   String
 
-   room         String?
-   track        String?  // "Gold" or "Green" - inherits from class section
+  room  String?
+  track String? // "Gold" or "Green" - inherits from class section
 
-   createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-   classSection         ClassSection   @relation(fields: [classId], references: [id])
-   subject      Subject  @relation(fields: [subjectId], references: [id])
-   teacher      StaffProfile @relation(fields: [teacherId], references: [id])
+  classSection ClassSection @relation(fields: [classId], references: [id])
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  teacher      StaffProfile @relation(fields: [teacherId], references: [id])
 
-   @@map("timetable_entries")
- }
+  @@map("timetable_entries")
+}
 
 model ApprovalRequest {
   id              String    @id @default(uuid())
@@ -731,14 +765,14 @@ model ApprovalRequest {
 }
 
 model AssessmentRules {
-  id                   String   @id @default(uuid())
-  termId               String   @unique
-  term                 Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
-  caWeight             Int      @default(30)
-  examWeight           Int      @default(70)
-  normalizationEnabled Boolean  @default(true)
+  id                   String    @id @default(uuid())
+  termId               String    @unique
+  term                 Term      @relation(fields: [termId], references: [id], onDelete: Cascade)
+  caWeight             Int       @default(30)
+  examWeight           Int       @default(70)
+  normalizationEnabled Boolean   @default(true)
   submissionDeadline   DateTime?
-  isLocked             Boolean  @default(false)
+  isLocked             Boolean   @default(false)
   lockedAt             DateTime?
   lockedById           String?
 
@@ -757,12 +791,12 @@ model DigitalSeal {
 }
 
 model AdminSettings {
-  id               String   @id @default(uuid())
-  maintenanceMode  Boolean  @default(false)
-  mfaEnabled       Boolean  @default(true)
-  systemFrozen     Boolean  @default(false)
+  id                 String   @id @default(uuid())
+  maintenanceMode    Boolean  @default(false)
+  mfaEnabled         Boolean  @default(true)
+  systemFrozen       Boolean  @default(false)
   systemFreezeReason String?
-  updatedAt        DateTime @updatedAt
+  updatedAt          DateTime @updatedAt
 
   @@map("admin_settings")
 }

@@ -24,7 +24,9 @@ export class AdminService {
       where: { id: departmentId },
       data: {
         isFrozen: !department.isFrozen,
-        freezeReason: reason || (department.isFrozen ? undefined : 'Department frozen by admin'),
+        freezeReason:
+          reason ||
+          (department.isFrozen ? undefined : 'Department frozen by admin'),
         frozenAt: department.isFrozen ? null : new Date(),
       },
     });

@@ -5,7 +5,6 @@ import {
   Param,
   Body,
   Query,
-  Patch,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -63,20 +62,14 @@ export class ReportsController {
   constructor(private reportsService: ReportsService) {}
 
   @Post('report-cards/generate')
-  @Roles(
-    Role.HEADMASTER,
-    Role.SUPER_ADMIN,
-    Role.HOD,
-    Role.STUDENT,
-    Role.TEACHER,
-  )
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Generate report card for a single student' })
   generateOne(@Body() dto: GenerateReportCardDto) {
     return this.reportsService.generateReportCard(dto.studentId, dto.termId);
   }
 
   @Post('report-cards/batch')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Batch generate report cards for entire class' })
   batchGenerate(@Body() dto: BatchGenerateDto) {
     return this.reportsService.batchGenerateReportCards(
@@ -86,7 +79,7 @@ export class ReportsController {
   }
 
   @Post('transcripts/generate')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.STUDENT)
+  @Roles(Role.STUDENT)
   @ApiOperation({ summary: 'Build 3-year transcript' })
   buildTranscript(@Body() dto: BuildTranscriptDto) {
     return this.reportsService.buildTranscript(dto.studentIdOrIndex);
@@ -100,14 +93,14 @@ export class ReportsController {
   }
 
   @Get('generation/students')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get students for report generation with filters' })
   getStudentsForGeneration(@Query() query: ReportGenerationQueryDto) {
     return this.reportsService.getStudentsForGeneration(query);
   }
 
   @Post('generation/compile')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Compile batch reports for a class' })
   compileBatchReports(
     @Body() body: { classSectionId: string; termId: string },
@@ -119,14 +112,14 @@ export class ReportsController {
   }
 
   @Get('generation/blocking-issues')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Get blocking issues for selected class' })
   getBlockingIssues(@Query('classSectionId') classSectionId: string) {
     return this.reportsService.getBlockingIssues(classSectionId);
   }
 
   @Post('generation/send-nudge')
-  @Roles(Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @Roles(Role.HOD)
   @ApiOperation({ summary: 'Send nudge to teachers for missing marks' })
   @Audit(AuditAction.UPDATE, 'Nudge')
   sendNudgeToTeachers(
