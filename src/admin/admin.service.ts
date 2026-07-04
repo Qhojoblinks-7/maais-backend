@@ -322,6 +322,7 @@ export class AdminService {
     return {
       systemFrozen: settings.systemFrozen,
       systemFreezeReason: settings.systemFreezeReason,
+      lastManualUnfreeze: settings.lastManualUnfreeze,
       updatedAt: settings.updatedAt,
     };
   }
@@ -335,7 +336,11 @@ export class AdminService {
     } else {
       settings = await this.prisma.adminSettings.update({
         where: { id: settings.id },
-        data: { systemFrozen: enabled, systemFreezeReason: reason },
+        data: {
+          systemFrozen: enabled,
+          systemFreezeReason: reason,
+          lastManualUnfreeze: enabled ? null : new Date(),
+        },
       });
     }
 

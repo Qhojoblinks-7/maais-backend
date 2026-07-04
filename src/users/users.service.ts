@@ -243,6 +243,16 @@ export class UsersService {
     });
   }
 
+  async getStudentCount() {
+    return this.prisma.studentProfile.count({
+      where: { archivedAt: null },
+    });
+  }
+
+  async getStaffCount() {
+    return this.prisma.staffProfile.count();
+  }
+
   async getStudentProfile(
     studentId: string,
     requesterRole?: Role,

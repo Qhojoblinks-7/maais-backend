@@ -219,6 +219,14 @@ let UsersService = class UsersService {
             orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
         });
     }
+    async getStudentCount() {
+        return this.prisma.studentProfile.count({
+            where: { archivedAt: null },
+        });
+    }
+    async getStaffCount() {
+        return this.prisma.staffProfile.count();
+    }
     async getStudentProfile(studentId, requesterRole, teacherStaffId) {
         const baseProfile = await this.prisma.studentProfile.findUniqueOrThrow({
             where: { id: studentId },

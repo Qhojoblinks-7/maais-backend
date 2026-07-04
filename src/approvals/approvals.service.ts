@@ -60,10 +60,19 @@ export class ApprovalsService {
     },
     requesterId: string,
   ) {
+    const staff = await this.prisma.staffProfile.findUnique({
+      where: { id: dto.teacherId },
+      select: { firstName: true, lastName: true },
+    });
+
+    const teacherName = staff
+      ? `${staff.firstName} ${staff.lastName}`
+      : dto.teacherId;
+
     return this.prisma.approvalRequest.create({
       data: {
         teacherId: dto.teacherId,
-        teacherName: dto.teacherId,
+        teacherName,
         detail: dto.detail,
         priority: dto.priority || 'normal',
         category: dto.category || 'other',

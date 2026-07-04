@@ -209,6 +209,8 @@ model StudentProfile {
   interventionAlerts InterventionAlert[]
   supportTickets     SupportTicket[]
 
+  isBoarder      Boolean   @default(false) // true = boarder, false = day student
+
   // Archived after graduation
   archivedAt DateTime?
 
@@ -796,6 +798,7 @@ model AdminSettings {
   mfaEnabled         Boolean  @default(true)
   systemFrozen       Boolean  @default(false)
   systemFreezeReason String?
+  lastManualUnfreeze DateTime?
   updatedAt          DateTime @updatedAt
 
   @@map("admin_settings")

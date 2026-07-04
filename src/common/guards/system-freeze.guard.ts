@@ -44,12 +44,18 @@ export class SystemFreezeGuard implements CanActivate {
       settings = await this.prisma.adminSettings.create({ data: {} });
     }
 
+    // Check admin override before auto-freeze check
+    const adminOverrideWindow = 24 * 60 * 60 * 1000;
+    const hasAdminOverride = settings.lastManualUnfreeze &&
+      (Date.now() - new Date(settings.lastManualUnfreeze).getTime() < adminOverrideWindow);
+
     let activeTerm = null;
     let isTermExpired = false;
     let departmentFrozen = false;
     let departmentFreezeReason: string | undefined;
 
-    if (!settings.systemFrozen) {
+    // Auto-freeze only if no admin override
+    if (!settings.systemFrozen && !hasAdminOverride) {
       activeTerm = await this.prisma.term.findFirst({
         where: { isActive: true },
         select: { id: true, isLocked: true, endDate: true },

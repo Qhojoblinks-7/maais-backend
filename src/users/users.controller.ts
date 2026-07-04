@@ -42,13 +42,25 @@ export class UsersController {
   }
 
   @Get('students')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'List all active students' })
   getAllStudents(
     @CurrentUser() user: { id: string; role: Role },
     @Query('search') search?: string,
   ) {
     return this.usersService.getAllStudents(user, search);
+  }
+
+  @Get('students/count')
+  @ApiOperation({ summary: 'Get total active student count' })
+  getStudentCount() {
+    return this.usersService.getStudentCount();
+  }
+
+  @Get('staff/count')
+  @ApiOperation({ summary: 'Get total staff count' })
+  getStaffCount() {
+    return this.usersService.getStaffCount();
   }
 
   @Get('students/:id')
@@ -74,7 +86,7 @@ export class UsersController {
   }
 
   @Get('staff')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'List all staff members' })
   getAllStaff(@CurrentUser() user: { id: string; role: Role }) {
     return this.usersService.getAllStaff(user);

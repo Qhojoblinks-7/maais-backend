@@ -108,7 +108,7 @@ export class CommsController {
   }
 
   @Get('analytics/pulse')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get academic pulse dashboard data' })
   getPulse(
