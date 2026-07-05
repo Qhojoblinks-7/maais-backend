@@ -251,11 +251,15 @@ export class GradingService {
         totalScore,
         grade,
         remark: dto.remark,
-        hasObservation: dto.hasObservation,
-        observationText: dto.observationText,
         submittedById,
         submittedAt: new Date(),
         isApproved: false,
+        ...(dto.hasObservation !== undefined && {
+          hasObservation: dto.hasObservation,
+        }),
+        ...(dto.observationText !== undefined && {
+          observationText: dto.observationText,
+        }),
       },
       include: { student: true, subject: true },
     });
@@ -579,6 +583,52 @@ export class GradingService {
     return assignments.map((assignment) => assignment.subjectId);
   }
 
+  private async getAccessibleStudentIds(userId?: string): Promise<string[]> {
+    if (!userId) return [];
+
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!staffProfile) return [];
+
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: { teacherId: staffProfile.id },
+      select: { subjectId: true, classSectionId: true },
+    });
+
+    if (assignments.length === 0) return [];
+
+    const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
+    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+
+    const students = await this.prisma.studentProfile.findMany({
+      where: { currentClassId: { in: classSectionIds }, archivedAt: null },
+      select: { id: true },
+    });
+
+    return students.map((s) => s.id);
+  }
+
+  private async getAccessibleSubjectIds(userId?: string): Promise<string[]> {
+    if (!userId) return [];
+
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    if (!staffProfile) return [];
+
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: { teacherId: staffProfile.id },
+      select: { subjectId: true },
+    });
+
+    return [...new Set(assignments.map((a) => a.subjectId))];
+  }
+
   private async getEffectiveTermId(termId?: string) {
     if (termId) return termId;
 
@@ -615,15 +665,34 @@ export class GradingService {
     );
   }
 
-  private toObservation(entry: any, teacher = 'Unknown') {
+  private async getHODMap(departmentIds: string[]) {
+    const ids = [...new Set(departmentIds.filter(Boolean))] as string[];
+    if (ids.length === 0) return new Map<string, string>();
+
+    const hodProfiles = await this.prisma.staffProfile.findMany({
+      where: { departmentId: { in: ids }, canOversight: true },
+      select: { departmentId: true, firstName: true, lastName: true },
+    });
+
+    return new Map(
+      hodProfiles.map((hod) => [
+        hod.departmentId,
+        `${hod.firstName || ''} ${hod.lastName || ''}`.trim(),
+      ]),
+    );
+  }
+
+  private toObservation(entry: any, teacher = 'Unknown', hod = 'Unknown') {
     return {
       id: entry.id,
+      studentId: entry.studentId,
       student: entry.student
         ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
         : 'Unknown',
       index: entry.student?.indexNumber || '',
       class: entry.student?.currentClass?.name || 'Unknown Class',
       teacher,
+      hod,
       type: entry.subject?.name || 'Unknown Subject',
       comment: entry.observationText || entry.remark || '',
       status: entry.hasObservation ? 'Logged' : 'Missing',
@@ -648,10 +717,15 @@ export class GradingService {
     };
 
     if (userRole === Role.TEACHER && userId) {
-      const subjectIds = await this.getTeacherSubjectIds(userId);
-      if (subjectIds.length > 0) {
-        whereClause.subjectId = { in: subjectIds };
+      const [accessibleStudentIds, accessibleSubjectIds] = await Promise.all([
+        this.getAccessibleStudentIds(userId),
+        this.getAccessibleSubjectIds(userId),
+      ]);
+      if (accessibleStudentIds.length === 0 || accessibleSubjectIds.length === 0) {
+        return [];
       }
+      whereClause.studentId = { in: accessibleStudentIds };
+      whereClause.subjectId = { in: accessibleSubjectIds };
     }
 
     const entries = await this.prisma.gradeEntry.findMany({
@@ -665,7 +739,7 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
       orderBy: { student: { lastName: 'asc' } },
     });
@@ -674,24 +748,48 @@ export class GradingService {
       entries.map((entry) => entry.submittedById),
     );
 
+    const departmentIds = [
+      ...new Set(
+        entries
+          .map((e) => e.subject?.departmentId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const hodMap = await this.getHODMap(departmentIds);
+
     return entries.map((entry) => ({
       ...this.toObservation(
         entry,
         entry.submittedById
           ? teacherMap.get(entry.submittedById) || 'Unknown'
           : 'Unknown',
+        entry.subject?.departmentId
+          ? hodMap.get(entry.subject.departmentId) || 'Unknown'
+          : 'Unknown',
       ),
       status: 'Missing',
     }));
   }
 
-  async getObservationLogs(userId?: string, userRole?: Role) {
+  async getObservationLogs(userId?: string, userRole?: Role, termId?: string) {
     const whereClause: any = {};
 
     if (userRole === Role.TEACHER && userId) {
-      const subjectIds = await this.getTeacherSubjectIds(userId);
-      if (subjectIds.length === 0) return [];
-      whereClause.subjectId = { in: subjectIds };
+      const [accessibleStudentIds, accessibleSubjectIds] = await Promise.all([
+        this.getAccessibleStudentIds(userId),
+        this.getAccessibleSubjectIds(userId),
+      ]);
+      if (accessibleStudentIds.length === 0 || accessibleSubjectIds.length === 0) {
+        return [];
+      }
+      whereClause.studentId = { in: accessibleStudentIds };
+      whereClause.subjectId = { in: accessibleSubjectIds };
+    }
+
+    const effectiveTermId = termId ? termId : await this.getEffectiveTermId();
+
+    if (effectiveTermId) {
+      whereClause.termId = effectiveTermId;
     }
 
     const entries = await this.prisma.gradeEntry.findMany({
@@ -705,7 +803,7 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
       orderBy: [{ hasObservation: 'desc' }, { updatedAt: 'desc' }],
     });
@@ -714,11 +812,23 @@ export class GradingService {
       entries.map((entry) => entry.submittedById),
     );
 
+    const departmentIds = [
+      ...new Set(
+        entries
+          .map((e) => e.subject?.departmentId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const hodMap = await this.getHODMap(departmentIds);
+
     return entries.map((entry) =>
       this.toObservation(
         entry,
         entry.submittedById
           ? teacherMap.get(entry.submittedById) || 'Unknown'
+          : 'Unknown',
+        entry.subject?.departmentId
+          ? hodMap.get(entry.subject.departmentId) || 'Unknown'
           : 'Unknown',
       ),
     );
@@ -731,10 +841,10 @@ export class GradingService {
   ) {
     if (userRole !== Role.TEACHER || !userId) return;
 
-    const subjectIds = await this.getTeacherSubjectIds(userId);
-    if (!subjectIds.includes(entry.subjectId)) {
+    const accessibleStudentIds = await this.getAccessibleStudentIds(userId);
+    if (!accessibleStudentIds.includes(entry.studentId)) {
       throw new ForbiddenException(
-        'You can only access your assigned observations',
+        'You can only access observations for your assigned students',
       );
     }
   }
@@ -752,7 +862,7 @@ export class GradingService {
               currentClass: { select: { name: true } },
             },
           },
-          subject: { select: { name: true, code: true } },
+          subject: { select: { name: true, code: true, departmentId: true } },
         },
       });
     }
@@ -793,7 +903,7 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
   }
@@ -827,12 +937,21 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
 
     const teacherMap = await this.getTeacherNameMap([userId]);
-    return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
+    const hod = updated.subject?.departmentId
+      ? (await this.getHODMap([updated.subject.departmentId])).get(
+          updated.subject.departmentId,
+        ) || 'Unknown'
+      : 'Unknown';
+    return this.toObservation(
+      updated,
+      teacherMap.get(userId) || 'Unknown',
+      hod,
+    );
   }
 
   async updateObservation(
@@ -852,7 +971,7 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
 
@@ -887,12 +1006,21 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
 
     const teacherMap = await this.getTeacherNameMap([userId]);
-    return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
+    const hod = updated.subject?.departmentId
+      ? (await this.getHODMap([updated.subject.departmentId])).get(
+          updated.subject.departmentId,
+        ) || 'Unknown'
+      : 'Unknown';
+    return this.toObservation(
+      updated,
+      teacherMap.get(userId) || 'Unknown',
+      hod,
+    );
   }
 
   async deleteObservation(
@@ -911,7 +1039,7 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
 
@@ -939,12 +1067,21 @@ export class GradingService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
 
     const teacherMap = await this.getTeacherNameMap([userId]);
-    return this.toObservation(updated, teacherMap.get(userId) || 'Unknown');
+    const hod = updated.subject?.departmentId
+      ? (await this.getHODMap([updated.subject.departmentId])).get(
+          updated.subject.departmentId,
+        ) || 'Unknown'
+      : 'Unknown';
+    return this.toObservation(
+      updated,
+      teacherMap.get(userId) || 'Unknown',
+      hod,
+    );
   }
 
   async getStudentTermGrades(

@@ -75,12 +75,12 @@ export class TeacherService {
                   subjectId: assignment.subjectId,
                   termId: activeTerm.id,
                 },
-                select: { totalScore: true },
+                select: { totalScore: true, hasObservation: true },
               })
             : [];
 
           const completed = grades.filter(
-            (grade) => typeof grade.totalScore === 'number',
+            (grade) => typeof grade.totalScore === 'number' && grade.hasObservation === true,
           ).length;
           const studentCount = studentIds.length;
           const progress =
@@ -250,12 +250,12 @@ export class TeacherService {
                   subjectId: assignment.subjectId,
                   termId: activeTerm.id,
                 },
-                select: { totalScore: true },
+                select: { totalScore: true, hasObservation: true },
               })
             : [];
 
           const completed = grades.filter(
-            (grade) => typeof grade.totalScore === 'number',
+            (grade) => typeof grade.totalScore === 'number' && grade.hasObservation === true,
           ).length;
           const averageScore = completed
             ? Math.round(
@@ -294,6 +294,7 @@ export class TeacherService {
                   remark: true,
                   observationText: true,
                   updatedAt: true,
+                  hasObservation: true,
                   student: true,
                 },
               })
@@ -310,7 +311,7 @@ export class TeacherService {
               .join(' ');
             const date = grade.updatedAt.toISOString().slice(0, 10);
             const status =
-              typeof grade.totalScore === 'number' ? 'Active' : 'Pending';
+              grade.hasObservation === true ? 'Active' : 'Pending';
             const observation = {
               id: grade.id,
               student: studentName || 'Unknown Student',
@@ -969,7 +970,7 @@ export class TeacherService {
     };
   }
 
-  async getMissingObservationsTray() {
+  async getMissingObservationsTray(userId?: string, userRole?: Role) {
     const activeTerm = await this.prisma.term.findFirst({
       where: { isActive: true },
       orderBy: { startDate: 'desc' },
@@ -978,12 +979,45 @@ export class TeacherService {
 
     if (!activeTerm) return [];
 
+    const whereClause: any = {
+      termId: activeTerm.id,
+      hasObservation: false,
+      OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
+    };
+
+    if (userRole === Role.TEACHER && userId) {
+      const staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+
+      if (staffProfile) {
+        const assignments = await this.prisma.teachingAssignment.findMany({
+          where: { teacherId: staffProfile.id },
+          select: { subjectId: true, classSectionId: true },
+        });
+
+        if (assignments.length === 0) return [];
+
+        const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
+        const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+
+        const studentIds = await this.prisma.studentProfile
+          .findMany({
+            where: { currentClassId: { in: classSectionIds }, archivedAt: null },
+            select: { id: true },
+          })
+          .then((s) => s.map((x) => x.id));
+
+        if (studentIds.length === 0) return [];
+
+        whereClause.studentId = { in: studentIds };
+        whereClause.subjectId = { in: subjectIds };
+      }
+    }
+
     const entries = await this.prisma.gradeEntry.findMany({
-      where: {
-        termId: activeTerm.id,
-        hasObservation: false,
-        OR: [{ classScore: { not: null } }, { examScore: { not: null } }],
-      },
+      where: whereClause,
       include: {
         student: {
           select: {
@@ -993,7 +1027,7 @@ export class TeacherService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
       orderBy: { student: { lastName: 'asc' } },
     });
@@ -1004,6 +1038,7 @@ export class TeacherService {
 
     return entries.map((entry) => ({
       id: entry.id,
+      studentId: entry.studentId,
       student: entry.student
         ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
         : 'Unknown',
@@ -1075,15 +1110,28 @@ export class TeacherService {
     });
 
     const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-    const classSectionIds = [
-      ...new Set(assignments.map((a) => a.classSectionId)),
-    ];
+    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
 
-    const whereClause: any = { hasObservation: true };
-
-    if (subjectIds.length > 0) {
-      whereClause.subjectId = { in: subjectIds };
+    if (subjectIds.length === 0 || classSectionIds.length === 0) {
+      return [];
     }
+
+    const studentIds = await this.prisma.studentProfile
+      .findMany({
+        where: { currentClassId: { in: classSectionIds }, archivedAt: null },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    if (studentIds.length === 0) {
+      return [];
+    }
+
+    const whereClause: any = {
+      hasObservation: true,
+      studentId: { in: studentIds },
+      subjectId: { in: subjectIds },
+    };
 
     const entries = await this.prisma.gradeEntry.findMany({
       where: whereClause,
@@ -1097,34 +1145,30 @@ export class TeacherService {
             currentClass: { select: { name: true } },
           },
         },
-        subject: { select: { name: true, code: true } },
+        subject: { select: { name: true, code: true, departmentId: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
 
-    const filteredEntries =
-      classSectionIds.length > 0
-        ? entries.filter(
-            (e) =>
-              e.student?.currentClassId &&
-              classSectionIds.includes(e.student.currentClassId),
-          )
-        : entries;
-
     const teacherMap = await this.getTeacherNameMap(
-      filteredEntries.map((entry) => entry.submittedById),
+      entries.map((entry) => entry.submittedById),
     );
 
-    return filteredEntries.map((entry) => ({
+    return entries.map((entry) => ({
       id: entry.id,
-      type: entry.subject?.name || 'Unknown Subject',
+      studentId: entry.studentId,
       student: entry.student
         ? `${entry.student.firstName || ''} ${entry.student.lastName || ''}`.trim()
         : 'Unknown Student',
+      index: entry.student?.indexNumber || '',
+      class: entry.student?.currentClass?.name || 'Unknown Class',
       teacher: entry.submittedById
         ? teacherMap.get(entry.submittedById) || 'Unknown'
         : 'Unknown',
+      hod: 'Unknown',
+      type: entry.subject?.name || 'Unknown Subject',
       comment: entry.observationText || entry.remark || '',
+      status: entry.hasObservation ? 'Logged' : 'Missing',
       date: entry.updatedAt
         ? entry.updatedAt.toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],

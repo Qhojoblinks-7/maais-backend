@@ -130,8 +130,8 @@ export class TeacherController {
   @Get('missing-observations')
   @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations tray' })
-  getMissingObservations() {
-    return this.teacherService.getMissingObservationsTray();
+  getMissingObservations(@CurrentUser() user: { id: string; role: Role }) {
+    return this.teacherService.getMissingObservationsTray(user.id, user.role);
   }
 
   @Patch('profile')
@@ -190,7 +190,7 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.getSupportObservations(user);
+    return this.gradingService.getObservationLogs(user.id, user.role);
   }
 
   @Get('grade-revisions')
