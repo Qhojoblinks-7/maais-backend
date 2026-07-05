@@ -57,9 +57,19 @@ export class AcademicArchitectService {
 
   // ─── Academic Years ───────────────────────────────────
 
-  async createAcademicYear(label: string, startDate: Date, endDate: Date, termSystem?: string) {
+  async createAcademicYear(
+    label: string,
+    startDate: Date,
+    endDate: Date,
+    termSystem?: string,
+  ) {
     return this.prisma.academicYear.create({
-      data: { label, startDate, endDate, termSystem: termSystem || 'THREE_TERMS' },
+      data: {
+        label,
+        startDate,
+        endDate,
+        termSystem: termSystem || 'THREE_TERMS',
+      },
     });
   }
 

@@ -32,7 +32,7 @@ export class TimetableController {
   }
 
   @Get()
-  @Roles(Role.STUDENT)
+  @Roles(Role.STUDENT, Role.TEACHER)
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,

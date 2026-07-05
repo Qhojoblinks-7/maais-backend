@@ -411,7 +411,7 @@ export class TeacherService {
           severity: r.severity,
           status: r.status,
           time: r.createdAt.toISOString(),
-          history: r.history || [],
+          history: Array.isArray(r.history) ? r.history : [],
         };
       }),
     );
@@ -535,6 +535,7 @@ export class TeacherService {
   async updateGradeRevision(
     revisionId: string,
     body: { status?: string; history?: any },
+    requester: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
     const revision = await this.prisma.gradeRevision.findUnique({
       where: { id: revisionId },
@@ -544,6 +545,15 @@ export class TeacherService {
       throw new Error('Revision not found');
     }
 
+    if (
+      requester.role === Role.TEACHER &&
+      revision.teacherId !== (requester.staffProfile?.id || requester.id)
+    ) {
+      throw new ForbiddenException(
+        'You can only update your own revision requests',
+      );
+    }
+
     const updated = await this.prisma.gradeRevision.update({
       where: { id: revisionId },
       data: {
@@ -551,6 +561,20 @@ export class TeacherService {
         history: body.history !== undefined ? body.history : revision.history,
       },
     });
+
+    if (requester.role === Role.TEACHER && body.status === 'TEACHER_REPLIED') {
+      const hodStaffIds = await this.resolveHodStaffIdsForRequester(requester);
+      await Promise.all(
+        hodStaffIds.map((hodId) =>
+          this.notifyStaff(
+            hodId,
+            'Grade Revision Response',
+            `Teacher has responded to your revision request for ${revision.className || 'a class'}`,
+            requester.id,
+          ),
+        ),
+      );
+    }
 
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: updated.studentId },
@@ -576,7 +600,7 @@ export class TeacherService {
       severity: updated.severity,
       status: updated.status,
       time: updated.createdAt.toISOString(),
-      history: updated.history || [],
+      history: Array.isArray(updated.history) ? updated.history : [],
     };
   }
 
@@ -972,7 +996,6 @@ export class TeacherService {
         subject: { select: { name: true, code: true } },
       },
       orderBy: { student: { lastName: 'asc' } },
-      take: 50,
     });
 
     const teacherMap = await this.getTeacherNameMap(

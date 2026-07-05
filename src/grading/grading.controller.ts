@@ -13,11 +13,7 @@ import { Role, AuditAction } from '@prisma/client';
 import { GradingService } from './grading.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
-import {
-  UpsertGradeDto,
-  BulkUpsertGradeDto,
-  CorrectGradeDto,
-} from './dto/grading.dto';
+import { UpsertGradeDto, CorrectGradeDto } from './dto/grading.dto';
 
 @ApiTags('Grading')
 @ApiBearerAuth()
@@ -38,11 +34,17 @@ export class GradingController {
   @Post('entries/bulk')
   @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Bulk grade entry for a class/subject' })
-  bulkUpsert(
-    @Body() dto: BulkUpsertGradeDto,
-    @CurrentUser('id') userId: string,
-  ) {
-    return this.gradingService.bulkUpsertGrades(dto.entries, userId);
+  bulkUpsert(@Body() body: any, @CurrentUser('id') userId: string) {
+    const entries = body?.entries || body;
+    console.log(
+      '[GradingController] bulkUpsert received entries count:',
+      Array.isArray(entries) ? entries.length : 'not an array',
+    );
+    console.log(
+      '[GradingController] bulkUpsert first entry:',
+      entries?.[0] ? JSON.stringify(entries[0], null, 2) : 'none',
+    );
+    return this.gradingService.bulkUpsertGrades(entries, userId);
   }
 
   @Patch('entries/:id/lock')

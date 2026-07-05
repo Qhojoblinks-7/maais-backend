@@ -76,7 +76,7 @@ export class HODGradeService {
         status: r.status,
         severity: r.severity,
         time: r.createdAt.toISOString(),
-        history: r.history || [],
+        history: Array.isArray(r.history) ? r.history : [],
         recordId: r.gradeEntryId,
       };
     });
@@ -99,7 +99,9 @@ export class HODGradeService {
     });
     if (!revision) throw new NotFoundException('Revision not found');
 
-    const existingHistory = (revision.history as any[]) || [];
+    const existingHistory = Array.isArray(revision.history)
+      ? revision.history
+      : [];
     const updatedHistory = [
       ...existingHistory,
       {
@@ -143,7 +145,9 @@ export class HODGradeService {
     });
     if (!revision) throw new NotFoundException('Revision not found');
 
-    const existingHistory = (revision.history as any[]) || [];
+    const existingHistory = Array.isArray(revision.history)
+      ? revision.history
+      : [];
     const updatedHistory = [
       ...existingHistory,
       {
@@ -208,7 +212,9 @@ export class HODGradeService {
       where: { id: recordId },
     });
     if (!revision) throw new NotFoundException('Revision not found');
-    const existingHistory = (revision.history as any[]) || [];
+    const existingHistory = Array.isArray(revision.history)
+      ? revision.history
+      : [];
     const updatedHistory = [
       ...existingHistory,
       {
@@ -292,7 +298,7 @@ export class HODGradeService {
       where: { id: classSectionId },
       include: {
         teachingAssignments: {
-          include: { subject: true },
+          include: { subject: { select: { departmentId: true } } },
         },
       },
     });
@@ -313,13 +319,23 @@ export class HODGradeService {
     const subjectIds = classSection.teachingAssignments.map(
       (ta) => ta.subjectId,
     );
-    await this.prisma.gradeEntry.updateMany({
-      where: {
-        student: { currentClassId: classSectionId },
-        subjectId: { in: subjectIds },
-      },
-      data: { isLocked: true },
-    });
+
+    const studentIds = await this.prisma.studentProfile
+      .findMany({
+        where: { currentClassId: classSectionId, archivedAt: null },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    if (studentIds.length > 0) {
+      await this.prisma.gradeEntry.updateMany({
+        where: {
+          studentId: { in: studentIds },
+          subjectId: { in: subjectIds },
+        },
+        data: { isLocked: true },
+      });
+    }
 
     return { success: true, message: 'Class matrix locked successfully' };
   }
@@ -354,14 +370,24 @@ export class HODGradeService {
       ...new Set(teachingAssignments.map((ta) => ta.classSectionId)),
     ];
 
-    const result = await this.prisma.gradeEntry.updateMany({
-      where: {
-        termId,
-        subjectId: { in: departmentSubjects.map((s) => s.id) },
-        student: { currentClassId: { in: classIds } },
-      },
-      data: { isLocked: true },
-    });
+    const studentIds = await this.prisma.studentProfile
+      .findMany({
+        where: { currentClassId: { in: classIds }, archivedAt: null },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    const result =
+      studentIds.length > 0
+        ? await this.prisma.gradeEntry.updateMany({
+            where: {
+              termId,
+              subjectId: { in: departmentSubjects.map((s) => s.id) },
+              studentId: { in: studentIds },
+            },
+            data: { isLocked: true },
+          })
+        : { count: 0 };
 
     return {
       success: true,
@@ -395,12 +421,21 @@ export class HODGradeService {
       );
     }
 
-    await this.prisma.gradeEntry.updateMany({
-      where: {
-        student: { currentClassId: classSectionId },
-      },
-      data: { isLocked: false },
-    });
+    const studentIds = await this.prisma.studentProfile
+      .findMany({
+        where: { currentClassId: classSectionId, archivedAt: null },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    if (studentIds.length > 0) {
+      await this.prisma.gradeEntry.updateMany({
+        where: {
+          studentId: { in: studentIds },
+        },
+        data: { isLocked: false },
+      });
+    }
 
     return { success: true, message: 'Class matrix unlocked successfully' };
   }
@@ -435,14 +470,24 @@ export class HODGradeService {
       ...new Set(teachingAssignments.map((ta) => ta.classSectionId)),
     ];
 
-    const result = await this.prisma.gradeEntry.updateMany({
-      where: {
-        termId,
-        subjectId: { in: departmentSubjects.map((s) => s.id) },
-        student: { currentClassId: { in: classIds } },
-      },
-      data: { isLocked: false },
-    });
+    const studentIds = await this.prisma.studentProfile
+      .findMany({
+        where: { currentClassId: { in: classIds }, archivedAt: null },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    const result =
+      studentIds.length > 0
+        ? await this.prisma.gradeEntry.updateMany({
+            where: {
+              termId,
+              subjectId: { in: departmentSubjects.map((s) => s.id) },
+              studentId: { in: studentIds },
+            },
+            data: { isLocked: false },
+          })
+        : { count: 0 };
 
     return {
       success: true,
@@ -486,32 +531,43 @@ export class HODGradeService {
 
     const totalRequired = departmentSubjects.length * classStudentIds.length;
 
-    const [completedGrades, attendanceRecords, signedEntries] =
-      await Promise.all([
-        this.prisma.gradeEntry.count({
-          where: {
-            termId,
-            subjectId: { in: departmentSubjects.map((s) => s.id) },
-            studentId: { in: classStudentIds },
-            totalScore: { not: null },
-          },
-        }),
-        this.prisma.attendanceRecord.count({
-          where: {
-            termId,
-            studentId: { in: classStudentIds },
-            daysPresent: { not: null },
-          },
-        }),
-        this.prisma.gradeEntry.count({
-          where: {
-            termId,
-            subjectId: { in: departmentSubjects.map((s) => s.id) },
-            studentId: { in: classStudentIds },
-            submittedById: { not: null },
-          },
-        }),
-      ]);
+    const [
+      completedGrades,
+      attendanceRecords,
+      signedEntries,
+      observationsRecorded,
+    ] = await Promise.all([
+      this.prisma.gradeEntry.count({
+        where: {
+          termId,
+          subjectId: { in: departmentSubjects.map((s) => s.id) },
+          studentId: { in: classStudentIds },
+          totalScore: { not: null },
+        },
+      }),
+      this.prisma.attendanceRecord.count({
+        where: {
+          termId,
+          studentId: { in: classStudentIds },
+        },
+      }),
+      this.prisma.gradeEntry.count({
+        where: {
+          termId,
+          subjectId: { in: departmentSubjects.map((s) => s.id) },
+          studentId: { in: classStudentIds },
+          submittedById: { not: null },
+        },
+      }),
+      this.prisma.gradeEntry.count({
+        where: {
+          termId,
+          subjectId: { in: departmentSubjects.map((s) => s.id) },
+          studentId: { in: classStudentIds },
+          hasObservation: true,
+        },
+      }),
+    ]);
 
     const totalAttendance = classStudentIds.length * 60; // Approx school days
     const attendancePct =
@@ -520,6 +576,10 @@ export class HODGradeService {
         : 0;
     const signOffPct =
       totalRequired > 0 ? Math.round((signedEntries / totalRequired) * 100) : 0;
+    const observationPct =
+      totalRequired > 0
+        ? Math.round((observationsRecorded / totalRequired) * 100)
+        : 0;
 
     const completionPct =
       totalRequired > 0
@@ -541,6 +601,11 @@ export class HODGradeService {
     if (signOffPct < 100) {
       blockingIssues.push(
         `${100 - signOffPct}% of entries lack teacher sign-off`,
+      );
+    }
+    if (observationPct < 100) {
+      blockingIssues.push(
+        `${100 - observationPct}% of entries lack observations`,
       );
     }
 

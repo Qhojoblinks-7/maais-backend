@@ -21,10 +21,10 @@ export class CreateAcademicYearDto {
   @IsDateString()
   endDate: string;
 
-  @ApiPropertyOptional({ 
-    example: 'THREE_TERMS', 
+  @ApiPropertyOptional({
+    example: 'THREE_TERMS',
     enum: ['THREE_TERMS', 'TWO_SEMESTERS'],
-    description: 'Term system for this academic year' 
+    description: 'Term system for this academic year',
   })
   @IsOptional()
   @IsString()

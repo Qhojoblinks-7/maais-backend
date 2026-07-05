@@ -66,6 +66,15 @@ export class HODTeacherService {
               })
             : 0;
 
+        const studentIds =
+          classIds.length > 0
+            ? await this.prisma.studentProfile.findMany({
+                where: { currentClassId: { in: classIds }, archivedAt: null },
+                select: { id: true },
+              })
+            : [];
+        const studentIdList = studentIds.map((s) => s.id);
+
         const gradeCount =
           targetTerm && subjectIds.length > 0
             ? await this.prisma.gradeEntry.count({
@@ -77,11 +86,62 @@ export class HODTeacherService {
               })
             : 0;
 
+        const attendanceCount =
+          targetTerm && studentIdList.length > 0
+            ? await this.prisma.attendanceRecord.count({
+                where: {
+                  studentId: { in: studentIdList },
+                  termId: targetTerm.id,
+                },
+              })
+            : 0;
+
+        const signedCount =
+          targetTerm && subjectIds.length > 0
+            ? await this.prisma.gradeEntry.count({
+                where: {
+                  termId: targetTerm.id,
+                  subjectId: { in: subjectIds },
+                  submittedById: { not: null },
+                },
+              })
+            : 0;
+
+        const observationCount =
+          targetTerm && subjectIds.length > 0
+            ? await this.prisma.gradeEntry.count({
+                where: {
+                  termId: targetTerm.id,
+                  subjectId: { in: subjectIds },
+                  hasObservation: true,
+                },
+              })
+            : 0;
+
         const totalExpected = studentCount * subjectIds.length;
-        const progress =
+        const totalAttendance = studentCount * 60;
+        const gradePct =
           totalExpected > 0
             ? Math.round((gradeCount / totalExpected) * 100)
             : 0;
+        const attendancePct =
+          totalAttendance > 0
+            ? Math.round((attendanceCount / totalAttendance) * 100)
+            : 0;
+        const signOffPct =
+          totalExpected > 0
+            ? Math.round((signedCount / totalExpected) * 100)
+            : 0;
+        const observationPct =
+          totalExpected > 0
+            ? Math.round((observationCount / totalExpected) * 100)
+            : 0;
+        const progress = Math.min(
+          gradePct,
+          attendancePct,
+          signOffPct,
+          observationPct,
+        );
 
         return {
           teacherId: teacher.id,

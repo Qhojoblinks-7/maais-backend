@@ -143,36 +143,85 @@ export class HODContextService {
         let progress = 0;
         let isTermLocked = false;
         let isClassFullyLocked = false;
+        let gradePct = 0;
+        let attendancePct = 0;
+        let signOffPct = 0;
+        let observationPct = 0;
         if (targetTerm && studentIds.length > 0) {
-          const [approvedCount, lockedCount, totalEntriesCount] =
-            await Promise.all([
-              this.prisma.gradeEntry.count({
-                where: {
-                  studentId: { in: studentIds },
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                  isApproved: true,
-                },
-              }),
-              this.prisma.gradeEntry.count({
-                where: {
-                  studentId: { in: studentIds },
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                  isLocked: true,
-                },
-              }),
-              this.prisma.gradeEntry.count({
-                where: {
-                  studentId: { in: studentIds },
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                },
-              }),
-            ]);
+          const [
+            approvedCount,
+            lockedCount,
+            totalEntriesCount,
+            attendanceRecords,
+            signedEntries,
+            observationsRecorded,
+          ] = await Promise.all([
+            this.prisma.gradeEntry.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+                subjectId: { in: subjectIds },
+                isApproved: true,
+              },
+            }),
+            this.prisma.gradeEntry.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+                subjectId: { in: subjectIds },
+                isLocked: true,
+              },
+            }),
+            this.prisma.gradeEntry.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+                subjectId: { in: subjectIds },
+              },
+            }),
+            this.prisma.attendanceRecord.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+              },
+            }),
+            this.prisma.gradeEntry.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+                subjectId: { in: subjectIds },
+                submittedById: { not: null },
+              },
+            }),
+            this.prisma.gradeEntry.count({
+              where: {
+                studentId: { in: studentIds },
+                termId: targetTerm.id,
+                subjectId: { in: subjectIds },
+                hasObservation: true,
+              },
+            }),
+          ]);
           const totalCount = subjectIds.length * studentIds.length;
-          progress =
+          const totalAttendance = studentIds.length * 60;
+          gradePct =
             totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+          attendancePct =
+            totalAttendance > 0
+              ? Math.round((attendanceRecords / totalAttendance) * 100)
+              : 0;
+          signOffPct =
+            totalCount > 0 ? Math.round((signedEntries / totalCount) * 100) : 0;
+          observationPct =
+            totalCount > 0
+              ? Math.round((observationsRecorded / totalCount) * 100)
+              : 0;
+          progress = Math.min(
+            gradePct,
+            attendancePct,
+            signOffPct,
+            observationPct,
+          );
           isClassFullyLocked =
             totalEntriesCount > 0 && lockedCount === totalEntriesCount;
         }
@@ -200,8 +249,11 @@ export class HODContextService {
                 : 'PENDING',
           termId: targetTerm?.id || null,
           checks: [
-            { pass: progress > 0, label: 'Grade entries recorded' },
-            { pass: progress === 100, label: 'Complete grade submission' },
+            { pass: gradePct > 0, label: 'Grade entries recorded' },
+            { pass: attendancePct >= 90, label: 'Attendance above 90%' },
+            { pass: signOffPct === 100, label: 'Teacher sign-off complete' },
+            { pass: observationPct === 100, label: 'Observations recorded' },
+            { pass: progress === 100, label: 'Ready for seal' },
           ],
         };
       }),

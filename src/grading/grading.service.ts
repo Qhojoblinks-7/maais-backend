@@ -158,10 +158,33 @@ export class GradingService {
     return GRADE_BOUNDARIES.find((b) => b.grade === grade)?.smartRemarks ?? [];
   }
 
-  async upsertGrade(dto: UpsertGradeDto, submittedById: string) {
+  async upsertGrade(dto: any, submittedById: string) {
+    console.log(
+      `[GradingService] upsertGrade called:`,
+      JSON.stringify(dto, null, 2),
+    );
+
+    // Validate required fields
+    if (!dto.studentId) {
+      console.error(`[GradingService] Missing studentId in dto`);
+      throw new Error('studentId is required');
+    }
+    if (!dto.subjectId) {
+      console.error(`[GradingService] Missing subjectId in dto`);
+      throw new Error('subjectId is required');
+    }
+    if (!dto.termId) {
+      console.error(`[GradingService] Missing termId in dto`);
+      throw new Error('termId is required');
+    }
+
     const term = await this.prisma.term.findUniqueOrThrow({
       where: { id: dto.termId },
     });
+
+    console.log(
+      `[GradingService] Term found: id=${term.id}, isLocked=${term.isLocked}`,
+    );
 
     if (term.isLocked) {
       throw new ForbiddenException(
@@ -189,8 +212,15 @@ export class GradingService {
         examScore: true,
         totalScore: true,
         grade: true,
+        isLocked: true,
       },
     });
+
+    if (existing?.isLocked) {
+      throw new ForbiddenException(
+        'Grade entry is locked. Contact HOD to unlock.',
+      );
+    }
 
     const entry = await this.prisma.gradeEntry.upsert({
       where: {
@@ -936,16 +966,32 @@ export class GradingService {
   }
 
   async bulkUpsertGrades(entries: UpsertGradeDto[], submittedById: string) {
-    const results = await Promise.all(
-      entries.map((e) => this.upsertGrade(e, submittedById)),
+    console.log(
+      `[GradingService] bulkUpsertGrades called with ${entries?.length || 0} entries, submittedById: ${submittedById}`,
     );
+    console.log(`[GradingService] Payload:`, JSON.stringify(entries, null, 2));
+    try {
+      const results = await Promise.all(
+        entries.map((e) => this.upsertGrade(e, submittedById)),
+      );
 
-    if (entries.length > 0) {
-      const { subjectId, termId } = entries[0];
-      await this.computeSubjectPositions(subjectId, termId);
+      if (entries.length > 0) {
+        const { subjectId, termId } = entries[0];
+        console.log(
+          `[GradingService] Computing positions for subjectId: ${subjectId}, termId: ${termId}`,
+        );
+        await this.computeSubjectPositions(subjectId, termId);
+      }
+
+      return results;
+    } catch (err) {
+      console.error(
+        `[GradingService] bulkUpsertGrades error:`,
+        err.message || err,
+        err.stack || '',
+      );
+      throw err;
     }
-
-    return results;
   }
 
   async computeSubjectPositions(subjectId: string, termId: string) {
@@ -1018,6 +1064,7 @@ export class GradingService {
       this.prisma.gradeEntry.findMany({
         where: { subjectId, termId: effectiveTermId },
         select: {
+          id: true,
           studentId: true,
           classScore: true,
           examScore: true,
@@ -1025,6 +1072,7 @@ export class GradingService {
           grade: true,
           remark: true,
           hasObservation: true,
+          isLocked: true,
         },
       }),
     ]);
@@ -1051,6 +1099,8 @@ export class GradingService {
         grade: g?.grade ?? '',
         auditStatus,
         remark: g?.remark ?? '',
+        gradeEntryId: g?.id,
+        isLocked: g?.isLocked ?? false,
       };
     });
   }

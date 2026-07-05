@@ -7,32 +7,41 @@ import {
   IsEnum,
   Min,
   Max,
+  IsArray,
+  ValidateNested,
+  IsNotEmpty,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpsertGradeDto {
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   studentId: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   subjectId: string;
 
   @ApiProperty()
   @IsString()
+  @IsNotEmpty()
   termId: string;
 
-  @ApiProperty({ example: 25, description: 'Class score out of 30' })
+  @ApiPropertyOptional({ example: 25, description: 'Class score out of 30' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(30)
-  classScore: number;
+  classScore?: number;
 
-  @ApiProperty({ example: 55, description: 'Exam score out of 70' })
+  @ApiPropertyOptional({ example: 55, description: 'Exam score out of 70' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(70)
-  examScore: number;
+  examScore?: number;
 
   @ApiPropertyOptional({ example: 'Outstanding performance' })
   @IsOptional()
@@ -52,6 +61,10 @@ export class UpsertGradeDto {
 
 export class BulkUpsertGradeDto {
   @ApiProperty({ type: [UpsertGradeDto] })
+  @IsArray()
+  @IsNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => UpsertGradeDto)
   entries: UpsertGradeDto[];
 }
 

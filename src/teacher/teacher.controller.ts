@@ -262,8 +262,18 @@ export class TeacherController {
   updateGradeRevision(
     @Param('revisionId') revisionId: string,
     @Body() body: { status?: string; history?: any },
+    @CurrentUser()
+    user: {
+      id: string;
+      role: Role;
+      staffProfile?: { id: string };
+    },
   ) {
-    return this.teacherService.updateGradeRevision(revisionId, body);
+    return this.teacherService.updateGradeRevision(revisionId, body, {
+      id: user.staffProfile?.id || user.id,
+      role: user.role,
+      staffProfile: user.staffProfile,
+    });
   }
 
   @Get('observations')
