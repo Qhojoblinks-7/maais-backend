@@ -253,6 +253,18 @@ export class UsersService {
     return this.prisma.staffProfile.count();
   }
 
+  async getStudentBoarderStats() {
+    const [boarders, dayStudents] = await Promise.all([
+      this.prisma.studentProfile.count({
+        where: { archivedAt: null, isBoarder: true },
+      }),
+      this.prisma.studentProfile.count({
+        where: { archivedAt: null, isBoarder: false },
+      }),
+    ]);
+    return { boarders, dayStudents, total: boarders + dayStudents };
+  }
+
   async getStudentProfile(
     studentId: string,
     requesterRole?: Role,

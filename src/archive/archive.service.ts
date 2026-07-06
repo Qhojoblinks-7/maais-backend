@@ -205,6 +205,7 @@ export class ArchiveService {
       },
       include: {
         currentClass: { select: { id: true, name: true, level: true } },
+        department: true,
         grades: {
           include: {
             subject: true,

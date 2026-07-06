@@ -114,8 +114,9 @@ export class CommsController {
   getPulse(
     @Query('academicYearId') academicYearId?: string,
     @CurrentUser('id') userId?: string,
+    @CurrentUser('role') role?: Role,
   ) {
-    return this.commsService.getAnalyticsPulse(academicYearId, userId);
+    return this.commsService.getAnalyticsPulse(academicYearId, userId, role);
   }
 
   @Post('tickets')

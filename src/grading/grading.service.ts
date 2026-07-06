@@ -195,8 +195,10 @@ export class GradingService {
     let totalScore: number | undefined;
     let grade: string | undefined;
 
-    if (dto.classScore !== undefined && dto.examScore !== undefined) {
-      const computed = this.computeGrade(dto.classScore, dto.examScore);
+    if (dto.classScore !== undefined || dto.examScore !== undefined) {
+      const cs = dto.classScore ?? 0;
+      const es = dto.examScore ?? 0;
+      const computed = this.computeGrade(cs, es);
       totalScore = computed.totalScore;
       grade = computed.grade;
     }
@@ -601,7 +603,9 @@ export class GradingService {
     if (assignments.length === 0) return [];
 
     const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+    const classSectionIds = [
+      ...new Set(assignments.map((a) => a.classSectionId)),
+    ];
 
     const students = await this.prisma.studentProfile.findMany({
       where: { currentClassId: { in: classSectionIds }, archivedAt: null },
@@ -721,7 +725,10 @@ export class GradingService {
         this.getAccessibleStudentIds(userId),
         this.getAccessibleSubjectIds(userId),
       ]);
-      if (accessibleStudentIds.length === 0 || accessibleSubjectIds.length === 0) {
+      if (
+        accessibleStudentIds.length === 0 ||
+        accessibleSubjectIds.length === 0
+      ) {
         return [];
       }
       whereClause.studentId = { in: accessibleStudentIds };
@@ -779,7 +786,10 @@ export class GradingService {
         this.getAccessibleStudentIds(userId),
         this.getAccessibleSubjectIds(userId),
       ]);
-      if (accessibleStudentIds.length === 0 || accessibleSubjectIds.length === 0) {
+      if (
+        accessibleStudentIds.length === 0 ||
+        accessibleSubjectIds.length === 0
+      ) {
         return [];
       }
       whereClause.studentId = { in: accessibleStudentIds };

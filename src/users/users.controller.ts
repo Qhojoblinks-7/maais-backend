@@ -52,15 +52,24 @@ export class UsersController {
   }
 
   @Get('students/count')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get total active student count' })
   getStudentCount() {
     return this.usersService.getStudentCount();
   }
 
   @Get('staff/count')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get total staff count' })
   getStaffCount() {
     return this.usersService.getStaffCount();
+  }
+
+  @Get('students/boarder-stats')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get boarder vs day student counts' })
+  getStudentBoarderStats() {
+    return this.usersService.getStudentBoarderStats();
   }
 
   @Get('students/:id')

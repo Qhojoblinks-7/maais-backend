@@ -196,7 +196,7 @@ export class TeacherController {
   @Get('grade-revisions')
   @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get grade revision requests for a teacher' })
-  getGradeRevisions(
+  async getGradeRevisions(
     @CurrentUser()
     user: {
       id: string;
@@ -204,9 +204,14 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.getGradeRevisions(
-      user.staffProfile?.id || user.id,
-    );
+    try {
+      return await this.teacherService.getGradeRevisions(
+        user.staffProfile?.id || user.id,
+      );
+    } catch (err) {
+      console.error('[TeacherController] getGradeRevisions failed:', err);
+      throw err;
+    }
   }
 
   @Get('grading/students')
@@ -234,7 +239,7 @@ export class TeacherController {
   }
 
   @Post('grade-revisions')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HOD)
   @ApiOperation({ summary: 'Submit a grade revision request' })
   submitGradeRevision(
     @Body()

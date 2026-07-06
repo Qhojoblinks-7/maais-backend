@@ -165,7 +165,6 @@ export class CommsService {
     );
 
     const where: any = {
-      staffId: staffProfile.id,
       isRead: false,
     };
 
@@ -181,6 +180,10 @@ export class CommsService {
           isRead: false,
         },
       ];
+    } else if (role === Role.SUPER_ADMIN || role === Role.HEADMASTER) {
+      where.OR = [{ staffId: { not: null } }, { staffId: null }];
+    } else {
+      where.staffId = staffProfile.id;
     }
 
     const results = await this.prisma.notification.findMany({
@@ -551,7 +554,11 @@ export class CommsService {
     };
   }
 
-  async getAnalyticsPulse(academicYearId?: string, userId?: string) {
+  async getAnalyticsPulse(
+    academicYearId?: string,
+    userId?: string,
+    role?: Role,
+  ) {
     const [
       enrollmentByClass,
       averageBySubject,
@@ -587,7 +594,8 @@ export class CommsService {
     ]);
 
     let teacherAssignments: any[] = [];
-    if (userId) {
+    const isAdmin = role === Role.SUPER_ADMIN || role === Role.HEADMASTER;
+    if (userId && !isAdmin) {
       const staffProfile = await this.prisma.staffProfile.findUnique({
         where: { userId },
       });
@@ -604,7 +612,7 @@ export class CommsService {
     const teacherSubjectIds = teacherAssignments.map((a) => a.subjectId);
 
     const enrollment =
-      userId && teacherClassIds.length > 0
+      userId && !isAdmin && teacherClassIds.length > 0
         ? enrollmentByClass
             .filter((c) => teacherClassIds.includes(c.id))
             .map((c) => ({
@@ -619,7 +627,7 @@ export class CommsService {
           }));
 
     const subjectPerformance =
-      userId && teacherSubjectIds.length > 0
+      userId && !isAdmin && teacherSubjectIds.length > 0
         ? averageBySubject
             .filter((s) => teacherSubjectIds.includes(s.subjectId))
             .map((s) => ({

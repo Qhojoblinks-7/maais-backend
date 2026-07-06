@@ -193,24 +193,100 @@ export class HODTeacherService {
 
     const teachers = await this.prisma.staffProfile.findMany({
       where: whereClause,
-      include: { user: { select: { email: true, isActive: true } } },
+      include: {
+        user: { select: { email: true, isActive: true } },
+        teachingAssignments: {
+          include: {
+            subject: { select: { name: true } },
+            classSection: { select: { name: true, level: true } },
+          },
+        },
+      },
       orderBy: { lastName: 'asc' },
     });
 
-    return teachers.map((teacher) => ({
-      id: teacher.id,
-      userId: teacher.userId,
-      name: `${teacher.firstName} ${teacher.lastName}`,
-      firstName: teacher.firstName,
-      lastName: teacher.lastName,
-      email: teacher.user?.email || '',
-      phone: teacher.phone || '',
-      active: teacher.user?.isActive ?? false,
-      subjects: [],
-      classes: [],
-      rating: '4.8',
-      status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
-    }));
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+    });
+
+    return Promise.all(
+      teachers.map(async (teacher) => {
+        const subjects = Array.from(
+          new Map(
+            teacher.teachingAssignments
+              .filter((a) => a.subject?.name)
+              .map((a) => [a.subject.name, a.subject.name]),
+          ).values(),
+        );
+
+        const classes = Array.from(
+          new Map(
+            teacher.teachingAssignments
+              .filter((a) => a.classSection?.name)
+              .map((a) => [
+                `${a.classSection.level || ''} ${a.classSection.name}`,
+                a.classSection,
+              ]),
+          ).values(),
+        ).map((c) => `${c.level || ''} ${c.name}`.trim());
+
+        const subjectIds = [
+          ...new Set(
+            teacher.teachingAssignments
+              .filter((a) => a.subjectId)
+              .map((a) => a.subjectId as string),
+          ),
+        ];
+
+        let rating: string | null = null;
+        if (activeTerm && subjectIds.length > 0) {
+          const classSectionIds = [
+            ...new Set(
+              teacher.teachingAssignments
+                .filter((a) => a.classSectionId)
+                .map((a) => a.classSectionId as string),
+            ),
+          ];
+
+          const grades =
+            classSectionIds.length > 0
+              ? await this.prisma.gradeEntry.findMany({
+                  where: {
+                    termId: activeTerm.id,
+                    subjectId: { in: subjectIds },
+                    student: {
+                      currentClassId: { in: classSectionIds },
+                    },
+                  },
+                  select: { totalScore: true },
+                })
+              : [];
+
+          if (grades.length > 0) {
+            const avg =
+              grades.reduce((sum, g) => sum + (g.totalScore || 0), 0) /
+              grades.length;
+            rating = `${Math.round(avg)}%`;
+          }
+        }
+
+        return {
+          id: teacher.id,
+          userId: teacher.userId,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.user?.email || '',
+          phone: teacher.phone || '',
+          active: teacher.user?.isActive ?? false,
+          subjects,
+          classes,
+          rating,
+          status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
+        };
+      }),
+    );
   }
 
   async resetTeacherPassword(

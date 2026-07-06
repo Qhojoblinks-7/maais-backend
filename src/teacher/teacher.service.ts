@@ -80,7 +80,9 @@ export class TeacherService {
             : [];
 
           const completed = grades.filter(
-            (grade) => typeof grade.totalScore === 'number' && grade.hasObservation === true,
+            (grade) =>
+              typeof grade.totalScore === 'number' &&
+              grade.hasObservation === true,
           ).length;
           const studentCount = studentIds.length;
           const progress =
@@ -255,7 +257,9 @@ export class TeacherService {
             : [];
 
           const completed = grades.filter(
-            (grade) => typeof grade.totalScore === 'number' && grade.hasObservation === true,
+            (grade) =>
+              typeof grade.totalScore === 'number' &&
+              grade.hasObservation === true,
           ).length;
           const averageScore = completed
             ? Math.round(
@@ -310,8 +314,7 @@ export class TeacherService {
               .filter(Boolean)
               .join(' ');
             const date = grade.updatedAt.toISOString().slice(0, 10);
-            const status =
-              grade.hasObservation === true ? 'Active' : 'Pending';
+            const status = grade.hasObservation === true ? 'Active' : 'Pending';
             const observation = {
               id: grade.id,
               student: studentName || 'Unknown Student',
@@ -379,26 +382,46 @@ export class TeacherService {
   }
 
   async getGradeRevisions(teacherId: string) {
-    const revisions = await this.prisma.gradeRevision.findMany({
-      where: { teacherId },
-      orderBy: { createdAt: 'desc' },
-    });
+    try {
+      const revisions = await this.prisma.gradeRevision.findMany({
+        where: { teacherId },
+        orderBy: { createdAt: 'desc' },
+      });
 
-    const transformed = await Promise.all(
-      revisions.map(async (r) => {
-        const student = await this.prisma.studentProfile.findUnique({
-          where: { id: r.studentId },
-          select: {
-            firstName: true,
-            lastName: true,
-            indexNumber: true,
-            currentClass: { select: { name: true } },
-          },
-        });
-        const subject = await this.prisma.subject.findUnique({
-          where: { id: r.subjectId },
-          select: { name: true },
-        });
+      const studentIds = [...new Set(revisions.map((r) => r.studentId))];
+      const subjectIds = [...new Set(revisions.map((r) => r.subjectId))];
+
+      if (studentIds.length === 0 && subjectIds.length === 0) {
+        return [];
+      }
+
+      const [students, subjects] = await Promise.all([
+        studentIds.length > 0
+          ? this.prisma.studentProfile.findMany({
+              where: { id: { in: studentIds } },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                indexNumber: true,
+                currentClass: { select: { name: true } },
+              },
+            })
+          : Promise.resolve([]),
+        subjectIds.length > 0
+          ? this.prisma.subject.findMany({
+              where: { id: { in: subjectIds } },
+              select: { id: true, name: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const studentMap = new Map(students.map((s) => [s.id, s]));
+      const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+
+      return revisions.map((r) => {
+        const student = studentMap.get(r.studentId);
+        const subject = subjectMap.get(r.subjectId);
         return {
           id: r.id,
           teacherId: r.teacherId,
@@ -414,10 +437,11 @@ export class TeacherService {
           time: r.createdAt.toISOString(),
           history: Array.isArray(r.history) ? r.history : [],
         };
-      }),
-    );
-
-    return transformed;
+      });
+    } catch (err) {
+      console.error('[TeacherService] getGradeRevisions failed:', err);
+      throw err;
+    }
   }
 
   async submitGradeRevision(
@@ -1000,11 +1024,16 @@ export class TeacherService {
         if (assignments.length === 0) return [];
 
         const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-        const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+        const classSectionIds = [
+          ...new Set(assignments.map((a) => a.classSectionId)),
+        ];
 
         const studentIds = await this.prisma.studentProfile
           .findMany({
-            where: { currentClassId: { in: classSectionIds }, archivedAt: null },
+            where: {
+              currentClassId: { in: classSectionIds },
+              archivedAt: null,
+            },
             select: { id: true },
           })
           .then((s) => s.map((x) => x.id));
@@ -1110,7 +1139,9 @@ export class TeacherService {
     });
 
     const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-    const classSectionIds = [...new Set(assignments.map((a) => a.classSectionId))];
+    const classSectionIds = [
+      ...new Set(assignments.map((a) => a.classSectionId)),
+    ];
 
     if (subjectIds.length === 0 || classSectionIds.length === 0) {
       return [];
@@ -1271,13 +1302,19 @@ export class TeacherService {
       select: { id: true },
     });
 
-    const isAssigned = await this.prisma.teachingAssignment.findFirst({
-      where: {
-        teacherId: staffProfile?.id,
-        subjectId: subject.id,
-        classSectionId: classSection.id,
-      },
-    });
+    if (user.role === Role.TEACHER && !staffProfile) {
+      return [];
+    }
+
+    const isAssigned = staffProfile
+      ? !!(await this.prisma.teachingAssignment.findFirst({
+          where: {
+            teacherId: staffProfile.id,
+            subjectId: subject.id,
+            classSectionId: classSection.id,
+          },
+        }))
+      : false;
 
     if (
       user.role !== Role.SUPER_ADMIN &&

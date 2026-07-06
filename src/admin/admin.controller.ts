@@ -166,7 +166,7 @@ export class AdminController {
   }
 
   @Get('settings/freeze')
-  @Roles(Role.STUDENT)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get system freeze status' })
   getSystemFreeze() {
     return this.adminService.getSystemFreeze();
