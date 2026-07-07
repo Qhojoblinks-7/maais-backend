@@ -1,7 +1,6 @@
 import {
   Injectable,
   ForbiddenException,
-  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -208,7 +207,7 @@ export class CurriculumService {
     });
 
     if (!existing) {
-      throw new NotFoundException('Curriculum mapping not found');
+      return;
     }
 
     await this.prisma.curriculumMapping.delete({

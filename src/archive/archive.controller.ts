@@ -8,7 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, ClassLevel } from '@prisma/client';
 import { ArchiveService } from './archive.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
 import { PromotionDto, TransferStudentsDto } from '../comms/dto/comms.dto';
@@ -105,9 +105,10 @@ export class ArchiveController {
   @ApiOperation({ summary: 'Archive all students of a year group/level' })
   archiveYearGroup(
     @Param('yearId') yearId: string,
+    @Body('level') level: ClassLevel,
     @CurrentUser('id') userId: string,
   ) {
-    return this.archiveService.archiveYearGroup(yearId, userId);
+    return this.archiveService.archiveYearGroup(yearId, level, userId);
   }
 
   @Post('classes/transfer')

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ClassLevel, Role } from '@prisma/client';
 
@@ -40,9 +40,14 @@ export class ArchiveService {
         yearLabel = null;
       }
     } else {
-      const year = await this.prisma.academicYear.findUniqueOrThrow({
+      const year = await this.prisma.academicYear.findUnique({
         where: { id: academicYearId },
       });
+      if (!year) {
+        throw new NotFoundException(
+          `Academic year '${academicYearId}' not found.`,
+        );
+      }
       yearLabel = year.label;
 
       const unlockedTerms = await this.prisma.term.findMany({
@@ -461,21 +466,37 @@ export class ArchiveService {
     };
   }
 
-  async archiveYearGroup(yearId: string, performedById: string) {
-    const year = await this.prisma.academicYear.findUniqueOrThrow({
-      where: { id: yearId },
+  async archiveYearGroup(
+    academicYearId: string,
+    level: ClassLevel,
+    performedById: string,
+  ) {
+    const year = await this.prisma.academicYear.findUnique({
+      where: { id: academicYearId },
     });
+    if (!year) {
+      throw new NotFoundException(
+        `Academic year '${academicYearId}' not found.`,
+      );
+    }
 
-    const classesInYear = await this.prisma.classSection.findMany({
-      where: {
-        level: {
-          in: [ClassLevel.FORM_1, ClassLevel.FORM_2, ClassLevel.FORM_3],
-        },
-      },
+    const validLevels = [
+      ClassLevel.FORM_1,
+      ClassLevel.FORM_2,
+      ClassLevel.FORM_3,
+    ];
+    if (!validLevels.includes(level)) {
+      throw new BadRequestException(
+        `Invalid level '${level}' for archiving. Expected FORM_1, FORM_2 or FORM_3.`,
+      );
+    }
+
+    const classesInLevel = await this.prisma.classSection.findMany({
+      where: { level },
       select: { id: true },
     });
 
-    const classIds = classesInYear.map((c) => c.id);
+    const classIds = classesInLevel.map((c) => c.id);
 
     const studentsToArchive = await this.prisma.studentProfile.findMany({
       where: {
@@ -499,8 +520,8 @@ export class ArchiveService {
     await this.prisma.promotionRecord.createMany({
       data: studentsToArchive.map((student) => ({
         studentId: student.id,
-        academicYearId: yearId,
-        fromClass: student.currentClass?.level || ClassLevel.FORM_1,
+        academicYearId,
+        fromClass: student.currentClass?.level || level,
         toClass: null,
         status: 'GRADUATED',
         performedById,
@@ -508,7 +529,8 @@ export class ArchiveService {
     });
 
     return {
-      yearLabel: year.label,
+      academicYearId,
+      level,
       archivedCount: updateResult.count,
     };
   }
