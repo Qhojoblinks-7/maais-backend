@@ -35,9 +35,14 @@ export class SystemFreezeGuard implements CanActivate {
       return true;
     }
 
-    // Only guard grade write operations
+    // Only guard grade and observation write operations
     const isGradeWrite = url.includes('/grading/');
-    if (!isGradeWrite) {
+    const isObservationWrite =
+      url.includes('/teacher/observations') ||
+      (url.includes('/students/') && url.includes('/behavior')) ||
+      url.includes('/teacher/grade-revisions');
+
+    if (!isGradeWrite && !isObservationWrite) {
       return true;
     }
 
@@ -59,13 +64,13 @@ export class SystemFreezeGuard implements CanActivate {
       let departmentFrozen = false;
       let departmentFreezeReason: string | undefined;
 
+      activeTerm = await this.prisma.term.findFirst({
+        where: { isActive: true },
+        select: { id: true, isLocked: true, endDate: true },
+      });
+
       // Auto-freeze only if no admin override
       if (!settings.systemFrozen && !hasAdminOverride) {
-        activeTerm = await this.prisma.term.findFirst({
-          where: { isActive: true },
-          select: { id: true, isLocked: true, endDate: true },
-        });
-
         if (activeTerm && activeTerm.endDate < new Date()) {
           isTermExpired = true;
           settings = await this.prisma.adminSettings.update({

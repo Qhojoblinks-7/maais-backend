@@ -81,15 +81,19 @@ export class ArchiveController {
   }
 
   @Get('stats')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get archive statistics and recent promotions' })
-  getStats() {
-    return this.archiveService.getArchiveStats();
+  getStats(
+    @Query('academicYearId') academicYearId?: string,
+    @Query('termId') termId?: string,
+    @Query('level') level?: string,
+  ) {
+    return this.archiveService.getArchiveStats(academicYearId, termId, level);
   }
 
   @Get('health')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Database health check' })
   health() {

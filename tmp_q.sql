@@ -1,1 +1,1 @@
-SELECT id, email, role, "isActive" FROM user WHERE role IN ('HOD','HEADMASTER') LIMIT 20;
+SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;

@@ -88,14 +88,14 @@ export class ApprovalsController {
   constructor(private approvalsService: ApprovalsService) {}
 
   @Get()
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'List approval requests with optional filters' })
   findAll(@Query() query: ApprovalQueryDto) {
     return this.approvalsService.findAll(query);
   }
 
   @Get('stats')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get approval statistics' })
   getStats() {
     return this.approvalsService.getStats();

@@ -354,7 +354,18 @@ export class ArchiveService {
     });
   }
 
-  async getArchiveStats() {
+  async getArchiveStats(academicYearId?: string, termId?: string, level?: string) {
+    const yearIds: string[] = [];
+    if (academicYearId) {
+      yearIds.push(academicYearId);
+    } else if (termId) {
+      const term = await this.prisma.term.findUnique({
+        where: { id: termId },
+        select: { academicYearId: true },
+      });
+      if (term?.academicYearId) yearIds.push(term.academicYearId);
+    }
+
     const [
       totalStudents,
       archivedStudents,
@@ -364,12 +375,16 @@ export class ArchiveService {
       totalDepartments,
       totalSubjects,
     ] = await Promise.all([
-      this.prisma.studentProfile.count(),
+      this.prisma.studentProfile.count({ where: { archivedAt: null } }),
       this.prisma.studentProfile.count({
         where: { archivedAt: { not: null } },
       }),
-      this.prisma.promotionRecord.count(),
-      this.prisma.reportCard.count(),
+      this.prisma.promotionRecord.count({
+        ...(yearIds.length ? { where: { academicYearId: { in: yearIds } } } : {}),
+      }),
+      this.prisma.reportCard.count({
+        ...(yearIds.length ? { where: { term: { academicYearId: { in: yearIds } } } } : {}),
+      }),
       this.prisma.transcript.count(),
       this.prisma.department.count(),
       this.prisma.subject.count(),
@@ -378,6 +393,7 @@ export class ArchiveService {
     const recentPromotions = await this.prisma.promotionRecord.findMany({
       take: 10,
       orderBy: { performedAt: 'desc' },
+      where: yearIds.length ? { academicYearId: { in: yearIds } } : undefined,
       include: {
         student: {
           include: {
@@ -403,6 +419,8 @@ export class ArchiveService {
         },
         reportCards: {
           include: { term: { include: { academicYear: true } } },
+          take: 6,
+          orderBy: { term: { academicYear: { startDate: 'desc' } } },
         },
       },
     });

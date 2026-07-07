@@ -558,7 +558,54 @@ export class CommsService {
     academicYearId?: string,
     userId?: string,
     role?: Role,
+    termId?: string,
+    level?: string,
   ) {
+    const termWhere: any = {};
+    if (termId) termWhere.id = termId;
+    if (academicYearId) termWhere.academicYearId = academicYearId;
+
+    let termIds: string[] = [];
+    if (Object.keys(termWhere).length > 0) {
+      termIds = (
+        await this.prisma.term.findMany({
+          where: termWhere,
+          select: { id: true },
+        })
+      ).map((t) => t.id);
+    }
+
+    const gradeWhere: any = {};
+    if (termIds.length) gradeWhere.termId = { in: termIds };
+
+    const attendanceWhere: any = {};
+    if (termIds.length) attendanceWhere.termId = { in: termIds };
+
+    const levelMap: Record<string, string> = {
+      'SHS 1': 'FORM_1',
+      'SHS 2': 'FORM_2',
+      'SHS 3': 'FORM_3',
+      'SHS 4': 'FORM_3',
+    };
+    const mappedLevel = level && level !== 'ALL' ? levelMap[level] : level;
+
+    let levelSubjectIds: string[] = [];
+    if (mappedLevel && mappedLevel !== 'ALL') {
+      const classSections = await this.prisma.classSection.findMany({
+        where: { level: mappedLevel as any },
+        select: { id: true },
+      });
+      const classSectionIds = classSections.map((c) => c.id);
+      levelSubjectIds = (
+        await this.prisma.teachingAssignment.findMany({
+          where: { classSectionId: { in: classSectionIds } },
+          select: { subjectId: true },
+        })
+      ).map((a) => a.subjectId);
+      const uniqueLevelSubjectIds = [...new Set(levelSubjectIds)];
+      levelSubjectIds = uniqueLevelSubjectIds;
+    }
+
     const [
       enrollmentByClass,
       averageBySubject,
@@ -571,10 +618,12 @@ export class CommsService {
       }),
       this.prisma.gradeEntry.groupBy({
         by: ['subjectId'],
+        where: gradeWhere,
         _avg: { totalScore: true },
         _count: { id: true },
       }),
       this.prisma.attendanceRecord.aggregate({
+        where: attendanceWhere,
         _avg: { daysPresent: true, totalDays: true },
       }),
       this.prisma.auditLog.findMany({
@@ -611,31 +660,41 @@ export class CommsService {
     const teacherClassIds = teacherAssignments.map((a) => a.classSectionId);
     const teacherSubjectIds = teacherAssignments.map((a) => a.subjectId);
 
+    const filteredEnrollment =
+      mappedLevel && mappedLevel !== 'ALL'
+        ? enrollmentByClass.filter((c) => c.level === (mappedLevel as any))
+        : enrollmentByClass;
+
     const enrollment =
       userId && !isAdmin && teacherClassIds.length > 0
-        ? enrollmentByClass
+        ? filteredEnrollment
             .filter((c) => teacherClassIds.includes(c.id))
             .map((c) => ({
               class: `${c.level} ${c.name}`,
               count: c._count.students,
               capacity: c.capacity,
             }))
-        : enrollmentByClass.map((c) => ({
+        : filteredEnrollment.map((c) => ({
             class: `${c.level} ${c.name}`,
             count: c._count.students,
             capacity: c.capacity,
           }));
 
+    const filteredSubjectPerformance =
+      mappedLevel && mappedLevel !== 'ALL'
+        ? averageBySubject.filter((s) => levelSubjectIds.includes(s.subjectId))
+        : averageBySubject;
+
     const subjectPerformance =
       userId && !isAdmin && teacherSubjectIds.length > 0
-        ? averageBySubject
+        ? filteredSubjectPerformance
             .filter((s) => teacherSubjectIds.includes(s.subjectId))
             .map((s) => ({
               subjectId: s.subjectId,
               averageScore: s._avg.totalScore?.toFixed(2),
               studentCount: s._count.id,
             }))
-        : averageBySubject.map((s) => ({
+        : filteredSubjectPerformance.map((s) => ({
             subjectId: s.subjectId,
             averageScore: s._avg.totalScore?.toFixed(2),
             studentCount: s._count.id,

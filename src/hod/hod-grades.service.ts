@@ -263,7 +263,12 @@ export class HODGradeService {
         );
     }
 
-    const term = await this.prisma.term.update({
+    const term = await this.prisma.term.findUnique({
+      where: { id: termId },
+    });
+    if (!term) throw new NotFoundException('Term not found');
+
+    const updated = await this.prisma.term.update({
       where: { id: termId },
       data: { isLocked: true },
     });
@@ -274,7 +279,7 @@ export class HODGradeService {
       data: { isLocked: true },
     });
 
-    return term;
+    return updated;
   }
 
   async lockClassMatrix(classSectionId: string, userId: string, role: Role) {
@@ -404,6 +409,11 @@ export class HODGradeService {
     ) {
       throw new ForbiddenException('Only HODs or above can unlock terms');
     }
+    const term = await this.prisma.term.findUnique({
+      where: { id: termId },
+    });
+    if (!term) throw new NotFoundException('Term not found');
+
     return this.prisma.term.update({
       where: { id: termId },
       data: { isLocked: false },

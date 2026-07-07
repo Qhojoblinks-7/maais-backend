@@ -70,7 +70,8 @@ export class CommsController {
   }
 
   @Get('notifications/unread')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get unread notifications for staff user' })
   getUnread(
     @CurrentUser('id') userId: string,
@@ -113,10 +114,12 @@ export class CommsController {
   @ApiOperation({ summary: 'Get academic pulse dashboard data' })
   getPulse(
     @Query('academicYearId') academicYearId?: string,
+    @Query('termId') termId?: string,
+    @Query('level') level?: string,
     @CurrentUser('id') userId?: string,
     @CurrentUser('role') role?: Role,
   ) {
-    return this.commsService.getAnalyticsPulse(academicYearId, userId, role);
+    return this.commsService.getAnalyticsPulse(academicYearId, userId, role, termId, level);
   }
 
   @Post('tickets')
@@ -142,7 +145,7 @@ export class CommsController {
   }
 
   @Get('tickets')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List tickets (filtered by role)' })
   listTickets(
