@@ -53,8 +53,9 @@ export class GradingController {
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
+    @Body('version') version?: number,
   ) {
-    return this.gradingService.lockGrade(id, userId, role);
+    return this.gradingService.lockGrade(id, userId, role, version);
   }
 
   @Patch('entries/:id/approve')
@@ -64,8 +65,9 @@ export class GradingController {
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
+    @Body('version') version?: number,
   ) {
-    return this.gradingService.approveGrade(id, userId, role);
+    return this.gradingService.approveGrade(id, userId, role, version);
   }
 
   @Post('entries/bulk-approve')

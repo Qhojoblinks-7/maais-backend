@@ -82,6 +82,201 @@ export class HODGradeService {
     });
   }
 
+  async createHODGradeRevision(
+    body: {
+      classSectionId?: string;
+      gradeEntryId?: string;
+      issue: string;
+      severity: string;
+    },
+    userId: string,
+    role: Role,
+  ) {
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
+      throw new ForbiddenException('Only HODs can request grade revisions');
+
+    if (!body?.issue || !body.issue.trim())
+      throw new ForbiddenException('An issue description is required');
+    if (!body?.classSectionId && !body?.gradeEntryId)
+      throw new ForbiddenException(
+        'A class section or grade entry is required',
+      );
+
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+    });
+    if (!staffProfile) throw new NotFoundException('HOD profile not found');
+
+    const departmentSubjectIds = await this.prisma.subject
+      .findMany({
+        where: { departmentId: staffProfile.departmentId },
+        select: { id: true },
+      })
+      .then((s) => s.map((x) => x.id));
+
+    const term = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+    });
+    if (!term) throw new NotFoundException('No active term found');
+
+    let gradeEntry: any;
+    let className = '';
+
+    if (body.gradeEntryId) {
+      gradeEntry = await this.prisma.gradeEntry.findUnique({
+        where: { id: body.gradeEntryId },
+        include: {
+          student: { include: { currentClass: true } },
+          subject: true,
+        },
+      });
+      if (!gradeEntry) throw new NotFoundException('Grade entry not found');
+      if (!departmentSubjectIds.includes(gradeEntry.subjectId))
+        throw new ForbiddenException('Subject not in your department');
+      className = gradeEntry.student.currentClass?.name || '';
+    } else {
+      const classSection = await this.prisma.classSection.findUnique({
+        where: { id: body.classSectionId },
+        include: {
+          teachingAssignments: {
+            include: { subject: { select: { departmentId: true } } },
+          },
+        },
+      });
+      if (!classSection) throw new NotFoundException('Class not found');
+
+      const isDepartmentClass = classSection.teachingAssignments.some(
+        (ta) => ta.subject.departmentId === staffProfile.departmentId,
+      );
+      if (!isDepartmentClass)
+        throw new ForbiddenException('Class not in your department');
+
+      gradeEntry = await this.prisma.gradeEntry.findFirst({
+        where: {
+          termId: term.id,
+          subjectId: { in: departmentSubjectIds },
+          student: { currentClassId: body.classSectionId },
+        },
+        include: {
+          student: { include: { currentClass: true } },
+          subject: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!gradeEntry)
+        throw new NotFoundException(
+          'No grade entries found for this class in the active term',
+        );
+      className = gradeEntry.student.currentClass?.name || classSection.name;
+    }
+
+    const existing = await this.prisma.gradeRevision.findFirst({
+      where: {
+        subjectId: gradeEntry.subjectId,
+        gradeEntryId: gradeEntry.id,
+        status: 'AWAITING_APPROVAL',
+      },
+    });
+    if (existing) {
+      return this.mapRevision(existing, gradeEntry);
+    }
+
+    const targetTeacherId = gradeEntry.submittedById
+      ? await this.prisma.staffProfile
+          .findFirst({
+            where: { userId: gradeEntry.submittedById },
+            select: { id: true },
+          })
+          .then((s) => s?.id || gradeEntry.submittedById)
+      : gradeEntry.submittedById || '';
+
+    const created = await this.prisma.gradeRevision.create({
+      data: {
+        teacherId: targetTeacherId,
+        studentId: gradeEntry.studentId,
+        subjectId: gradeEntry.subjectId,
+        gradeEntryId: gradeEntry.id,
+        className,
+        issue: body.issue.trim(),
+        severity: body.severity || 'medium',
+        status: 'AWAITING_APPROVAL',
+        history: [],
+      },
+    });
+
+    await this.notifyTeacher(
+      targetTeacherId,
+      'Grade Revision Requested',
+      `HOD has requested a revision for ${className || 'a class'} — ${body.issue.trim()}`,
+      userId,
+    );
+
+    return this.mapRevision(created, gradeEntry);
+  }
+
+  async approveGradeEntry(
+    gradeEntryId: string,
+    comment: string,
+    userId: string,
+    role: Role,
+  ) {
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
+      throw new ForbiddenException('Only HODs can approve grades');
+
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+    });
+    if (!staffProfile) throw new NotFoundException('HOD profile not found');
+
+    const gradeEntry = await this.prisma.gradeEntry.findUnique({
+      where: { id: gradeEntryId },
+      include: { subject: true },
+    });
+    if (!gradeEntry) throw new NotFoundException('Grade entry not found');
+    if (gradeEntry.subject?.departmentId !== staffProfile.departmentId)
+      throw new ForbiddenException('Subject not in your department');
+
+    const updated = await this.prisma.gradeEntry.update({
+      where: { id: gradeEntryId },
+      data: {
+        isApproved: true,
+        ...(comment ? { remark: comment } : {}),
+      },
+    });
+
+    return updated;
+  }
+
+  private mapRevision(r: any, gradeEntry?: any) {
+    const student = gradeEntry?.student;
+    const subject = gradeEntry?.subject;
+    return {
+      id: r.id,
+      teacherId: r.teacherId,
+      student: student
+        ? `${student.firstName} ${student.lastName}`
+        : 'Unknown',
+      index: student?.indexNumber || '',
+      class: student?.currentClass?.name || r.className || 'Unknown',
+      subject: subject?.name || 'Unknown',
+      issue: r.issue,
+      status: r.status,
+      severity: r.severity,
+      time: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+      history: Array.isArray(r.history) ? r.history : [],
+      recordId: r.gradeEntryId,
+    };
+  }
+
   async approveGradeRevision(
     recordId: string,
     comment: string,
@@ -196,40 +391,49 @@ export class HODGradeService {
     }
   }
 
-  async updateHODComment(
-    recordId: string,
-    comment: string,
-    userId: string,
-    role: Role,
-  ) {
-    if (
-      role !== Role.HOD &&
-      role !== Role.HEADMASTER &&
-      role !== Role.SUPER_ADMIN
-    )
-      throw new ForbiddenException('Only HODs can add comments');
-    const revision = await this.prisma.gradeRevision.findUnique({
-      where: { id: recordId },
-    });
-    if (!revision) throw new NotFoundException('Revision not found');
-    const existingHistory = Array.isArray(revision.history)
-      ? revision.history
-      : [];
-    const updatedHistory = [
-      ...existingHistory,
-      {
-        id: Date.now(),
-        role: 'HOD',
-        user: 'HOD',
-        message: comment,
-        time: new Date().toISOString(),
-      },
-    ];
-    return this.prisma.gradeRevision.update({
-      where: { id: recordId },
-      data: { history: updatedHistory },
-    });
-  }
+   async updateHODComment(
+     recordId: string,
+     comment: string,
+     userId: string,
+     role: Role,
+   ) {
+     if (
+       role !== Role.HOD &&
+       role !== Role.HEADMASTER &&
+       role !== Role.SUPER_ADMIN
+     )
+       throw new ForbiddenException('Only HODs can add comments');
+     const revision = await this.prisma.gradeRevision.findUnique({
+       where: { id: recordId },
+     });
+     if (!revision) throw new NotFoundException('Revision not found');
+     const existingHistory = Array.isArray(revision.history)
+       ? revision.history
+       : [];
+     const updatedHistory = [
+       ...existingHistory,
+       {
+         id: Date.now(),
+         role: 'HOD',
+         user: 'HOD',
+         message: comment,
+         time: new Date().toISOString(),
+       },
+     ];
+     const updated = await this.prisma.gradeRevision.update({
+       where: { id: recordId },
+       data: { history: updatedHistory },
+     });
+
+     await this.notifyTeacher(
+       revision.teacherId,
+       'HOD Feedback Added',
+       `HOD has added feedback on your grade revision for ${revision.className || 'a class'}: ${comment}`,
+       userId,
+     );
+
+     return updated;
+   }
 
   async lockTerm(termId: string, userId: string, role: Role) {
     if (

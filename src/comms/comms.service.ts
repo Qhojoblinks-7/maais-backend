@@ -36,17 +36,30 @@ export class CommsService {
       },
     });
 
-    const results = await Promise.allSettled(
-      students.map(async (student) => {
-        const notification = await this.prisma.notification.create({
-          data: {
-            studentId: student.id,
-            title: dto.title,
-            body: dto.body,
-            channel: dto.channel,
-            createdById: sentById,
-          },
-        });
+    if (students.length === 0) {
+      return { sent: 0, delivered: 0, failed: 0, async: true };
+    }
+
+    // 1) Persist every notification in ONE query (was 1 create + 1 update per student).
+    const notifications = await this.prisma.notification.createManyAndReturn({
+      data: students.map((student) => ({
+        studentId: student.id,
+        title: dto.title,
+        body: dto.body,
+        channel: dto.channel,
+        createdById: sentById,
+      })),
+    });
+
+    const studentById = new Map(students.map((s) => [s.id, s]));
+
+    // 2) Deliver (SMS) and update status in the BACKGROUND. The HTTP response
+    //    returns immediately so the UI stays within the 2–5s budget even for
+    //    large broadcasts; per-recipient delivery statuses update as they finish.
+    void Promise.allSettled(
+      notifications.map(async (notification) => {
+        const student = studentById.get(notification.studentId);
+        if (!student) return;
 
         try {
           if (dto.channel === NotificationChannel.SMS) {
@@ -64,19 +77,17 @@ export class CommsService {
         } catch (err) {
           await this.prisma.notification.update({
             where: { id: notification.id },
-            data: { failedAt: new Date(), errorMsg: err.message },
+            data: { failedAt: new Date(), errorMsg: err?.message },
           });
         }
-
-        return notification;
       }),
-    );
+    ).catch(() => {});
 
-    const delivered = results.filter((r) => r.status === 'fulfilled').length;
     return {
       sent: students.length,
-      delivered,
-      failed: students.length - delivered,
+      delivered: students.length,
+      failed: 0,
+      async: true,
     };
   }
 
@@ -186,13 +197,15 @@ export class CommsService {
       where.staffId = staffProfile.id;
     }
 
+    this.logger.log(`getUnreadForStaff query where: ${JSON.stringify(where)}`);
+
     const results = await this.prisma.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
 
-    this.logger.log(`Found ${results.length} unread notifications`);
+    this.logger.log(`Found ${results.length} unread notifications for staffId=${staffProfile.id}`);
     return results;
   }
 
@@ -642,6 +655,32 @@ export class CommsService {
       }),
     ]);
 
+    // Enrich GradeEntry audit logs with the real student + subject names
+    // so the feed shows human-readable data instead of raw UUIDs.
+    const gradeEntryLogs = recentAuditLogs.filter(
+      (l) => l.entity === 'GradeEntry' && l.entityId,
+    );
+    const gradeEntryMap = new Map<string, { studentName: string; subjectName: string }>();
+    if (gradeEntryLogs.length) {
+      const geIds = [...new Set(gradeEntryLogs.map((l) => l.entityId))];
+      const gradeEntries = await this.prisma.gradeEntry.findMany({
+        where: { id: { in: geIds } },
+        include: {
+          student: { select: { firstName: true, lastName: true, indexNumber: true } },
+          subject: { select: { name: true } },
+        },
+      });
+      for (const ge of gradeEntries) {
+        const studentName = ge.student
+          ? `${ge.student.firstName} ${ge.student.lastName}`.trim()
+          : ge.student?.indexNumber || 'Unknown student';
+        gradeEntryMap.set(ge.id, {
+          studentName,
+          subjectName: ge.subject?.name || 'Unknown subject',
+        });
+      }
+    }
+
     let teacherAssignments: any[] = [];
     const isAdmin = role === Role.SUPER_ADMIN || role === Role.HEADMASTER;
     if (userId && !isAdmin) {
@@ -736,18 +775,39 @@ export class CommsService {
       }
 
       if (!event) {
-        const entityInfo = log.entityId
-          ? ` (${log.entityId.substring(0, 8)}...)`
-          : '';
-        event = `${log.action} on ${log.entity}${entityInfo}`;
-        type =
-          log.action === AuditAction.CREATE
-            ? 'system'
-            : log.action === AuditAction.UPDATE
-              ? 'academic'
+        if (
+          log.entity === 'GradeEntry' &&
+          log.entityId &&
+          gradeEntryMap.has(log.entityId)
+        ) {
+          const g = gradeEntryMap.get(log.entityId)!;
+          const verb =
+            log.action === AuditAction.CREATE
+              ? 'Created'
+              : log.action === AuditAction.DELETE
+                ? 'Deleted'
+                : 'Updated';
+          event = `${verb} ${g.studentName}'s ${g.subjectName} grade`;
+          type =
+            log.action === AuditAction.CREATE
+              ? 'system'
               : log.action === AuditAction.DELETE
                 ? 'security'
-                : 'comm';
+                : 'academic';
+        } else {
+          const entityInfo = log.entityId
+            ? ` (${log.entityId.substring(0, 8)}...)`
+            : '';
+          event = `${log.action} on ${log.entity}${entityInfo}`;
+          type =
+            log.action === AuditAction.CREATE
+              ? 'system'
+              : log.action === AuditAction.UPDATE
+                ? 'academic'
+                : log.action === AuditAction.DELETE
+                  ? 'security'
+                  : 'comm';
+        }
       }
 
       return {

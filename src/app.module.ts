@@ -23,6 +23,7 @@ import { MedicalModule } from './medical/medical.module';
 import { TimetableModule } from './timetable/timetable.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { HODModule } from './hod/hod.module';
+import { CacheModule } from './cache/cache.module';
 import { DatabaseInitService } from './common/services/database-init.service';
 import { HealthController } from './health.controller';
 
@@ -47,6 +48,7 @@ import { HealthController } from './health.controller';
     TimetableModule,
     TeacherModule,
     HODModule,
+    CacheModule,
   ],
   providers: [
     {

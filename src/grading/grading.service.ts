@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../common/prisma/prisma.service';
 import { GradeRemark, Role, AuditAction } from '@prisma/client';
 import { InterventionsService } from '../interventions/interventions.service';
+import { OCCService } from '../common/services/occ.service';
 
 // GH SHS Standard WAEC grading
 const GRADE_BOUNDARIES = [
@@ -119,6 +120,7 @@ export interface UpsertGradeDto {
 
 export interface CorrectGradeDto {
   gradeEntryId: string;
+  version?: number;
   fieldChanged: 'classScore' | 'examScore' | 'remark';
   newValue: string;
   reason: string;
@@ -129,6 +131,7 @@ export class GradingService {
   constructor(
     private prisma: PrismaService,
     private interventionsService: InterventionsService,
+    private occService: OCCService,
   ) {}
 
   computeGrade(classScore: number, examScore: number) {
@@ -164,7 +167,6 @@ export class GradingService {
       JSON.stringify(dto, null, 2),
     );
 
-    // Validate required fields
     if (!dto.studentId) {
       console.error(`[GradingService] Missing studentId in dto`);
       throw new Error('studentId is required');
@@ -210,11 +212,13 @@ export class GradingService {
         termId: dto.termId,
       },
       select: {
+        id: true,
         classScore: true,
         examScore: true,
         totalScore: true,
         grade: true,
         isLocked: true,
+        version: true,
       },
     });
 
@@ -222,6 +226,11 @@ export class GradingService {
       throw new ForbiddenException(
         'Grade entry is locked. Contact HOD to unlock.',
       );
+    }
+
+    if (existing) {
+      const clientVersion = dto.version ?? existing.version;
+      await this.occService.verifyVersion('GradeEntry', existing.id, clientVersion);
     }
 
     const entry = await this.prisma.gradeEntry.upsert({
@@ -243,6 +252,8 @@ export class GradingService {
         remark: dto.remark,
         hasObservation: dto.hasObservation ?? false,
         observationText: dto.observationText,
+        labSafetyCompliance: dto.labSafety ?? false,
+        flaggedForReview: dto.flagged ?? false,
         submittedById,
         submittedAt: new Date(),
         isApproved: false,
@@ -262,9 +273,26 @@ export class GradingService {
         ...(dto.observationText !== undefined && {
           observationText: dto.observationText,
         }),
+        ...(dto.labSafety !== undefined && {
+          labSafetyCompliance: dto.labSafety,
+        }),
+        ...(dto.flagged !== undefined && {
+          flaggedForReview: dto.flagged,
+        }),
       },
       include: { student: true, subject: true },
     });
+
+    let version: number;
+    if (existing) {
+      version = await this.occService.bumpVersion('GradeEntry', entry.id);
+    } else {
+      const fresh = await this.prisma.gradeEntry.findUnique({
+        where: { id: entry.id },
+        select: { version: true },
+      });
+      version = fresh!.version;
+    }
 
     await this.prisma.auditLog.create({
       data: {
@@ -304,11 +332,10 @@ export class GradingService {
           previousTermId,
         );
       } catch {
-        // Intervention check failure must not break grade submission
       }
     }
 
-    return entry;
+    return { ...entry, version };
   }
 
   private async getPreviousTermId(
@@ -356,6 +383,7 @@ export class GradingService {
     gradeEntryId: string,
     approvedById: string,
     userRole: Role,
+    clientVersion?: number,
   ) {
     if (
       userRole !== Role.HOD &&
@@ -367,9 +395,18 @@ export class GradingService {
       );
     }
 
+    if (clientVersion) {
+      await this.occService.verifyVersion('GradeEntry', gradeEntryId, clientVersion);
+    }
+
     const entry = await this.prisma.gradeEntry.update({
       where: { id: gradeEntryId },
       data: { isApproved: true, approvedById, approvedAt: new Date() },
+    });
+
+    const updated = await this.prisma.gradeEntry.findUnique({
+      where: { id: gradeEntryId },
+      select: { id: true, version: true, isApproved: true, approvedAt: true },
     });
 
     await this.prisma.auditLog.create({
@@ -385,7 +422,7 @@ export class GradingService {
       },
     });
 
-    return entry;
+    return { ...updated, isApproved: true, approvedAt: entry.approvedAt };
   }
 
   async bulkApproveGrades(ids: string[], approvedById: string, userRole: Role) {
@@ -474,7 +511,7 @@ export class GradingService {
     });
   }
 
-  async lockGrade(gradeEntryId: string, lockedById: string, userRole: Role) {
+  async lockGrade(gradeEntryId: string, lockedById: string, userRole: Role, clientVersion?: number) {
     if (
       userRole !== Role.HOD &&
       userRole !== Role.HEADMASTER &&
@@ -483,10 +520,16 @@ export class GradingService {
       throw new ForbiddenException('Only HODs or above can lock grade entries');
     }
 
+    if (clientVersion) {
+      await this.occService.verifyVersion('GradeEntry', gradeEntryId, clientVersion);
+    }
+
     const updated = await this.prisma.gradeEntry.update({
       where: { id: gradeEntryId },
       data: { isLocked: true, lockedById, lockedAt: new Date() },
     });
+
+    const version = await this.occService.bumpVersion('GradeEntry', gradeEntryId);
 
     await this.prisma.auditLog.create({
       data: {
@@ -498,17 +541,21 @@ export class GradingService {
       },
     });
 
-    return updated;
+    return { ...updated, version };
   }
 
   async correctGrade(dto: CorrectGradeDto, changedById: string) {
+    const entryVersion = dto.version ?? 1;
     const entry = await this.prisma.gradeEntry.findUniqueOrThrow({
       where: { id: dto.gradeEntryId },
+      select: { id: true, classScore: true, examScore: true, grade: true, isLocked: true, version: true },
     });
 
     if (entry.isLocked) {
       throw new ForbiddenException('Grade is locked. Contact HOD to unlock.');
     }
+
+    await this.occService.verifyVersion('GradeEntry', entry.id, entryVersion);
 
     const oldValue = String(
       entry[dto.fieldChanged as keyof typeof entry] ?? '',
@@ -559,10 +606,15 @@ export class GradingService {
       updateData.grade = computed.grade;
     }
 
-    return this.prisma.gradeEntry.update({
+    const updated = await this.prisma.gradeEntry.update({
       where: { id: dto.gradeEntryId },
       data: updateData,
+      select: { id: true },
     });
+
+    const newVersion = await this.occService.bumpVersion('GradeEntry', dto.gradeEntryId);
+
+    return { ...updated, version: newVersion };
   }
 
   private async getTeacherSubjectIds(userId?: string) {
@@ -926,6 +978,9 @@ export class GradingService {
       throw new NotFoundException('Grade entry matching observation not found');
     }
 
+    const clientVersion = body.version ?? entry.version ?? 1;
+    await this.occService.verifyVersion('GradeEntry', entry.id, clientVersion);
+
     await this.assertObservationAccess(entry, userId, userRole);
 
     const updated = await this.prisma.gradeEntry.update({
@@ -934,6 +989,8 @@ export class GradingService {
         hasObservation: true,
         observationText: comment,
         remark: comment,
+        labSafetyCompliance: body.labSafety ?? entry.labSafetyCompliance ?? false,
+        flaggedForReview: body.flagged ?? entry.flaggedForReview ?? false,
         submittedById: userId,
         submittedAt: new Date(),
         isApproved: false,
@@ -950,6 +1007,8 @@ export class GradingService {
         subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
+
+    const newVersion = await this.occService.bumpVersion('GradeEntry', entry.id);
 
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId
@@ -972,6 +1031,18 @@ export class GradingService {
   ) {
     const entry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
+      select: { id: true, version: true },
+    });
+
+    if (!entry) {
+      throw new NotFoundException('Observation not found');
+    }
+
+    const clientVersion = body.version ?? entry.version ?? 1;
+    await this.occService.verifyVersion('GradeEntry', observationId, clientVersion);
+
+    const fullEntry = await this.prisma.gradeEntry.findUnique({
+      where: { id: observationId },
       include: {
         student: {
           select: {
@@ -985,11 +1056,7 @@ export class GradingService {
       },
     });
 
-    if (!entry) {
-      throw new NotFoundException('Observation not found');
-    }
-
-    await this.assertObservationAccess(entry, userId, userRole);
+    await this.assertObservationAccess(fullEntry, userId, userRole);
 
     const data: any = {
       hasObservation: body.hasObservation ?? true,
@@ -1002,6 +1069,14 @@ export class GradingService {
       const comment = body.comment ?? body.observationText ?? '';
       data.observationText = comment;
       data.remark = comment;
+    }
+
+    if (body.labSafety !== undefined) {
+      data.labSafetyCompliance = body.labSafety;
+    }
+
+    if (body.flagged !== undefined) {
+      data.flaggedForReview = body.flagged;
     }
 
     const updated = await this.prisma.gradeEntry.update({
@@ -1019,6 +1094,8 @@ export class GradingService {
         subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
+
+    const newVersion = await this.occService.bumpVersion('GradeEntry', observationId);
 
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId
@@ -1040,24 +1117,14 @@ export class GradingService {
   ) {
     const entry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
-      include: {
-        student: {
-          select: {
-            indexNumber: true,
-            firstName: true,
-            lastName: true,
-            currentClass: { select: { name: true } },
-          },
-        },
-        subject: { select: { name: true, code: true, departmentId: true } },
-      },
+      select: { id: true, version: true },
     });
 
     if (!entry) {
       throw new NotFoundException('Observation not found');
     }
 
-    await this.assertObservationAccess(entry, userId, userRole);
+    await this.occService.verifyVersion('GradeEntry', observationId, entry.version ?? 1);
 
     const updated = await this.prisma.gradeEntry.update({
       where: { id: observationId },
@@ -1080,6 +1147,8 @@ export class GradingService {
         subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
+
+    const newVersion = await this.occService.bumpVersion('GradeEntry', observationId);
 
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId

@@ -29,6 +29,11 @@ export class UpsertGradeDto {
   @IsNotEmpty()
   termId: string;
 
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  version?: number;
+
   @ApiPropertyOptional({ example: 25, description: 'Class score out of 30' })
   @IsOptional()
   @IsNumber()
@@ -57,6 +62,16 @@ export class UpsertGradeDto {
   @IsOptional()
   @IsString()
   observationText?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  labSafety?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  flagged?: boolean;
 }
 
 export class BulkUpsertGradeDto {
@@ -72,6 +87,11 @@ export class CorrectGradeDto {
   @ApiProperty()
   @IsString()
   gradeEntryId: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  version?: number;
 
   @ApiProperty({ enum: ['classScore', 'examScore', 'remark'] })
   @IsEnum(['classScore', 'examScore', 'remark'])
@@ -90,4 +110,9 @@ export class LockGradeDto {
   @ApiProperty()
   @IsString()
   gradeEntryId: string;
+
+  @ApiPropertyOptional({ example: 1 })
+  @IsOptional()
+  @IsNumber()
+  version?: number;
 }

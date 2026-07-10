@@ -75,6 +75,29 @@ export class HODController {
     return this.hodService.getGradeRevisions(userId, role);
   }
 
+  @Post('grade-revisions')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'HOD requests a grade revision for a class or grade entry' })
+  createHODGradeRevision(
+    @Body() body: { classSectionId?: string; gradeEntryId?: string; issue: string; severity: string },
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.createHODGradeRevision(body, userId, role);
+  }
+
+  @Post('grades/:gradeEntryId/approve')
+  @Roles(Role.HOD)
+  @ApiOperation({ summary: 'HOD approves a grade entry' })
+  approveGradeEntry(
+    @Param('gradeEntryId') gradeEntryId: string,
+    @Body('comment') comment: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.hodService.approveGradeEntry(gradeEntryId, comment, userId, role);
+  }
+
   @Post('records/:recordId/approve')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Approve a grade revision' })

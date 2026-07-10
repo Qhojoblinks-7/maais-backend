@@ -50,6 +50,28 @@ export class HODService {
     return this.grades.getGradeRevisions(userId, role);
   }
 
+  async createHODGradeRevision(
+    body: {
+      classSectionId?: string;
+      gradeEntryId?: string;
+      issue: string;
+      severity: string;
+    },
+    userId: string,
+    role: Role,
+  ) {
+    return this.grades.createHODGradeRevision(body, userId, role);
+  }
+
+  async approveGradeEntry(
+    gradeEntryId: string,
+    comment: string,
+    userId: string,
+    role: Role,
+  ) {
+    return this.grades.approveGradeEntry(gradeEntryId, comment, userId, role);
+  }
+
   async approveGradeRevision(
     recordId: string,
     comment: string,

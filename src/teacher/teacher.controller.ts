@@ -195,23 +195,14 @@ export class TeacherController {
 
   @Get('grade-revisions')
   @Roles(Role.TEACHER)
-  @ApiOperation({ summary: 'Get grade revision requests for a teacher' })
+  @ApiOperation({ summary: 'Get grade revision requests for the current teacher' })
   async getGradeRevisions(
+    @Query('teacherId') teacherId: string,
     @CurrentUser()
-    user: {
-      id: string;
-      role: Role;
-      staffProfile?: { id: string };
-    },
+    user: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
-    try {
-      return await this.teacherService.getGradeRevisions(
-        user.staffProfile?.id || user.id,
-      );
-    } catch (err) {
-      console.error('[TeacherController] getGradeRevisions failed:', err);
-      throw err;
-    }
+    const targetTeacherId = teacherId || user.staffProfile?.id || user.id;
+    return this.teacherService.getGradeRevisions(targetTeacherId);
   }
 
   @Get('grading/students')
@@ -255,10 +246,16 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.teacherService.submitGradeRevision(body, {
-      id: user.staffProfile?.id || user.id,
-      role: user.role,
-    });
+    console.error('[DEBUG] submitGradeRevision controller hit', { body, user });
+    try {
+      return this.teacherService.submitGradeRevision(body, {
+        id: user.staffProfile?.id || user.id,
+        role: user.role,
+      });
+    } catch (err) {
+      console.error('[DEBUG] submitGradeRevision controller error', err);
+      throw err;
+    }
   }
 
   @Patch('grade-revisions/:revisionId')

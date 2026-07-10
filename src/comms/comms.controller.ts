@@ -70,7 +70,7 @@ export class CommsController {
   }
 
   @Get('notifications/unread')
-  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get unread notifications for staff user' })
   getUnread(

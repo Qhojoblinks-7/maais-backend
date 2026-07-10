@@ -2,12 +2,31 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ResponseCompressionMiddleware } from './common/middleware/response-compression.middleware';
+
+// Logs any request that breaches the 2–5s UI response budget so slow
+// endpoints can be identified and optimized.
+function requestTimingMiddleware(req: any, res: any, next: () => void) {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms > 2000) {
+      // eslint-disable-next-line no-console
+      console.warn(`[PERF] ${req.method} ${req.originalUrl} took ${ms}ms`);
+    }
+  });
+  next();
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Global prefix
   app.setGlobalPrefix('api/v1');
+
+  // Compression (zero-dep, zlib) + slow-request timing for all roles.
+  app.use(requestTimingMiddleware);
+  app.use(new ResponseCompressionMiddleware().use);
 
   // Global validation
   app.useGlobalPipes(

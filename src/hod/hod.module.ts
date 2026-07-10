@@ -12,9 +12,11 @@ import { WAEExportController } from './wae-export.controller';
 import { HODSettingsService } from './hod-settings.service';
 import { HODController } from './hod.controller';
 import { PrismaModule } from '../common/prisma/prisma.module';
+import { OCCService } from '../common/services/occ.service';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, CacheModule],
   controllers: [HODController, WAEExportController],
   providers: [
     HODService,
@@ -27,6 +29,7 @@ import { PrismaModule } from '../common/prisma/prisma.module';
     WAEExportService,
     WAECValidationService,
     HODSettingsService,
+    OCCService,
   ],
   exports: [HODService],
 })

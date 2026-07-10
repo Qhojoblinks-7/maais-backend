@@ -5,10 +5,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, AuditAction } from '@prisma/client';
+import { CacheService } from '../cache/cache.service';
+import { OCCService } from '../common/services/occ.service';
 
 @Injectable()
 export class HODTeacherService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cacheService: CacheService,
+    private occService: OCCService,
+  ) {}
 
   async getTeacherSubmissionStatus(
     userId: string,
@@ -28,137 +34,211 @@ export class HODTeacherService {
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
 
-    let targetTerm = null;
-    if (academicYearId && termNumber) {
-      targetTerm = await this.prisma.term.findFirst({
-        where: {
-          academicYearId,
-          termNumber: termNumber as any,
-        },
-      });
-    }
-    if (!targetTerm) {
-      targetTerm = await this.prisma.term.findFirst({
-        where: { isActive: true },
-        orderBy: { startDate: 'desc' },
-      });
-    }
-
-    const departmentTeachers = await this.prisma.staffProfile.findMany({
-      where: {
-        departmentId: staffProfile.departmentId,
-        user: { role: Role.TEACHER },
-      },
-      include: { user: { select: { email: true } }, teachingAssignments: true },
+    const cacheKey = this.getCacheKey('getTeacherSubmissionStatus', {
+      userId,
+      role,
+      academicYearId: academicYearId ?? '',
+      termNumber: termNumber ?? '',
     });
+    const cached = await this.cacheService.getCachedAggregate<
+      Awaited<ReturnType<HODTeacherService['getTeacherSubmissionStatus']>>
+    >('hod:teacher-status', cacheKey);
+    if (cached) return cached;
 
-    const submissions = await Promise.all(
-      departmentTeachers.map(async (teacher) => {
-        const subjectIds = teacher.teachingAssignments.map((a) => a.subjectId);
-        const classIds = teacher.teachingAssignments.map(
-          (a) => a.classSectionId,
-        );
-
-        const studentCount =
-          classIds.length > 0
-            ? await this.prisma.studentProfile.count({
-                where: { currentClassId: { in: classIds }, archivedAt: null },
-              })
-            : 0;
-
-        const studentIds =
-          classIds.length > 0
-            ? await this.prisma.studentProfile.findMany({
-                where: { currentClassId: { in: classIds }, archivedAt: null },
-                select: { id: true },
-              })
-            : [];
-        const studentIdList = studentIds.map((s) => s.id);
-
-        const gradeCount =
-          targetTerm && subjectIds.length > 0
-            ? await this.prisma.gradeEntry.count({
-                where: {
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                  totalScore: { not: null },
-                },
-              })
-            : 0;
-
-        const attendanceCount =
-          targetTerm && studentIdList.length > 0
-            ? await this.prisma.attendanceRecord.count({
-                where: {
-                  studentId: { in: studentIdList },
-                  termId: targetTerm.id,
-                },
-              })
-            : 0;
-
-        const signedCount =
-          targetTerm && subjectIds.length > 0
-            ? await this.prisma.gradeEntry.count({
-                where: {
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                  submittedById: { not: null },
-                },
-              })
-            : 0;
-
-        const observationCount =
-          targetTerm && subjectIds.length > 0
-            ? await this.prisma.gradeEntry.count({
-                where: {
-                  termId: targetTerm.id,
-                  subjectId: { in: subjectIds },
-                  hasObservation: true,
-                },
-              })
-            : 0;
-
-        const totalExpected = studentCount * subjectIds.length;
-        const totalAttendance = studentCount * 60;
-        const gradePct =
-          totalExpected > 0
-            ? Math.round((gradeCount / totalExpected) * 100)
-            : 0;
-        const attendancePct =
-          totalAttendance > 0
-            ? Math.round((attendanceCount / totalAttendance) * 100)
-            : 0;
-        const signOffPct =
-          totalExpected > 0
-            ? Math.round((signedCount / totalExpected) * 100)
-            : 0;
-        const observationPct =
-          totalExpected > 0
-            ? Math.round((observationCount / totalExpected) * 100)
-            : 0;
-        const progress = Math.min(
-          gradePct,
-          attendancePct,
-          signOffPct,
-          observationPct,
-        );
-
-        return {
-          teacherId: teacher.id,
-          name: `${teacher.firstName} ${teacher.lastName}`,
-          email: teacher.user?.email || '',
-          status:
-            progress === 100
-              ? 'SUBMITTED'
-              : progress > 0
-                ? 'IN_PROGRESS'
-                : 'DRAFT',
-          progress,
-        };
+    // departmentTeachers + term lookup are independent → run in parallel.
+    const [departmentTeachers, targetTerm] = await Promise.all([
+      this.prisma.staffProfile.findMany({
+        where: {
+          departmentId: staffProfile.departmentId,
+          user: { role: Role.TEACHER },
+        },
+        include: { user: { select: { email: true } }, teachingAssignments: true },
       }),
+      (async () => {
+        let term = null;
+        if (academicYearId && termNumber) {
+          term = await this.prisma.term.findFirst({
+            where: { academicYearId, termNumber: termNumber as any },
+          });
+        }
+        if (!term) {
+          term = await this.prisma.term.findFirst({
+            where: { isActive: true },
+            orderBy: { startDate: 'desc' },
+          });
+        }
+        return term;
+      })(),
+    ]);
+
+    // ── Batched queries (was ~5 queries *per teacher*) ──────────────────
+    const allClassIds = Array.from(
+      new Set(
+        departmentTeachers.flatMap((t) =>
+          t.teachingAssignments.map((a) => a.classSectionId),
+        ),
+      ),
+    );
+    const allSubjectIds = Array.from(
+      new Set(
+        departmentTeachers.flatMap((t) =>
+          t.teachingAssignments.map((a) => a.subjectId),
+        ),
+      ),
     );
 
-    return submissions;
+    const studentsRaw =
+      allClassIds.length > 0
+        ? await this.prisma.studentProfile.findMany({
+            where: { currentClassId: { in: allClassIds }, archivedAt: null },
+            select: { id: true, currentClassId: true },
+          })
+        : [];
+    const allStudentIds = studentsRaw.map((s) => s.id);
+
+    // studentCountRows, gradeEntries and attRows are independent of each other
+    // (attRows reuses the already-fetched student id list) → run concurrently.
+    const [studentCountRows, gradeEntries, attRows] = await Promise.all([
+      allClassIds.length > 0
+        ? this.prisma.studentProfile.groupBy({
+            by: ['currentClassId'],
+            where: { currentClassId: { in: allClassIds }, archivedAt: null },
+            _count: { _all: true },
+          })
+        : Promise.resolve([] as any[]),
+      targetTerm && allSubjectIds.length > 0
+        ? this.prisma.gradeEntry.findMany({
+            where: { termId: targetTerm.id, subjectId: { in: allSubjectIds } },
+            select: {
+              subjectId: true,
+              totalScore: true,
+              submittedById: true,
+              hasObservation: true,
+            },
+          })
+        : Promise.resolve([] as any[]),
+      targetTerm && allStudentIds.length > 0
+        ? this.prisma.attendanceRecord.groupBy({
+            by: ['studentId'],
+            where: { studentId: { in: allStudentIds }, termId: targetTerm.id },
+            _count: { _all: true },
+          })
+        : Promise.resolve([] as any[]),
+    ]);
+
+    const studentCountByClass = new Map<string, number>();
+    for (const r of studentCountRows) {
+      if (r.currentClassId)
+        studentCountByClass.set(r.currentClassId, r._count._all);
+    }
+
+    const studentIdsByClass = new Map<string, string[]>();
+    for (const s of studentsRaw) {
+      if (!s.currentClassId) continue;
+      const arr = studentIdsByClass.get(s.currentClassId) ?? [];
+      arr.push(s.id);
+      studentIdsByClass.set(s.currentClassId, arr);
+    }
+
+    const gradeAggBySubject = new Map<
+      string,
+      { total: number; signed: number; obs: number }
+    >();
+    for (const g of gradeEntries) {
+      const cur =
+        gradeAggBySubject.get(g.subjectId) ??
+        { total: 0, signed: 0, obs: 0 };
+      if (g.totalScore !== null) cur.total += 1;
+      if (g.submittedById !== null) cur.signed += 1;
+      if (g.hasObservation) cur.obs += 1;
+      gradeAggBySubject.set(g.subjectId, cur);
+    }
+
+    const attCountByStudent = new Map<string, number>();
+    for (const r of attRows) {
+      attCountByStudent.set(r.studentId, r._count._all);
+    }
+
+    const submissions = departmentTeachers.map((teacher) => {
+      const subjectIds = teacher.teachingAssignments.map((a) => a.subjectId);
+      const classIds = teacher.teachingAssignments.map(
+        (a) => a.classSectionId,
+      );
+
+      const studentIds = classIds.flatMap(
+        (c) => studentIdsByClass.get(c) ?? [],
+      );
+      const studentCount = classIds.reduce(
+        (sum, c) => sum + (studentCountByClass.get(c) ?? 0),
+        0,
+      );
+
+      let gradeCount = 0;
+      let signedCount = 0;
+      let observationCount = 0;
+      for (const sid of subjectIds) {
+        const agg = gradeAggBySubject.get(sid);
+        if (agg) {
+          gradeCount += agg.total;
+          signedCount += agg.signed;
+          observationCount += agg.obs;
+        }
+      }
+
+      let attendanceCount = 0;
+      for (const sid of studentIds) {
+        attendanceCount += attCountByStudent.get(sid) ?? 0;
+      }
+
+      const totalExpected = studentCount * subjectIds.length;
+      const totalAttendance = studentCount * 60;
+      const gradePct =
+        totalExpected > 0
+          ? Math.round((gradeCount / totalExpected) * 100)
+          : 0;
+      const attendancePct =
+        totalAttendance > 0
+          ? Math.round((attendanceCount / totalAttendance) * 100)
+          : 0;
+      const signOffPct =
+        totalExpected > 0
+          ? Math.round((signedCount / totalExpected) * 100)
+          : 0;
+      const observationPct =
+        totalExpected > 0
+          ? Math.round((observationCount / totalExpected) * 100)
+          : 0;
+      const progress = Math.min(
+        gradePct,
+        attendancePct,
+        signOffPct,
+        observationPct,
+      );
+
+      return {
+        teacherId: teacher.id,
+        name: `${teacher.firstName} ${teacher.lastName}`,
+        email: teacher.user?.email || '',
+        status:
+          progress === 100
+            ? 'SUBMITTED'
+            : progress > 0
+              ? 'IN_PROGRESS'
+              : 'DRAFT',
+        progress,
+      };
+    });
+
+    const result = submissions;
+
+    await this.cacheService.setCachedAggregate(
+      'hod:teacher-status',
+      cacheKey,
+      result,
+      300,
+    );
+
+    return result;
   }
 
   async getDepartmentTeachers(
@@ -178,6 +258,16 @@ export class HODTeacherService {
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
 
+    const cacheKey = this.getCacheKey('getDepartmentTeachers', {
+      userId,
+      role,
+      search: params?.search ?? '',
+    });
+    const cached = await this.cacheService.getCachedAggregate<
+      Awaited<ReturnType<HODTeacherService['getDepartmentTeachers']>>
+    >('hod:dept-teachers', cacheKey);
+    if (cached) return cached;
+
     const whereClause: any = {
       departmentId: staffProfile.departmentId,
       user: { role: { in: [Role.TEACHER, Role.HOD] } },
@@ -191,102 +281,133 @@ export class HODTeacherService {
       ];
     }
 
-    const teachers = await this.prisma.staffProfile.findMany({
-      where: whereClause,
-      include: {
-        user: { select: { email: true, isActive: true } },
-        teachingAssignments: {
-          include: {
-            subject: { select: { name: true } },
-            classSection: { select: { name: true, level: true } },
+    // teachers + activeTerm are independent → run in parallel.
+    const [teachers, activeTerm] = await Promise.all([
+      this.prisma.staffProfile.findMany({
+        where: whereClause,
+        include: {
+          user: { select: { email: true, isActive: true } },
+          teachingAssignments: {
+            include: {
+              subject: { select: { name: true } },
+              classSection: { select: { name: true, level: true } },
+            },
           },
         },
-      },
-      orderBy: { lastName: 'asc' },
-    });
+        orderBy: { lastName: 'asc' },
+      }),
+      this.prisma.term.findFirst({
+        where: { isActive: true },
+        orderBy: { startDate: 'desc' },
+      }),
+    ]);
 
-    const activeTerm = await this.prisma.term.findFirst({
-      where: { isActive: true },
-      orderBy: { startDate: 'desc' },
-    });
+    // Collect all subject/class pairs once, then a single grade query.
+    const allSubjectIds = Array.from(
+      new Set(
+        teachers.flatMap((t) =>
+          t.teachingAssignments.map((a) => a.subjectId),
+        ),
+      ),
+    );
+    const allClassSectionIds = Array.from(
+      new Set(
+        teachers.flatMap((t) =>
+          t.teachingAssignments.map((a) => a.classSectionId),
+        ),
+      ),
+    );
 
-    return Promise.all(
-      teachers.map(async (teacher) => {
-        const subjects = Array.from(
-          new Map(
-            teacher.teachingAssignments
-              .filter((a) => a.subject?.name)
-              .map((a) => [a.subject.name, a.subject.name]),
-          ).values(),
-        );
+    const gradesRaw =
+      activeTerm && allSubjectIds.length > 0 && allClassSectionIds.length > 0
+        ? await this.prisma.gradeEntry.findMany({
+            where: {
+              termId: activeTerm.id,
+              subjectId: { in: allSubjectIds },
+              student: { currentClassId: { in: allClassSectionIds } },
+            },
+            select: {
+              subjectId: true,
+              totalScore: true,
+              student: { select: { currentClassId: true } },
+            },
+          })
+        : [];
+    const scoresByPair = new Map<string, number[]>();
+    for (const g of gradesRaw) {
+      if (g.student?.currentClassId == null) continue;
+      const key = `${g.subjectId}:${g.student.currentClassId}`;
+      const arr = scoresByPair.get(key) ?? [];
+      if (typeof g.totalScore === 'number') arr.push(g.totalScore);
+      scoresByPair.set(key, arr);
+    }
 
-        const classes = Array.from(
-          new Map(
-            teacher.teachingAssignments
-              .filter((a) => a.classSection?.name)
-              .map((a) => [
-                `${a.classSection.level || ''} ${a.classSection.name}`,
-                a.classSection,
-              ]),
-          ).values(),
-        ).map((c) => `${c.level || ''} ${c.name}`.trim());
+    const result = teachers.map((teacher) => {
+      const subjects = Array.from(
+        new Map(
+          teacher.teachingAssignments
+            .filter((a) => a.subject?.name)
+            .map((a) => [a.subject.name, a.subject.name]),
+        ).values(),
+      );
 
-        const subjectIds = [
-          ...new Set(
-            teacher.teachingAssignments
-              .filter((a) => a.subjectId)
-              .map((a) => a.subjectId as string),
-          ),
-        ];
+      const classes = Array.from(
+        new Map(
+          teacher.teachingAssignments
+            .filter((a) => a.classSection?.name)
+            .map((a) => [
+              `${a.classSection.level || ''} ${a.classSection.name}`,
+              a.classSection,
+            ]),
+        ).values(),
+      ).map((c) => `${c.level || ''} ${c.name}`.trim());
 
-        let rating: string | null = null;
-        if (activeTerm && subjectIds.length > 0) {
-          const classSectionIds = [
-            ...new Set(
-              teacher.teachingAssignments
-                .filter((a) => a.classSectionId)
-                .map((a) => a.classSectionId as string),
-            ),
-          ];
+      const subjectIds = [
+        ...new Set(
+          teacher.teachingAssignments
+            .filter((a) => a.subjectId)
+            .map((a) => a.subjectId as string),
+        ),
+      ];
 
-          const grades =
-            classSectionIds.length > 0
-              ? await this.prisma.gradeEntry.findMany({
-                  where: {
-                    termId: activeTerm.id,
-                    subjectId: { in: subjectIds },
-                    student: {
-                      currentClassId: { in: classSectionIds },
-                    },
-                  },
-                  select: { totalScore: true },
-                })
-              : [];
-
-          if (grades.length > 0) {
-            const avg =
-              grades.reduce((sum, g) => sum + (g.totalScore || 0), 0) /
-              grades.length;
-            rating = `${Math.round(avg)}%`;
-          }
+      let rating: string | null = null;
+      if (activeTerm && subjectIds.length > 0) {
+        const scores: number[] = [];
+        for (const a of teacher.teachingAssignments) {
+          const arr = scoresByPair.get(`${a.subjectId}:${a.classSectionId}`);
+          if (arr) scores.push(...arr);
         }
 
-        return {
-          id: teacher.id,
-          userId: teacher.userId,
-          name: `${teacher.firstName} ${teacher.lastName}`,
-          firstName: teacher.firstName,
-          lastName: teacher.lastName,
-          email: teacher.user?.email || '',
-          phone: teacher.phone || '',
-          active: teacher.user?.isActive ?? false,
-          subjects,
-          classes,
-          rating,
-          status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
-        };
-      }),
+        if (scores.length > 0) {
+          const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+          rating = `${Math.round(avg)}%`;
+        }
+      }
+
+      return {
+        id: teacher.id,
+        userId: teacher.userId,
+        name: `${teacher.firstName} ${teacher.lastName}`,
+        firstName: teacher.firstName,
+        lastName: teacher.lastName,
+        email: teacher.user?.email || '',
+        phone: teacher.phone || '',
+        active: teacher.user?.isActive ?? false,
+        subjects,
+        classes,
+        rating,
+        status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
+      };
+    });
+
+    await this.cacheService.setCachedAggregate(
+      'hod:dept-teachers',
+      cacheKey,
+      result,
+      300,
     );
+
+    return result;
   }
 
   async resetTeacherPassword(
@@ -765,5 +886,14 @@ export class HODTeacherService {
     }
 
     return trends;
+  }
+
+  private getCacheKey(method: string, params: Record<string, unknown>): string {
+    const normalized: Record<string, unknown> = {};
+    for (const key of Object.keys(params).sort()) {
+      const value = params[key];
+      normalized[key] = value === undefined ? '' : value;
+    }
+    return `${method}:${JSON.stringify(normalized)}`;
   }
 }

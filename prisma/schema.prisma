@@ -211,6 +211,8 @@ model StudentProfile {
 
   isBoarder      Boolean   @default(false) // true = boarder, false = day student
 
+  version        Int       @default(1) // Optimistic concurrency control
+
   // Archived after graduation
   archivedAt DateTime?
 
@@ -444,8 +446,10 @@ model GradeEntry {
   position   Int? // Position in class for this subject
 
   // Observations (missing = flagged)
-  hasObservation  Boolean @default(false)
-  observationText String?
+  hasObservation      Boolean   @default(false)
+  observationText     String?
+  labSafetyCompliance Boolean? @default(false)
+  flaggedForReview    Boolean?  @default(false)
 
   // Locking & audit
   isLocked      Boolean   @default(false)
@@ -464,6 +468,8 @@ model GradeEntry {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  version Int @default(1) // Optimistic concurrency control
 
   @@unique([studentId, subjectId, termId])
   @@map("grade_entries")
@@ -501,6 +507,10 @@ model GradeRevision {
   updatedAt DateTime @updatedAt
 
   @@map("grade_revisions")
+  @@index([teacherId])
+  @@index([subjectId])
+  @@index([teacherId, createdAt])
+  @@index([subjectId, createdAt])
 }
 
 model AttendanceRecord {
@@ -512,6 +522,7 @@ model AttendanceRecord {
   daysPresent Int            @default(0)
   daysAbsent  Int            @default(0)
   totalDays   Int
+  version     Int            @default(1) // Optimistic concurrency control
 
   @@unique([studentId, termId])
   @@map("attendance_records")

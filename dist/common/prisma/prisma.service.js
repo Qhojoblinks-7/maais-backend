@@ -19,6 +19,7 @@ const adapter_neon_1 = require("@prisma/adapter-neon");
 const serverless_1 = require("@neondatabase/serverless");
 const ws_1 = __importDefault(require("ws"));
 serverless_1.neonConfig.webSocketConstructor = ws_1.default;
+serverless_1.neonConfig.poolQueryViaFetch = true;
 let PrismaService = class PrismaService extends client_1.PrismaClient {
     constructor() {
         const adapter = new adapter_neon_1.PrismaNeon({
