@@ -644,35 +644,56 @@ export class HODController {
   @Get('export-waec/:termId/department')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export department WAEC CSV for term' })
-  exportDepartmentWAECCSV(
+  async exportDepartmentWAECCSV(
     @Param('termId') termId: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
+    @Res() res: any,
   ) {
-    return this.hodService.exportDepartmentWAECCSV(termId, userId, role);
+    const csv = await this.hodService.exportDepartmentWAECCSV(termId, userId, role);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${'MAAIS'}_Department_${termId}.csv"`,
+    );
+    return res.send(csv);
   }
 
   @Get('export-waec/:termId/pdf')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export WAEC PDF for a class' })
-  exportWAECPDF(
+  async exportWAECPDF(
     @Param('termId') termId: string,
     @Query('class') className: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
+    @Res() res: any,
   ) {
-    return this.hodService.exportWAECPDF(termId, className, userId, role);
+    const pdfBytes = await this.hodService.exportWAECPDF(termId, className, userId, role);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${'MAAIS'}_${className}_${termId}.pdf"`,
+    );
+    return res.send(Buffer.from(pdfBytes));
   }
 
   @Get('export-waec/:termId/pdf/department')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Export department WAEC PDF for term' })
-  exportDepartmentWAECPDF(
+  async exportDepartmentWAECPDF(
     @Param('termId') termId: string,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
+    @Res() res: any,
   ) {
-    return this.hodService.exportDepartmentWAECPDF(termId, userId, role);
+    const pdfBytes = await this.hodService.exportDepartmentWAECPDF(termId, userId, role);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${'MAAIS'}_Department_${termId}.pdf"`,
+    );
+    return res.send(Buffer.from(pdfBytes));
   }
 
   @Post('intervention-alerts/:alertId/resolve')
