@@ -21,6 +21,7 @@ import { BehaviorModule } from './behavior/behavior.module';
 import { InterventionsModule } from './interventions/interventions.module';
 import { MedicalModule } from './medical/medical.module';
 import { TimetableModule } from './timetable/timetable.module';
+import { TimeSlotModule } from './timetable/time-slot.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { HODModule } from './hod/hod.module';
 import { CacheModule } from './cache/cache.module';
@@ -46,6 +47,7 @@ import { HealthController } from './health.controller';
     InterventionsModule,
     MedicalModule,
     TimetableModule,
+    TimeSlotModule,
     TeacherModule,
     HODModule,
     CacheModule,

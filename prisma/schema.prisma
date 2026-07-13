@@ -759,6 +759,22 @@ model TimetableEntry {
   @@map("timetable_entries")
 }
 
+model TimeSlot {
+  id          String   @id @default(uuid())
+  label       String
+  startTime   String
+  endTime     String
+  isBreak     Boolean  @default(false)
+  sortOrder   Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([startTime, endTime])
+  @@index([sortOrder])
+  @@map("time_slots")
+}
+
 model ApprovalRequest {
   id              String    @id @default(uuid())
   teacherId       String
