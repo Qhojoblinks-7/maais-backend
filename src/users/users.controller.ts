@@ -58,7 +58,7 @@ export class UsersController {
   }
 
   @Get('students')
-  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'List all active students' })
   getAllStudents(
     @CurrentUser() user: { id: string; role: Role },
@@ -128,7 +128,7 @@ export class UsersController {
   }
 
   @Get('teachers')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Search teachers by name' })
   searchTeachers(
     @CurrentUser() user: { id: string; role: Role },
@@ -146,7 +146,7 @@ export class UsersController {
   }
 
   @Get('parents/search')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Search parents by name, phone, or email' })
   searchParents(
     @CurrentUser() user: { id: string; role: Role },

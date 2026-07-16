@@ -680,9 +680,7 @@ export class UsersService {
     if (departmentId) {
       where.studentLinks = {
         some: {
-          student: {
-            currentClass: { departmentId },
-          },
+          student: { departmentId },
         },
       };
     }

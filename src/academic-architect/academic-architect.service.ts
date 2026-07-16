@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { TermNumber, ClassLevel, SubjectType } from '@prisma/client';
 
@@ -163,6 +163,49 @@ export class AcademicArchitectService {
       },
       orderBy: { name: 'asc' },
     });
+  }
+
+  async getDepartmentById(id: string) {
+    const department = await this.prisma.department.findUnique({
+      where: { id },
+      include: {
+        staff: {
+          include: {
+            user: {
+              select: { id: true, email: true, role: true, isActive: true },
+            },
+            teachingAssignments: {
+              include: {
+                subject: { select: { id: true, name: true, code: true } },
+              },
+            },
+          },
+        },
+        subjects: {
+          include: {
+            teachingAssignments: {
+              include: {
+                teacher: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    staffId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        _count: { select: { staff: true, subjects: true } },
+      },
+    });
+
+    if (!department) {
+      throw new NotFoundException(`Department ${id} not found`);
+    }
+
+    return department;
   }
 
   // ─── Subjects ─────────────────────────────────────────

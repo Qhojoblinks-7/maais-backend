@@ -107,6 +107,19 @@ export class AcademicArchitectController {
     return this.service.getAllDepartments();
   }
 
+  @Get('departments/:id')
+  @Roles(
+    Role.STUDENT,
+    Role.TEACHER,
+    Role.HOD,
+    Role.HEADMASTER,
+    Role.SUPER_ADMIN,
+  )
+  @ApiOperation({ summary: 'Get a single department with its staff and subjects' })
+  getDepartment(@Param('id') id: string) {
+    return this.service.getDepartmentById(id);
+  }
+
   @Post('subjects')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Create a subject' })
