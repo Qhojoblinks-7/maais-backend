@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { Role } from '@prisma/client';
 
 @Injectable()
 export class ApprovalsService {
@@ -50,16 +45,13 @@ export class ApprovalsService {
     return { total, pending, approved, rejected, todayActions };
   }
 
-  async create(
-    dto: {
-      teacherId: string;
-      detail: string;
-      priority?: string;
-      category?: string;
-      documentUrl?: string;
-    },
-    requesterId: string,
-  ) {
+  async create(dto: {
+    teacherId: string;
+    detail: string;
+    priority?: string;
+    category?: string;
+    documentUrl?: string;
+  }) {
     const staff = await this.prisma.staffProfile.findUnique({
       where: { id: dto.teacherId },
       select: { firstName: true, lastName: true },

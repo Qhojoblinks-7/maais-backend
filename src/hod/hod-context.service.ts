@@ -179,7 +179,13 @@ export class HODContextService {
     const [gradeAgg, attAgg] = await Promise.all([
       allStudentIds.length
         ? this.prisma.gradeEntry.groupBy({
-            by: ['studentId', 'isApproved', 'isLocked', 'submittedById', 'hasObservation'],
+            by: [
+              'studentId',
+              'isApproved',
+              'isLocked',
+              'submittedById',
+              'hasObservation',
+            ],
             where: {
               studentId: { in: allStudentIds },
               termId: targetTerm?.id,
@@ -203,12 +209,22 @@ export class HODContextService {
 
     const gradeByStudent = new Map<
       string,
-      { approved: number; locked: number; total: number; signed: number; observed: number }
+      {
+        approved: number;
+        locked: number;
+        total: number;
+        signed: number;
+        observed: number;
+      }
     >();
     for (const row of gradeAgg) {
-      const cur =
-        gradeByStudent.get(row.studentId) ??
-        { approved: 0, locked: 0, total: 0, signed: 0, observed: 0 };
+      const cur = gradeByStudent.get(row.studentId) ?? {
+        approved: 0,
+        locked: 0,
+        total: 0,
+        signed: 0,
+        observed: 0,
+      };
       cur.total += row._count._all;
       if (row.isApproved) cur.approved += row._count._all;
       if (row.isLocked) cur.locked += row._count._all;
@@ -232,7 +248,12 @@ export class HODContextService {
           include: {
             subject: { select: { id: true, name: true } },
             student: {
-              select: { id: true, firstName: true, lastName: true, indexNumber: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                indexNumber: true,
+              },
             },
           },
         })
@@ -325,7 +346,12 @@ export class HODContextService {
           totalCount > 0
             ? Math.round((observationsRecorded / totalCount) * 100)
             : 0;
-        progress = Math.min(gradePct, attendancePct, signOffPct, observationPct);
+        progress = Math.min(
+          gradePct,
+          attendancePct,
+          signOffPct,
+          observationPct,
+        );
         isClassFullyLocked =
           totalEntriesCount > 0 && lockedCount === totalEntriesCount;
       }

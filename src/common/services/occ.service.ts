@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 type ModelName = 'StudentProfile' | 'GradeEntry' | 'AttendanceRecord';
 
 interface PrismaModel {
-  findUnique(params: { where: { id: string }; select?: { version: boolean } }): Promise<{ version: number } | null>;
+  findUnique(params: {
+    where: { id: string };
+    select?: { version: boolean };
+  }): Promise<{ version: number } | null>;
   update(params: {
     where: { id: string };
     data: { version: { increment: number } };

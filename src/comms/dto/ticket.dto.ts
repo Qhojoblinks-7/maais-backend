@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class UpdateTicketStatusDto {
   @ApiProperty({
     example: 'RESOLVED',
-    enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED'],
+    enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'ESCALATED'],
   })
   @IsString()
   status: string;

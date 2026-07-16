@@ -13,6 +13,7 @@ import { CurrentUser } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { RefreshDto } from './dto/refresh.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { User } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 
@@ -50,6 +51,22 @@ export class AuthController {
   async logout(@CurrentUser() user: User, @Body('refreshToken') token: string) {
     return this.authService.logout(user.id, token);
   }
+  @ApiBearerAuth()
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change the current user password (all roles)' })
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(
+    @CurrentUser() user: User,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+  }
+
   @ApiBearerAuth()
   @Get('me')
   @ApiOperation({ summary: 'Get current authenticated user with profile' })
@@ -99,7 +116,8 @@ export class AuthController {
       },
     });
 
-    const { passwordHash: _, ...fullRest } = fullUser as any;
+    const { passwordHash, ...fullRest } = fullUser as any;
+    void passwordHash;
     return fullRest;
   }
 }

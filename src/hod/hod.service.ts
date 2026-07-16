@@ -128,19 +128,23 @@ export class HODService {
     role: Role,
     academicYearId?: string,
     termNumber?: string,
+    page?: number,
+    limit?: number,
   ) {
     return this.teachers.getTeacherSubmissionStatus(
       userId,
       role,
       academicYearId,
       termNumber,
+      page,
+      limit,
     );
   }
 
   async getDepartmentTeachers(
     userId: string,
     role: Role,
-    params?: { search?: string },
+    params?: { search?: string; page?: number; limit?: number },
   ) {
     return this.teachers.getDepartmentTeachers(userId, role, params);
   }

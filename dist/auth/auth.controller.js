@@ -21,6 +21,7 @@ const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const public_decorator_1 = require("../common/decorators/public.decorator");
 const refresh_dto_1 = require("./dto/refresh.dto");
 const login_dto_1 = require("./dto/login.dto");
+const change_password_dto_1 = require("./dto/change-password.dto");
 const prisma_service_1 = require("../common/prisma/prisma.service");
 let AuthController = class AuthController {
     constructor(authService, prisma) {
@@ -38,6 +39,9 @@ let AuthController = class AuthController {
     }
     async logout(user, token) {
         return this.authService.logout(user.id, token);
+    }
+    async changePassword(user, dto) {
+        return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
     }
     async getMe(user) {
         const fullUser = await this.prisma.user.findUnique({
@@ -84,7 +88,8 @@ let AuthController = class AuthController {
                 },
             },
         });
-        const { passwordHash: _, ...fullRest } = fullUser;
+        const { passwordHash, ...fullRest } = fullUser;
+        void passwordHash;
         return fullRest;
     }
 };
@@ -124,6 +129,19 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
+__decorate([
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.Post)('change-password'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Change the current user password (all roles)' }),
+    (0, swagger_1.ApiBody)({ type: change_password_dto_1.ChangePasswordDto }),
+    openapi.ApiResponse({ status: common_1.HttpStatus.OK }),
+    __param(0, (0, roles_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "changePassword", null);
 __decorate([
     (0, swagger_1.ApiBearerAuth)(),
     (0, common_1.Get)('me'),

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards, NotFoundException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { BehaviorService } from './behavior.service';

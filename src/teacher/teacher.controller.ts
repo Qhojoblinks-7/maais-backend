@@ -53,8 +53,10 @@ export class TeacherController {
       role: Role;
       staffProfile?: { id: string };
     },
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.teacherService.getAnalytics(teacherId, user);
+    return this.teacherService.getAnalytics(teacherId, user, page, limit);
   }
 
   @Get('settings/classes')
@@ -130,8 +132,15 @@ export class TeacherController {
   @Get('missing-observations')
   @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Get missing observations tray' })
-  getMissingObservations(@CurrentUser() user: { id: string; role: Role }) {
-    return this.teacherService.getMissingObservationsTray(user.id, user.role);
+  getMissingObservations(
+    @CurrentUser() user: { id: string; role: Role },
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.teacherService.getMissingObservationsTray(user.id, user.role, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Patch('profile')
@@ -189,13 +198,25 @@ export class TeacherController {
       role: Role;
       staffProfile?: { id: string };
     },
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.gradingService.getObservationLogs(user.id, user.role);
+    return this.gradingService.getObservationLogs(
+      user.id,
+      user.role,
+      undefined,
+      {
+        page: page ? parseInt(page, 10) : undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      },
+    );
   }
 
   @Get('grade-revisions')
   @Roles(Role.TEACHER)
-  @ApiOperation({ summary: 'Get grade revision requests for the current teacher' })
+  @ApiOperation({
+    summary: 'Get grade revision requests for the current teacher',
+  })
   async getGradeRevisions(
     @Query('teacherId') teacherId: string,
     @CurrentUser()
@@ -340,11 +361,7 @@ export class TeacherController {
       staffProfile?: { id: string };
     },
   ) {
-    return this.gradingService.deleteObservation(
-      observationId,
-      user.id,
-      user.role,
-    );
+    return this.gradingService.deleteObservation(observationId, user.id);
   }
 
   @Get('grade-issues')

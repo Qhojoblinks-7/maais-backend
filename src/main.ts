@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseCompressionMiddleware } from './common/middleware/response-compression.middleware';
+import { QueryProfilingMiddleware } from './common/middleware/query-profiling.middleware';
+import { RateLimitingMiddleware } from './common/middleware/rate-limiting.middleware';
 
 // Logs any request that breaches the 2–5s UI response budget so slow
 // endpoints can be identified and optimized.
@@ -25,7 +27,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   // Compression (zero-dep, zlib) + slow-request timing for all roles.
+  app.use(new QueryProfilingMiddleware().use);
   app.use(requestTimingMiddleware);
+  app.use(new RateLimitingMiddleware().use);
   app.use(new ResponseCompressionMiddleware().use);
 
   // Global validation

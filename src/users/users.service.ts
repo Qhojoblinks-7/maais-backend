@@ -7,6 +7,50 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, Gender } from '@prisma/client';
 import * as argon2 from 'argon2';
 
+// Student accounts always use a strict, deterministic email derived from the
+// index number. This guarantees a 1:1 mapping (index → email) and removes any
+// free-text email input that could be abused.
+export const STUDENT_EMAIL_DOMAIN = 'st.mandoshts.edu.gh';
+
+// Default password assigned to students on creation. They are forced to change
+// it on first login (User.mustChangePassword is set true by the schema default).
+export const DEFAULT_STUDENT_PASSWORD = 'Student@2024!';
+
+/**
+ * Student index numbers must be plain identifiers (e.g. "MSHTS/2024/001" or a
+ * WAEC-style number). We reject anything containing characters that are used in
+ * SQL / shell / markup injection so a malicious value can never reach a query
+ * or be rendered unsafely. Everything is still passed through Prisma's
+ * parameterized queries, but defense-in-depth starts at the boundary.
+ */
+const INDEX_NUMBER_PATTERN = /^[A-Za-z0-9/_.\- ]{2,40}$/;
+
+function sanitizeText(value: unknown, maxLength = 120): string {
+  if (value == null) return '';
+  return String(value)
+    .replace(/[\u0000-\u001F\u007F]/g, '') // strip control chars
+    .replace(/[<>"'`;\\]/g, '') // strip common injection metacharacters
+    .trim()
+    .slice(0, maxLength);
+}
+
+function sanitizeIndexNumber(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) throw new ForbiddenException('Index number is required');
+  if (!INDEX_NUMBER_PATTERN.test(raw)) {
+    throw new ForbiddenException(
+      'Index number contains invalid characters or is too long',
+    );
+  }
+  return raw;
+}
+
+function deriveStudentEmail(indexNumber: string): string {
+  // Use the raw index number as the local part; the domain is fixed and never
+  // influenced by user input.
+  return `${indexNumber}@${STUDENT_EMAIL_DOMAIN}`;
+}
+
 export interface CreateStaffDto {
   email: string;
   password: string;
@@ -18,6 +62,19 @@ export interface CreateStaffDto {
   gender: Gender;
   phone?: string;
   departmentId?: string;
+}
+
+export interface UpdateStaffDto {
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  phone?: string;
+  staffId?: string;
+  departmentId?: string;
+  gender?: Gender;
+  email?: string;
+  role?: Role;
+  isActive?: boolean;
 }
 
 export interface CreateStudentDto {
@@ -80,29 +137,82 @@ export class UsersService {
     });
   }
 
+  async updateStaff(staffId: string, dto: UpdateStaffDto) {
+    const staffProfile = await this.prisma.staffProfile.findFirst({
+      where: { OR: [{ id: staffId }, { userId: staffId }] },
+      include: { user: true },
+    });
+
+    if (!staffProfile) throw new Error('Staff profile not found');
+
+    const profileData: any = {};
+    if (dto.firstName !== undefined) profileData.firstName = dto.firstName;
+    if (dto.lastName !== undefined) profileData.lastName = dto.lastName;
+    if (dto.middleName !== undefined) profileData.middleName = dto.middleName;
+    if (dto.phone !== undefined) profileData.phone = dto.phone;
+    if (dto.staffId !== undefined) profileData.staffId = dto.staffId;
+    if (dto.departmentId !== undefined) profileData.departmentId = dto.departmentId;
+    if (dto.gender !== undefined) profileData.gender = dto.gender;
+
+    if (Object.keys(profileData).length > 0) {
+      await this.prisma.staffProfile.update({
+        where: { id: staffProfile.id },
+        data: profileData,
+      });
+    }
+
+    const userData: any = {};
+    if (dto.email !== undefined) userData.email = dto.email;
+    if (dto.role !== undefined) userData.role = dto.role;
+    if (dto.isActive !== undefined) userData.isActive = dto.isActive;
+
+    if (Object.keys(userData).length > 0) {
+      await this.prisma.user.update({
+        where: { id: staffProfile.userId },
+        data: userData,
+      });
+    }
+
+    return this.prisma.staffProfile.findUnique({
+      where: { id: staffProfile.id },
+      include: {
+        user: { select: { email: true, role: true, isActive: true } },
+        department: true,
+      },
+    });
+  }
+
   async createStudent(dto: CreateStudentDto) {
+    const indexNumber = sanitizeIndexNumber(dto.indexNumber);
+
     const indexExists = await this.prisma.studentProfile.findUnique({
-      where: { indexNumber: dto.indexNumber },
+      where: { indexNumber },
     });
     if (indexExists)
       throw new ConflictException(
-        `Index number ${dto.indexNumber} already registered`,
+        `Index number ${indexNumber} already registered`,
       );
 
-    const passwordHash = await argon2.hash(dto.password);
-    const email = dto.email ?? `${dto.indexNumber}@student.mandoshts.edu.gh`;
+    const passwordHash = await argon2.hash(
+      dto.password || DEFAULT_STUDENT_PASSWORD,
+    );
+
+    // Email is ALWAYS derived from the index number. Any client-supplied email
+    // is ignored so it can never be spoofed or used to inject data.
+    const email = deriveStudentEmail(indexNumber);
 
     const student = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
         role: Role.STUDENT,
+        mustChangePassword: true,
         studentProfile: {
           create: {
-            indexNumber: dto.indexNumber,
-            firstName: dto.firstName,
-            lastName: dto.lastName,
-            middleName: dto.middleName,
+            indexNumber,
+            firstName: sanitizeText(dto.firstName),
+            lastName: sanitizeText(dto.lastName),
+            middleName: sanitizeText(dto.middleName),
             gender: dto.gender,
             dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
             currentClassId: dto.currentClassId,
@@ -647,6 +757,37 @@ export class UsersService {
     }
 
     return staffProfile;
+  }
+
+  async bulkImportStaff(staffList: any[]) {
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (const s of staffList) {
+      try {
+        const dto: CreateStaffDto = {
+          email: s.email,
+          password: s.password || 'Staff@2024!',
+          role: s.role || Role.TEACHER,
+          staffId: s.staffId || `STF-${Date.now()}-${results.success + results.failed}`,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          middleName: s.middleName,
+          gender: (s.gender || 'MALE').toUpperCase(),
+          phone: s.phone,
+          departmentId: s.departmentId,
+        };
+        await this.createStaff(dto);
+        results.success++;
+      } catch (err: any) {
+        results.failed++;
+        results.errors.push({
+          staffId: s.staffId || s.email || 'unknown',
+          error: err.message || 'Unknown error',
+        });
+      }
+    }
+
+    return results;
   }
 
   async batchImportStudents(students: any[]) {

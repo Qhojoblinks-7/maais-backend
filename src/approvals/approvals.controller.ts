@@ -104,8 +104,8 @@ export class ApprovalsController {
   @Post()
   @Roles(Role.TEACHER)
   @ApiOperation({ summary: 'Create a new approval request' })
-  create(@Body() dto: CreateApprovalDto, @CurrentUser('id') userId: string) {
-    return this.approvalsService.create(dto, userId);
+  create(@Body() dto: CreateApprovalDto) {
+    return this.approvalsService.create(dto);
   }
 
   @Get(':id')

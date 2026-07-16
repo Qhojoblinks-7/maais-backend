@@ -14,6 +14,8 @@ import { UsersService, CreateParentDto } from './users.service';
 import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { CreateStudentDto } from './dto/create-student.dto';
+import { BulkImportStaffDto } from './dto/bulk-import-staff.dto';
+import { UpdateStaffDto } from './dto/update-staff.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -26,6 +28,20 @@ export class UsersController {
   @ApiOperation({ summary: 'Create a staff account' })
   createStaff(@Body() dto: CreateStaffDto) {
     return this.usersService.createStaff(dto);
+  }
+
+  @Post('staff/bulk')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Bulk import staff accounts' })
+  bulkImportStaff(@Body() dto: BulkImportStaffDto) {
+    return this.usersService.bulkImportStaff(dto.staff || []);
+  }
+
+  @Patch('staff/:id')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Update a staff account' })
+  updateStaff(@Param('id') id: string, @Body() dto: UpdateStaffDto) {
+    return this.usersService.updateStaff(id, dto);
   }
 
   @Post('students')

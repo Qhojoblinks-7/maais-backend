@@ -73,12 +73,41 @@ let AuthService = class AuthService {
             this.signAccessToken(user.id, user.email, user.role),
             this.createRefreshToken(user.id),
         ]);
+        const { passwordHash, ...userDto } = user;
+        void passwordHash;
         return {
             accessToken,
             refreshToken,
             userId: user.id,
-            user: await this.sanitizeUser(user),
+            user: userDto,
         };
+    }
+    async changePassword(userId, currentPassword, newPassword) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new common_1.ForbiddenException('User not found');
+        const isValid = await argon2.verify(user.passwordHash, currentPassword);
+        if (!isValid) {
+            throw new common_1.ForbiddenException('Current password is incorrect');
+        }
+        if (newPassword.length < 8) {
+            throw new common_1.ForbiddenException('New password must be at least 8 characters long');
+        }
+        const sameAsOld = await argon2.verify(user.passwordHash, newPassword);
+        if (sameAsOld) {
+            throw new common_1.ForbiddenException('New password must be different from the current password');
+        }
+        const newHash = await argon2.hash(newPassword);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: newHash,
+                mustChangePassword: false,
+                passwordChangedAt: new Date(),
+            },
+        });
+        await this.prisma.refreshToken.deleteMany({ where: { userId } });
+        return { success: true, message: 'Password changed successfully' };
     }
     async refreshTokens(userId, token) {
         const stored = await this.prisma.refreshToken.findUnique({
@@ -111,53 +140,6 @@ let AuthService = class AuthService {
             data: { token, userId, expiresAt },
         });
         return token;
-    }
-    async sanitizeUser(user) {
-        const fullUser = await this.prisma.user.findUnique({
-            where: { id: user.id },
-            include: {
-                studentProfile: {
-                    select: {
-                        id: true,
-                        indexNumber: true,
-                        firstName: true,
-                        lastName: true,
-                        middleName: true,
-                        gender: true,
-                        dateOfBirth: true,
-                        photoUrl: true,
-                        admissionDate: true,
-                        currentClassId: true,
-                        departmentId: true,
-                    },
-                },
-                staffProfile: {
-                    select: {
-                        id: true,
-                        staffId: true,
-                        firstName: true,
-                        lastName: true,
-                        middleName: true,
-                        gender: true,
-                        dateOfBirth: true,
-                        photoUrl: true,
-                        departmentId: true,
-                    },
-                },
-                parentProfile: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        phone: true,
-                        email: true,
-                        occupation: true,
-                    },
-                },
-            },
-        });
-        const { passwordHash: _, ...userDto } = fullUser;
-        return userDto;
     }
 };
 exports.AuthService = AuthService;

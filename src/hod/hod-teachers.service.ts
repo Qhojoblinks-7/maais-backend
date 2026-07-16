@@ -7,6 +7,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, AuditAction } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
 import { OCCService } from '../common/services/occ.service';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class HODTeacherService {
@@ -21,6 +22,8 @@ export class HODTeacherService {
     role: Role,
     academicYearId?: string,
     termNumber?: string,
+    page = 1,
+    limit = 50,
   ) {
     if (
       role !== Role.HOD &&
@@ -31,6 +34,7 @@ export class HODTeacherService {
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId },
+      select: { id: true, departmentId: true },
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
 
@@ -39,76 +43,94 @@ export class HODTeacherService {
       role,
       academicYearId: academicYearId ?? '',
       termNumber: termNumber ?? '',
+      page,
+      limit,
     });
     const cached = await this.cacheService.getCachedAggregate<
       Awaited<ReturnType<HODTeacherService['getTeacherSubmissionStatus']>>
     >('hod:teacher-status', cacheKey);
     if (cached) return cached;
 
-    // departmentTeachers + term lookup are independent → run in parallel.
-    const [departmentTeachers, targetTerm] = await Promise.all([
-      this.prisma.staffProfile.findMany({
-        where: {
-          departmentId: staffProfile.departmentId,
-          user: { role: Role.TEACHER },
-        },
-        include: { user: { select: { email: true } }, teachingAssignments: true },
-      }),
-      (async () => {
-        let term = null;
-        if (academicYearId && termNumber) {
-          term = await this.prisma.term.findFirst({
-            where: { academicYearId, termNumber: termNumber as any },
-          });
-        }
-        if (!term) {
-          term = await this.prisma.term.findFirst({
-            where: { isActive: true },
-            orderBy: { startDate: 'desc' },
-          });
-        }
-        return term;
-      })(),
-    ]);
+    let targetTerm = null;
+    if (academicYearId && termNumber) {
+      targetTerm = await this.prisma.term.findFirst({
+        where: { academicYearId, termNumber: termNumber as any },
+        select: { id: true },
+      });
+    }
+    if (!targetTerm) {
+      targetTerm = await this.prisma.term.findFirst({
+        where: { isActive: true },
+        orderBy: { startDate: 'desc' },
+        select: { id: true },
+      });
+    }
 
-    // ── Batched queries (was ~5 queries *per teacher*) ──────────────────
+    const teachers = await this.prisma.staffProfile.findMany({
+      where: {
+        departmentId: staffProfile.departmentId,
+        user: { role: Role.TEACHER },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        teachingAssignments: {
+          select: {
+            classSectionId: true,
+            subjectId: true,
+          },
+        },
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const teacherIds = teachers.map((t) => t.id);
+    const totalTeachers = await this.prisma.staffProfile.count({
+      where: {
+        departmentId: staffProfile.departmentId,
+        user: { role: Role.TEACHER },
+      },
+    });
+
     const allClassIds = Array.from(
       new Set(
-        departmentTeachers.flatMap((t) =>
+        teachers.flatMap((t) =>
           t.teachingAssignments.map((a) => a.classSectionId),
         ),
       ),
     );
     const allSubjectIds = Array.from(
       new Set(
-        departmentTeachers.flatMap((t) =>
-          t.teachingAssignments.map((a) => a.subjectId),
-        ),
+        teachers.flatMap((t) => t.teachingAssignments.map((a) => a.subjectId)),
       ),
     );
 
-    const studentsRaw =
-      allClassIds.length > 0
-        ? await this.prisma.studentProfile.findMany({
-            where: { currentClassId: { in: allClassIds }, archivedAt: null },
-            select: { id: true, currentClassId: true },
-          })
-        : [];
-    const allStudentIds = studentsRaw.map((s) => s.id);
+    const studentsByClass = new Map<string, string[]>();
+    if (allClassIds.length > 0) {
+      const students = await this.prisma.studentProfile.findMany({
+        where: { currentClassId: { in: allClassIds }, archivedAt: null },
+        select: { id: true, currentClassId: true },
+      });
+      for (const s of students) {
+        if (!s.currentClassId) continue;
+        const arr = studentsByClass.get(s.currentClassId) ?? [];
+        arr.push(s.id);
+        studentsByClass.set(s.currentClassId, arr);
+      }
+    }
 
-    // studentCountRows, gradeEntries and attRows are independent of each other
-    // (attRows reuses the already-fetched student id list) → run concurrently.
-    const [studentCountRows, gradeEntries, attRows] = await Promise.all([
-      allClassIds.length > 0
-        ? this.prisma.studentProfile.groupBy({
-            by: ['currentClassId'],
-            where: { currentClassId: { in: allClassIds }, archivedAt: null },
-            _count: { _all: true },
-          })
-        : Promise.resolve([] as any[]),
+    const allStudentIds = Array.from(studentsByClass.values()).flat();
+
+    const [gradeEntries, attRows] = await Promise.all([
       targetTerm && allSubjectIds.length > 0
         ? this.prisma.gradeEntry.findMany({
-            where: { termId: targetTerm.id, subjectId: { in: allSubjectIds } },
+            where: {
+              termId: targetTerm.id,
+              subjectId: { in: allSubjectIds },
+              submittedById: { in: teacherIds },
+            },
             select: {
               subjectId: true,
               totalScore: true,
@@ -116,38 +138,26 @@ export class HODTeacherService {
               hasObservation: true,
             },
           })
-        : Promise.resolve([] as any[]),
+        : Promise.resolve([]),
       targetTerm && allStudentIds.length > 0
         ? this.prisma.attendanceRecord.groupBy({
             by: ['studentId'],
             where: { studentId: { in: allStudentIds }, termId: targetTerm.id },
             _count: { _all: true },
           })
-        : Promise.resolve([] as any[]),
+        : Promise.resolve([]),
     ]);
-
-    const studentCountByClass = new Map<string, number>();
-    for (const r of studentCountRows) {
-      if (r.currentClassId)
-        studentCountByClass.set(r.currentClassId, r._count._all);
-    }
-
-    const studentIdsByClass = new Map<string, string[]>();
-    for (const s of studentsRaw) {
-      if (!s.currentClassId) continue;
-      const arr = studentIdsByClass.get(s.currentClassId) ?? [];
-      arr.push(s.id);
-      studentIdsByClass.set(s.currentClassId, arr);
-    }
 
     const gradeAggBySubject = new Map<
       string,
       { total: number; signed: number; obs: number }
     >();
     for (const g of gradeEntries) {
-      const cur =
-        gradeAggBySubject.get(g.subjectId) ??
-        { total: 0, signed: 0, obs: 0 };
+      const cur = gradeAggBySubject.get(g.subjectId) ?? {
+        total: 0,
+        signed: 0,
+        obs: 0,
+      };
       if (g.totalScore !== null) cur.total += 1;
       if (g.submittedById !== null) cur.signed += 1;
       if (g.hasObservation) cur.obs += 1;
@@ -159,17 +169,13 @@ export class HODTeacherService {
       attCountByStudent.set(r.studentId, r._count._all);
     }
 
-    const submissions = departmentTeachers.map((teacher) => {
+    const submissions = teachers.map((teacher) => {
       const subjectIds = teacher.teachingAssignments.map((a) => a.subjectId);
-      const classIds = teacher.teachingAssignments.map(
-        (a) => a.classSectionId,
-      );
+      const classIds = teacher.teachingAssignments.map((a) => a.classSectionId);
 
-      const studentIds = classIds.flatMap(
-        (c) => studentIdsByClass.get(c) ?? [],
-      );
+      const studentIds = classIds.flatMap((c) => studentsByClass.get(c) ?? []);
       const studentCount = classIds.reduce(
-        (sum, c) => sum + (studentCountByClass.get(c) ?? 0),
+        (sum, c) => sum + (studentsByClass.get(c)?.length ?? 0),
         0,
       );
 
@@ -193,17 +199,13 @@ export class HODTeacherService {
       const totalExpected = studentCount * subjectIds.length;
       const totalAttendance = studentCount * 60;
       const gradePct =
-        totalExpected > 0
-          ? Math.round((gradeCount / totalExpected) * 100)
-          : 0;
+        totalExpected > 0 ? Math.round((gradeCount / totalExpected) * 100) : 0;
       const attendancePct =
         totalAttendance > 0
           ? Math.round((attendanceCount / totalAttendance) * 100)
           : 0;
       const signOffPct =
-        totalExpected > 0
-          ? Math.round((signedCount / totalExpected) * 100)
-          : 0;
+        totalExpected > 0 ? Math.round((signedCount / totalExpected) * 100) : 0;
       const observationPct =
         totalExpected > 0
           ? Math.round((observationCount / totalExpected) * 100)
@@ -218,7 +220,7 @@ export class HODTeacherService {
       return {
         teacherId: teacher.id,
         name: `${teacher.firstName} ${teacher.lastName}`,
-        email: teacher.user?.email || '',
+        email: '',
         status:
           progress === 100
             ? 'SUBMITTED'
@@ -229,7 +231,13 @@ export class HODTeacherService {
       };
     });
 
-    const result = submissions;
+    const result = {
+      data: submissions,
+      total: totalTeachers,
+      page,
+      limit,
+      pages: Math.ceil(totalTeachers / limit),
+    };
 
     await this.cacheService.setCachedAggregate(
       'hod:teacher-status',
@@ -244,7 +252,7 @@ export class HODTeacherService {
   async getDepartmentTeachers(
     userId: string,
     role: Role,
-    params?: { search?: string },
+    params?: { search?: string; page?: number; limit?: number },
   ) {
     if (
       role !== Role.HOD &&
@@ -255,13 +263,20 @@ export class HODTeacherService {
 
     const staffProfile = await this.prisma.staffProfile.findUnique({
       where: { userId },
+      select: { id: true, departmentId: true },
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
+
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 50;
+    const skip = (page - 1) * limit;
 
     const cacheKey = this.getCacheKey('getDepartmentTeachers', {
       userId,
       role,
       search: params?.search ?? '',
+      page,
+      limit,
     });
     const cached = await this.cacheService.getCachedAggregate<
       Awaited<ReturnType<HODTeacherService['getDepartmentTeachers']>>
@@ -281,8 +296,7 @@ export class HODTeacherService {
       ];
     }
 
-    // teachers + activeTerm are independent → run in parallel.
-    const [teachers, activeTerm] = await Promise.all([
+    const [teachers, total] = await Promise.all([
       this.prisma.staffProfile.findMany({
         where: whereClause,
         include: {
@@ -295,19 +309,21 @@ export class HODTeacherService {
           },
         },
         orderBy: { lastName: 'asc' },
+        skip,
+        take: limit,
       }),
-      this.prisma.term.findFirst({
-        where: { isActive: true },
-        orderBy: { startDate: 'desc' },
-      }),
+      this.prisma.staffProfile.count({ where: whereClause }),
     ]);
 
-    // Collect all subject/class pairs once, then a single grade query.
+    const activeTerm = await this.prisma.term.findFirst({
+      where: { isActive: true },
+      orderBy: { startDate: 'desc' },
+      select: { id: true },
+    });
+
     const allSubjectIds = Array.from(
       new Set(
-        teachers.flatMap((t) =>
-          t.teachingAssignments.map((a) => a.subjectId),
-        ),
+        teachers.flatMap((t) => t.teachingAssignments.map((a) => a.subjectId)),
       ),
     );
     const allClassSectionIds = Array.from(
@@ -400,14 +416,22 @@ export class HODTeacherService {
       };
     });
 
+    const paginatedResult = {
+      data: result,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
+
     await this.cacheService.setCachedAggregate(
       'hod:dept-teachers',
       cacheKey,
-      result,
+      paginatedResult,
       300,
     );
 
-    return result;
+    return paginatedResult;
   }
 
   async resetTeacherPassword(
@@ -451,7 +475,6 @@ export class HODTeacherService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    const argon2 = require('argon2');
     return argon2.hash(password);
   }
 

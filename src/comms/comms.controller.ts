@@ -119,7 +119,13 @@ export class CommsController {
     @CurrentUser('id') userId?: string,
     @CurrentUser('role') role?: Role,
   ) {
-    return this.commsService.getAnalyticsPulse(academicYearId, userId, role, termId, level);
+    return this.commsService.getAnalyticsPulse(
+      academicYearId,
+      userId,
+      role,
+      termId,
+      level,
+    );
   }
 
   @Post('tickets')

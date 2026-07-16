@@ -262,16 +262,15 @@ export class HODGradeService {
     return {
       id: r.id,
       teacherId: r.teacherId,
-      student: student
-        ? `${student.firstName} ${student.lastName}`
-        : 'Unknown',
+      student: student ? `${student.firstName} ${student.lastName}` : 'Unknown',
       index: student?.indexNumber || '',
       class: student?.currentClass?.name || r.className || 'Unknown',
       subject: subject?.name || 'Unknown',
       issue: r.issue,
       status: r.status,
       severity: r.severity,
-      time: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
+      time:
+        r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
       history: Array.isArray(r.history) ? r.history : [],
       recordId: r.gradeEntryId,
     };
@@ -391,49 +390,49 @@ export class HODGradeService {
     }
   }
 
-   async updateHODComment(
-     recordId: string,
-     comment: string,
-     userId: string,
-     role: Role,
-   ) {
-     if (
-       role !== Role.HOD &&
-       role !== Role.HEADMASTER &&
-       role !== Role.SUPER_ADMIN
-     )
-       throw new ForbiddenException('Only HODs can add comments');
-     const revision = await this.prisma.gradeRevision.findUnique({
-       where: { id: recordId },
-     });
-     if (!revision) throw new NotFoundException('Revision not found');
-     const existingHistory = Array.isArray(revision.history)
-       ? revision.history
-       : [];
-     const updatedHistory = [
-       ...existingHistory,
-       {
-         id: Date.now(),
-         role: 'HOD',
-         user: 'HOD',
-         message: comment,
-         time: new Date().toISOString(),
-       },
-     ];
-     const updated = await this.prisma.gradeRevision.update({
-       where: { id: recordId },
-       data: { history: updatedHistory },
-     });
+  async updateHODComment(
+    recordId: string,
+    comment: string,
+    userId: string,
+    role: Role,
+  ) {
+    if (
+      role !== Role.HOD &&
+      role !== Role.HEADMASTER &&
+      role !== Role.SUPER_ADMIN
+    )
+      throw new ForbiddenException('Only HODs can add comments');
+    const revision = await this.prisma.gradeRevision.findUnique({
+      where: { id: recordId },
+    });
+    if (!revision) throw new NotFoundException('Revision not found');
+    const existingHistory = Array.isArray(revision.history)
+      ? revision.history
+      : [];
+    const updatedHistory = [
+      ...existingHistory,
+      {
+        id: Date.now(),
+        role: 'HOD',
+        user: 'HOD',
+        message: comment,
+        time: new Date().toISOString(),
+      },
+    ];
+    const updated = await this.prisma.gradeRevision.update({
+      where: { id: recordId },
+      data: { history: updatedHistory },
+    });
 
-     await this.notifyTeacher(
-       revision.teacherId,
-       'HOD Feedback Added',
-       `HOD has added feedback on your grade revision for ${revision.className || 'a class'}: ${comment}`,
-       userId,
-     );
+    await this.notifyTeacher(
+      revision.teacherId,
+      'HOD Feedback Added',
+      `HOD has added feedback on your grade revision for ${revision.className || 'a class'}: ${comment}`,
+      userId,
+    );
 
-     return updated;
-   }
+    return updated;
+  }
 
   async lockTerm(termId: string, userId: string, role: Role) {
     if (

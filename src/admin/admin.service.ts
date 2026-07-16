@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -194,12 +195,30 @@ export class AdminService {
       throw new NotFoundException('Staff user account not found');
     }
 
+    // Guard against silent lockouts: never reset your own account, and never
+    // reset a privileged (SUPER_ADMIN / HEADMASTER) account this way, since the
+    // generated temporary password would otherwise lock the administrator out.
+    if (performedById && staff.user.id === performedById) {
+      throw new ForbiddenException(
+        'You cannot reset your own credentials here. Use account settings to change your password.',
+      );
+    }
+
+    if (
+      staff.user.role === Role.SUPER_ADMIN ||
+      staff.user.role === Role.HEADMASTER
+    ) {
+      throw new ForbiddenException(
+        'Administrator credentials cannot be reset from the staff directory. Use a secure account-recovery flow instead.',
+      );
+    }
+
     const tempPassword = temporaryPassword || this.generateTemporaryPassword();
     const passwordHash = await argon2.hash(tempPassword);
 
     await this.prisma.user.update({
       where: { id: staff.user.id },
-      data: { passwordHash },
+      data: { passwordHash, mustChangePassword: true },
     });
 
     await this.prisma.auditLog.create({

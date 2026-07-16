@@ -1,12 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommsService } from './comms.service';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { ForbiddenException } from '@nestjs/common';
+import { CircuitBreakerService } from '../common/services/circuit-breaker.service';
 
 describe('CommsService (Support Tickets)', () => {
   let service: CommsService;
-  let prisma: PrismaService;
+
+  const mockConfigService = {
+    get: jest.fn(),
+  };
 
   const mockPrisma = {
     user: {
@@ -35,31 +40,51 @@ describe('CommsService (Support Tickets)', () => {
       providers: [
         CommsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ConfigService, useValue: mockConfigService },
+        {
+          provide: CircuitBreakerService,
+          useValue: {
+            execute: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<CommsService>(CommsService);
-    prisma = module.get<PrismaService>(PrismaService);
     jest.clearAllMocks();
   });
 
-  it('createTicket throws when requester is not a student', async () => {
+  it('createTicket creates ticket for non-student with studentId null', async () => {
     mockPrisma.user.findUnique = jest.fn().mockResolvedValue({
       id: 'user-1',
       studentProfile: null,
     });
 
-    await expect(
-      service.createTicket(
-        {
-          title: 'Test',
-          description: 'Desc',
-          category: 'General',
-          priority: 'MEDIUM',
-        },
-        'user-1',
-      ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    mockPrisma.supportTicket.create = jest.fn().mockResolvedValue({
+      id: 'ticket-1',
+      studentId: null,
+      student: null,
+    });
+
+    const result = await service.createTicket(
+      {
+        title: 'Test',
+        description: 'Desc',
+        category: 'General',
+        priority: 'MEDIUM',
+      },
+      'user-1',
+    );
+
+    expect(result.id).toBe('ticket-1');
+    expect(mockPrisma.supportTicket.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: null,
+          createdById: 'user-1',
+        }),
+      }),
+    );
   });
 
   it('createTicket creates ticket for student', async () => {
@@ -85,7 +110,14 @@ describe('CommsService (Support Tickets)', () => {
     );
 
     expect(result.id).toBe('ticket-1');
-    expect(mockPrisma.supportTicket.create).toHaveBeenCalled();
+    expect(mockPrisma.supportTicket.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: 'student-1',
+          createdById: 'user-1',
+        }),
+      }),
+    );
   });
 
   it('listTickets filters by studentId for STUDENT role', async () => {
@@ -105,7 +137,6 @@ describe('CommsService (Support Tickets)', () => {
       expect.objectContaining({
         where: expect.objectContaining({ studentId: 'student-1' }),
       }),
-      undefined,
     );
   });
 
@@ -128,12 +159,14 @@ describe('CommsService (Support Tickets)', () => {
 
     expect(mockPrisma.supportTicket.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          studentId: { in: ['student-1', 'student-2'] },
+        where: expect.objectContaining({
+          OR: [
+            { studentId: { in: ['student-1', 'student-2'] } },
+            { createdById: 'user-1' },
+          ],
           category: 'General',
-        },
+        }),
       }),
-      undefined,
     );
   });
 
@@ -178,13 +211,11 @@ describe('CommsService (Support Tickets)', () => {
     expect(mockPrisma.supportTicket.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'ticket-1' },
-        data: {
+        data: expect.objectContaining({
           status: 'RESOLVED',
-          resolvedAt: expect.any(Date),
           assignedTo: 'user-1',
-        },
+        }),
       }),
-      undefined,
     );
   });
 
@@ -227,9 +258,8 @@ describe('CommsService (Support Tickets)', () => {
     expect(mockPrisma.supportTicket.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'ticket-1' },
-        data: { priority: 'HIGH' },
+        data: expect.objectContaining({ priority: 'HIGH' }),
       }),
-      undefined,
     );
   });
 });

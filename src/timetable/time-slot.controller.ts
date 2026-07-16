@@ -6,9 +6,7 @@ import {
   Delete,
   Body,
   Param,
-  Query,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -26,7 +24,9 @@ export class TimeSlotController {
 
   @Get()
   @Roles(Role.HEADMASTER, Role.HOD, Role.TEACHER, Role.STUDENT)
-  @ApiOperation({ summary: 'Get all active time slots (readable by all roles)' })
+  @ApiOperation({
+    summary: 'Get all active time slots (readable by all roles)',
+  })
   findAll() {
     return this.timeSlotService.findAll();
   }
@@ -34,7 +34,16 @@ export class TimeSlotController {
   @Post()
   @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a new time slot (admin only)' })
-  create(@Body() body: { label: string; startTime: string; endTime: string; isBreak?: boolean; sortOrder?: number }) {
+  create(
+    @Body()
+    body: {
+      label: string;
+      startTime: string;
+      endTime: string;
+      isBreak?: boolean;
+      sortOrder?: number;
+    },
+  ) {
     return this.timeSlotService.create(body);
   }
 
@@ -43,7 +52,15 @@ export class TimeSlotController {
   @ApiOperation({ summary: 'Update a time slot (admin only)' })
   update(
     @Param('id') id: string,
-    @Body() body: { label?: string; startTime?: string; endTime?: string; isBreak?: boolean; sortOrder?: number; isActive?: boolean },
+    @Body()
+    body: {
+      label?: string;
+      startTime?: string;
+      endTime?: string;
+      isBreak?: boolean;
+      sortOrder?: number;
+      isActive?: boolean;
+    },
   ) {
     return this.timeSlotService.update(id, body);
   }

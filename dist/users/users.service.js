@@ -42,11 +42,35 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersService = void 0;
+exports.UsersService = exports.DEFAULT_STUDENT_PASSWORD = exports.STUDENT_EMAIL_DOMAIN = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../common/prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const argon2 = __importStar(require("argon2"));
+exports.STUDENT_EMAIL_DOMAIN = 'st.mandoshts.edu.gh';
+exports.DEFAULT_STUDENT_PASSWORD = 'Student@2024!';
+const INDEX_NUMBER_PATTERN = /^[A-Za-z0-9/_.\- ]{2,40}$/;
+function sanitizeText(value, maxLength = 120) {
+    if (value == null)
+        return '';
+    return String(value)
+        .replace(/[\u0000-\u001F\u007F]/g, '')
+        .replace(/[<>"'`;\\]/g, '')
+        .trim()
+        .slice(0, maxLength);
+}
+function sanitizeIndexNumber(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw)
+        throw new common_1.ForbiddenException('Index number is required');
+    if (!INDEX_NUMBER_PATTERN.test(raw)) {
+        throw new common_1.ForbiddenException('Index number contains invalid characters or is too long');
+    }
+    return raw;
+}
+function deriveStudentEmail(indexNumber) {
+    return `${indexNumber}@${exports.STUDENT_EMAIL_DOMAIN}`;
+}
 let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -78,25 +102,76 @@ let UsersService = class UsersService {
             include: { staffProfile: true },
         });
     }
+    async updateStaff(staffId, dto) {
+        const staffProfile = await this.prisma.staffProfile.findFirst({
+            where: { OR: [{ id: staffId }, { userId: staffId }] },
+            include: { user: true },
+        });
+        if (!staffProfile)
+            throw new Error('Staff profile not found');
+        const profileData = {};
+        if (dto.firstName !== undefined)
+            profileData.firstName = dto.firstName;
+        if (dto.lastName !== undefined)
+            profileData.lastName = dto.lastName;
+        if (dto.middleName !== undefined)
+            profileData.middleName = dto.middleName;
+        if (dto.phone !== undefined)
+            profileData.phone = dto.phone;
+        if (dto.staffId !== undefined)
+            profileData.staffId = dto.staffId;
+        if (dto.departmentId !== undefined)
+            profileData.departmentId = dto.departmentId;
+        if (dto.gender !== undefined)
+            profileData.gender = dto.gender;
+        if (Object.keys(profileData).length > 0) {
+            await this.prisma.staffProfile.update({
+                where: { id: staffProfile.id },
+                data: profileData,
+            });
+        }
+        const userData = {};
+        if (dto.email !== undefined)
+            userData.email = dto.email;
+        if (dto.role !== undefined)
+            userData.role = dto.role;
+        if (dto.isActive !== undefined)
+            userData.isActive = dto.isActive;
+        if (Object.keys(userData).length > 0) {
+            await this.prisma.user.update({
+                where: { id: staffProfile.userId },
+                data: userData,
+            });
+        }
+        return this.prisma.staffProfile.findUnique({
+            where: { id: staffProfile.id },
+            include: {
+                user: { select: { email: true, role: true, isActive: true } },
+                department: true,
+            },
+        });
+    }
     async createStudent(dto) {
+        const indexNumber = sanitizeIndexNumber(dto.indexNumber);
         const indexExists = await this.prisma.studentProfile.findUnique({
-            where: { indexNumber: dto.indexNumber },
+            where: { indexNumber },
         });
         if (indexExists)
-            throw new common_1.ConflictException(`Index number ${dto.indexNumber} already registered`);
-        const passwordHash = await argon2.hash(dto.password);
-        const email = dto.email ?? `${dto.indexNumber}@student.mandoshts.edu.gh`;
+            throw new common_1.ConflictException(`Index number ${indexNumber} already registered`);
+        const passwordHash = await argon2.hash(dto.password || exports.DEFAULT_STUDENT_PASSWORD);
+        const email = deriveStudentEmail(indexNumber);
         const student = await this.prisma.user.create({
             data: {
                 email,
                 passwordHash,
                 role: client_1.Role.STUDENT,
+                mustChangePassword: true,
                 studentProfile: {
                     create: {
-                        indexNumber: dto.indexNumber,
-                        firstName: dto.firstName,
-                        lastName: dto.lastName,
-                        middleName: dto.middleName,
+                        indexNumber,
+                        firstName: sanitizeText(dto.firstName),
+                        lastName: sanitizeText(dto.lastName),
+                        middleName: sanitizeText(dto.middleName),
                         gender: dto.gender,
                         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
                         currentClassId: dto.currentClassId,
@@ -564,6 +639,35 @@ let UsersService = class UsersService {
             }
         }
         return staffProfile;
+    }
+    async bulkImportStaff(staffList) {
+        const results = { success: 0, failed: 0, errors: [] };
+        for (const s of staffList) {
+            try {
+                const dto = {
+                    email: s.email,
+                    password: s.password || 'Staff@2024!',
+                    role: s.role || client_1.Role.TEACHER,
+                    staffId: s.staffId || `STF-${Date.now()}-${results.success + results.failed}`,
+                    firstName: s.firstName,
+                    lastName: s.lastName,
+                    middleName: s.middleName,
+                    gender: (s.gender || 'MALE').toUpperCase(),
+                    phone: s.phone,
+                    departmentId: s.departmentId,
+                };
+                await this.createStaff(dto);
+                results.success++;
+            }
+            catch (err) {
+                results.failed++;
+                results.errors.push({
+                    staffId: s.staffId || s.email || 'unknown',
+                    error: err.message || 'Unknown error',
+                });
+            }
+        }
+        return results;
     }
     async batchImportStudents(students) {
         const results = { success: 0, failed: 0, errors: [] };

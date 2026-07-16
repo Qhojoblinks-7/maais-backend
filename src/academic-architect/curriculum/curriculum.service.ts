@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
-import { CurrentUser } from '../../common/decorators/roles.decorator';
 
 export interface CurriculumMappingDto {
   id: string;

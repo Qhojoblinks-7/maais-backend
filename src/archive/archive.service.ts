@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ClassLevel, Role } from '@prisma/client';
 
@@ -359,7 +363,7 @@ export class ArchiveService {
     });
   }
 
-  async getArchiveStats(academicYearId?: string, termId?: string, level?: string) {
+  async getArchiveStats(academicYearId?: string, termId?: string) {
     const yearIds: string[] = [];
     if (academicYearId) {
       yearIds.push(academicYearId);
@@ -385,10 +389,14 @@ export class ArchiveService {
         where: { archivedAt: { not: null } },
       }),
       this.prisma.promotionRecord.count({
-        ...(yearIds.length ? { where: { academicYearId: { in: yearIds } } } : {}),
+        ...(yearIds.length
+          ? { where: { academicYearId: { in: yearIds } } }
+          : {}),
       }),
       this.prisma.reportCard.count({
-        ...(yearIds.length ? { where: { term: { academicYearId: { in: yearIds } } } } : {}),
+        ...(yearIds.length
+          ? { where: { term: { academicYearId: { in: yearIds } } } }
+          : {}),
       }),
       this.prisma.transcript.count(),
       this.prisma.department.count(),
@@ -594,13 +602,10 @@ export class ArchiveService {
     const basePerHouse = Math.floor(totalStudents / houseNames.length);
     const remainder = totalStudents % houseNames.length;
 
-    let studentIndex = 0;
     for (let i = 0; i < houseNames.length; i++) {
-      const count = basePerHouse + (i < remainder ? 1 : 0);
       // Note: House not stored on StudentProfile in current schema.
       // This returns the computed distribution; actual house assignment
       // would require a 'house' field on StudentProfile.
-      studentIndex += count;
     }
 
     return {

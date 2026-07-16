@@ -3,6 +3,8 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import * as argon2 from 'argon2';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
 
@@ -109,7 +111,6 @@ export class HODSettingsService {
     )
       throw new ForbiddenException('Only HODs can change password');
 
-    const argon2 = require('argon2');
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
@@ -119,7 +120,11 @@ export class HODSettingsService {
     const newHash = await argon2.hash(newPassword);
     await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: newHash },
+      data: {
+        passwordHash: newHash,
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
     });
     return { success: true, message: 'Password changed successfully' };
   }
@@ -253,7 +258,7 @@ export class HODSettingsService {
       }
     }
 
-    const newToken = require('crypto').randomBytes(32).toString('hex');
+    const newToken = randomBytes(32).toString('hex');
     return {
       success: true,
       token: newToken,
@@ -351,28 +356,48 @@ export class HODSettingsService {
     });
     if (!staffProfile) throw new NotFoundException('Staff profile not found');
 
-    const anyStudentId =
-      ticket.studentId ||
-      (await this.prisma.studentProfile.findFirst({ select: { id: true } }))
-        ?.id;
+    // Align with the canonical /comms/tickets model:
+    // accept `subject` (HOD form) or `title`, fold optional `notes` into the
+    // description, and only attribute the ticket to a student when one is
+    // explicitly provided (never a random fallback).
+    const title = ticket.title || ticket.subject;
+    const notes = (ticket.notes || '').trim();
+    const description = notes
+      ? `${ticket.description || ''}\n\nNotes: ${notes}`.trim()
+      : ticket.description;
 
     const newTicket = await this.prisma.supportTicket.create({
       data: {
-        title: ticket.subject,
-        description: ticket.description,
+        title,
+        description,
         category: ticket.category || 'General',
         priority: ticket.priority || 'MEDIUM',
-        studentId: anyStudentId || '',
+        studentId: ticket.studentId || null,
         createdById: userId,
+        status: 'OPEN',
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            staffProfile: { select: { firstName: true, lastName: true } },
+            studentProfile: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
     });
 
     return {
       id: newTicket.id,
       subject: newTicket.title,
+      title: newTicket.title,
       description: newTicket.description,
+      category: newTicket.category,
       status: newTicket.status,
       priority: newTicket.priority,
+      createdBy: newTicket.createdBy,
       createdAt: newTicket.createdAt.toISOString(),
     };
   }

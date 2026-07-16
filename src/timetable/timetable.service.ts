@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { DayOfWeek, TimetableEntry } from '@prisma/client';
+import { DayOfWeek } from '@prisma/client';
 
 export interface CreateTimetableEntryDto {
   classId: string;

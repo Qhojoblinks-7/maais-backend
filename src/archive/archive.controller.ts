@@ -87,9 +87,8 @@ export class ArchiveController {
   getStats(
     @Query('academicYearId') academicYearId?: string,
     @Query('termId') termId?: string,
-    @Query('level') level?: string,
   ) {
-    return this.archiveService.getArchiveStats(academicYearId, termId, level);
+    return this.archiveService.getArchiveStats(academicYearId, termId);
   }
 
   @Get('health')

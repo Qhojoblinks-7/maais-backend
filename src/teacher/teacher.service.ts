@@ -39,9 +39,17 @@ export class TeacherService {
       >('teacher:classes', cacheKey);
       if (cached) return cached;
 
-      const staffProfile = await this.prisma.staffProfile.findUnique({
+      let staffProfile = await this.prisma.staffProfile.findUnique({
         where: { id: teacherId },
+        select: { id: true, userId: true },
       });
+
+      if (!staffProfile) {
+        staffProfile = await this.prisma.staffProfile.findUnique({
+          where: { userId: teacherId },
+          select: { id: true, userId: true },
+        });
+      }
 
       if (!staffProfile) {
         throw new NotFoundException('Teacher profile not found');
@@ -55,21 +63,17 @@ export class TeacherService {
         throw new ForbiddenException('You can only access your own classes');
       }
 
-      // activeTerm + assignments are independent → run in parallel.
       const [activeTerm, assignments] = await Promise.all([
         this.prisma.term.findFirst({
           where: { isActive: true },
           orderBy: { startDate: 'desc' },
+          select: { id: true },
         }),
         this.prisma.teachingAssignment.findMany({
           where: { teacherId },
           include: {
-            subject: { include: { department: true } },
-            classSection: {
-              include: {
-                classTeacher: true,
-              },
-            },
+            subject: { include: { department: { select: { name: true } } } },
+            classSection: { select: { id: true, name: true, level: true } },
           },
           orderBy: [
             { classSection: { level: 'asc' } },
@@ -79,44 +83,47 @@ export class TeacherService {
         }),
       ]);
 
-      // ── Batched queries (was 2 queries *per assignment*) ───────────────
       const classIds = assignments.map((a) => a.classSectionId);
       const subjectIds = assignments.map((a) => a.subjectId);
 
-      const allStudents = await this.prisma.studentProfile.findMany({
-        where: { currentClassId: { in: classIds }, archivedAt: null },
-        select: { id: true, currentClassId: true },
-      });
+      const [studentsRaw, allGrades] = await Promise.all([
+        this.prisma.studentProfile.findMany({
+          where: { currentClassId: { in: classIds }, archivedAt: null },
+          select: { id: true, currentClassId: true },
+        }),
+        activeTerm && subjectIds.length > 0
+          ? this.prisma.gradeEntry.findMany({
+              where: {
+                subjectId: { in: subjectIds },
+                termId: activeTerm.id,
+              },
+              select: {
+                studentId: true,
+                subjectId: true,
+                totalScore: true,
+                hasObservation: true,
+              },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const studentIds = studentsRaw.map((s) => s.id);
+      const gradesRaw = allGrades.filter((g) =>
+        studentIds.includes(g.studentId),
+      );
+
       const studentsByClass = new Map<string, string[]>();
-      const allStudentIds: string[] = [];
       const studentClass = new Map<string, string>();
-      for (const s of allStudents) {
+      for (const s of studentsRaw) {
         if (!s.currentClassId) continue;
         const arr = studentsByClass.get(s.currentClassId) ?? [];
         arr.push(s.id);
         studentsByClass.set(s.currentClassId, arr);
-        allStudentIds.push(s.id);
         studentClass.set(s.id, s.currentClassId);
       }
 
-      const allGrades = activeTerm
-        ? await this.prisma.gradeEntry.findMany({
-            where: {
-              studentId: { in: allStudentIds },
-              subjectId: { in: subjectIds },
-              termId: activeTerm.id,
-            },
-            select: {
-              studentId: true,
-              subjectId: true,
-              totalScore: true,
-              hasObservation: true,
-            },
-          })
-        : [];
-
-      const gradesByClassSubject = new Map<string, typeof allGrades>();
-      for (const g of allGrades) {
+      const gradesByClassSubject = new Map<string, typeof gradesRaw>();
+      for (const g of gradesRaw) {
         const classId = studentClass.get(g.studentId);
         if (!classId) continue;
         const key = `${classId}:${g.subjectId}`;
@@ -126,8 +133,7 @@ export class TeacherService {
       }
 
       const result = assignments.map((assignment) => {
-        const studentIds =
-          studentsByClass.get(assignment.classSectionId) ?? [];
+        const studentIds = studentsByClass.get(assignment.classSectionId) ?? [];
         const classGrades =
           gradesByClassSubject.get(
             `${assignment.classSectionId}:${assignment.subjectId}`,
@@ -186,6 +192,8 @@ export class TeacherService {
       role: Role;
       staffProfile?: { id: string };
     },
+    page = 1,
+    limit = 50,
   ) {
     try {
       const cacheKey = this.getCacheKey('getAnalytics', {
@@ -193,24 +201,30 @@ export class TeacherService {
         requesterId: requester.id,
         role: requester.role,
         staffProfileId: requester.staffProfile?.id ?? '',
+        page,
+        limit,
       });
       const cached = await this.cacheService.getCachedAggregate<
         Awaited<ReturnType<TeacherService['getAnalytics']>>
       >('teacher:analytics', cacheKey);
       if (cached) return cached;
 
-      // staffProfile + activeTerm + assignments are independent → parallel.
-      const [staffProfile, activeTerm, assignments] = await Promise.all([
-        this.prisma.staffProfile.findUnique({ where: { id: teacherId } }),
+      const [activeTerm, assignments] = await Promise.all([
         this.prisma.term.findFirst({
           where: { isActive: true },
           orderBy: { startDate: 'desc' },
+          select: {
+            id: true,
+            termNumber: true,
+            academicYearId: true,
+            startDate: true,
+          },
         }),
         this.prisma.teachingAssignment.findMany({
           where: { teacherId },
           include: {
-            subject: true,
-            classSection: true,
+            subject: { select: { name: true } },
+            classSection: { select: { name: true } },
           },
           orderBy: [
             { classSection: { level: 'asc' } },
@@ -219,6 +233,18 @@ export class TeacherService {
           ],
         }),
       ]);
+
+      let staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { id: teacherId },
+        select: { id: true, userId: true },
+      });
+
+      if (!staffProfile) {
+        staffProfile = await this.prisma.staffProfile.findUnique({
+          where: { userId: teacherId },
+          select: { id: true, userId: true },
+        });
+      }
 
       if (!staffProfile) {
         throw new NotFoundException('Teacher profile not found');
@@ -238,50 +264,68 @@ export class TeacherService {
               startDate: { lt: activeTerm.startDate },
             },
             orderBy: { startDate: 'desc' },
+            select: { id: true },
           })
         : null;
 
-      // Batched student fetch (was 1 query *per assignment*).
       const classIds = assignments.map((a) => a.classSectionId);
-      const allStudentsRaw = await this.prisma.studentProfile.findMany({
-        where: { currentClassId: { in: classIds }, archivedAt: null },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          indexNumber: true,
-          currentClassId: true,
-        },
-      });
-      const studentsByClass = new Map<string, typeof allStudentsRaw>();
-      for (const s of allStudentsRaw) {
-        const arr = studentsByClass.get(s.currentClassId) ?? [];
-        arr.push(s);
-        studentsByClass.set(s.currentClassId, arr);
-      }
-      const assignmentStudentData = assignments.map((assignment) => {
-        const students = studentsByClass.get(assignment.classSectionId) ?? [];
-        return {
-          assignment,
-          students,
-          studentIds: students.map((student) => student.id),
-        };
-      });
+      const allStudentIds = new Set<string>();
 
-      const allStudentIds = Array.from(
-        new Set(assignmentStudentData.flatMap((item) => item.studentIds)),
-      );
+      const studentsByClass = new Map<
+        string,
+        {
+          id: string;
+          firstName: string;
+          lastName: string;
+          indexNumber: string;
+        }[]
+      >();
+      if (classIds.length > 0) {
+        const studentsRaw = await this.prisma.studentProfile.findMany({
+          where: { currentClassId: { in: classIds }, archivedAt: null },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            indexNumber: true,
+            currentClassId: true,
+          },
+        });
+        for (const s of studentsRaw) {
+          if (!s.currentClassId) continue;
+          const arr = studentsByClass.get(s.currentClassId) ?? [];
+          arr.push({
+            id: s.id,
+            firstName: s.firstName,
+            lastName: s.lastName,
+            indexNumber: s.indexNumber,
+          });
+          studentsByClass.set(s.currentClassId, arr);
+          allStudentIds.add(s.id);
+        }
+      }
+
+      const allStudentIdsArray = Array.from(allStudentIds);
       const subjectIds = Array.from(
         new Set(assignments.map((assignment) => assignment.subjectId)),
       );
 
-      // previousGrades + activeGrades are independent → fetch concurrently.
+      const studentById = new Map<
+        string,
+        { id: string; firstName: string; lastName: string; indexNumber: string }
+      >();
+      for (const students of studentsByClass.values()) {
+        for (const s of students) {
+          studentById.set(s.id, s);
+        }
+      }
+
       const [previousGrades, activeGrades] = await Promise.all([
-        previousTerm && allStudentIds.length > 0 && subjectIds.length > 0
+        previousTerm && allStudentIdsArray.length > 0 && subjectIds.length > 0
           ? this.prisma.gradeEntry.findMany({
               where: {
                 termId: previousTerm.id,
-                studentId: { in: allStudentIds },
+                studentId: { in: allStudentIdsArray },
                 subjectId: { in: subjectIds },
               },
               select: {
@@ -294,7 +338,7 @@ export class TeacherService {
         activeTerm
           ? this.prisma.gradeEntry.findMany({
               where: {
-                studentId: { in: allStudentIds },
+                studentId: { in: allStudentIdsArray },
                 termId: activeTerm.id,
                 subjectId: { in: subjectIds },
               },
@@ -307,28 +351,20 @@ export class TeacherService {
                 observationText: true,
                 updatedAt: true,
                 hasObservation: true,
-                student: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    indexNumber: true,
-                  },
-                },
               },
             })
           : Promise.resolve([] as any[]),
       ]);
 
       const previousGradeMap = new Map<string, number>();
-      previousGrades.forEach((grade) => {
+      for (const grade of previousGrades) {
         if (typeof grade.totalScore === 'number') {
           previousGradeMap.set(
             `${grade.studentId}:${grade.subjectId}`,
             grade.totalScore,
           );
         }
-      });
+      }
 
       const getStudentTrend = (
         studentId: string,
@@ -359,9 +395,11 @@ export class TeacherService {
       const studentScores: any[] = [];
       const observations: any[] = [];
 
-      for (const { assignment, students, studentIds } of assignmentStudentData) {
-        const grades = students
-          .flatMap((s) => activeGradesByStudent.get(s.id) ?? [])
+      for (const assignment of assignments) {
+        const students = studentsByClass.get(assignment.classSectionId) ?? [];
+        const studentIds = students.map((s) => s.id);
+        const grades = studentIds
+          .flatMap((s) => activeGradesByStudent.get(s) ?? [])
           .filter((g) => g.subjectId === assignment.subjectId);
 
         const completed = grades.filter(
@@ -387,21 +425,22 @@ export class TeacherService {
         });
 
         for (const grade of grades) {
-          const student = grade.student;
+          const student = studentById.get(grade.studentId);
           const score =
             typeof grade.totalScore === 'number'
               ? Math.round(grade.totalScore)
               : 0;
-          const studentName = [student.firstName, student.lastName]
-            .filter(Boolean)
-            .join(' ');
+          const studentName = student
+            ? `${student.firstName} ${student.lastName}`
+            : 'Unknown Student';
+          const studentIndex = student?.indexNumber || '';
           const date = grade.updatedAt.toISOString().slice(0, 10);
           const status = grade.hasObservation === true ? 'Active' : 'Pending';
           const observation = {
             id: grade.id,
             student: studentName || 'Unknown Student',
             class: assignment.classSection.name,
-            index: student.indexNumber,
+            index: studentIndex,
             type: assignment.subject.name,
             comment:
               grade.remark ||
@@ -411,7 +450,7 @@ export class TeacherService {
             status,
           };
           const trend = getStudentTrend(
-            student.id,
+            grade.studentId,
             assignment.subjectId,
             score,
           );
@@ -420,7 +459,7 @@ export class TeacherService {
             id: grade.id,
             student: observation.student,
             class: assignment.classSection.name,
-            index: student.indexNumber,
+            index: studentIndex,
             score,
             trend: trend.trend,
             trendUp: trend.trendUp,
@@ -438,11 +477,31 @@ export class TeacherService {
           }))
         : [];
 
+      const startIndex = (page - 1) * limit;
+      const paginatedStudentScores = studentScores.slice(
+        startIndex,
+        startIndex + limit,
+      );
+      const paginatedObservations = observations.slice(
+        startIndex,
+        startIndex + limit,
+      );
+
+      const maxClassProgress = 20;
+      const trimmedClassProgress =
+        classProgress.length > maxClassProgress
+          ? classProgress.slice(0, maxClassProgress)
+          : classProgress;
+
       const result = {
-        observations,
-        classProgress,
-        studentScores,
+        observations: paginatedObservations,
+        classProgress: trimmedClassProgress,
+        studentScores: paginatedStudentScores,
         termTrends,
+        total: studentScores.length,
+        page,
+        limit,
+        pages: Math.ceil(studentScores.length / limit),
       };
 
       await this.cacheService.setCachedAggregate(
@@ -547,7 +606,9 @@ export class TeacherService {
     body: { gradeEntryId: string; issue: string; severity: string },
     requester: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
-    this.logger.log(`submitGradeRevision: gradeEntryId=${body.gradeEntryId}, requesterId=${requester.id}, role=${requester.role}`);
+    this.logger.log(
+      `submitGradeRevision: gradeEntryId=${body.gradeEntryId}, requesterId=${requester.id}, role=${requester.role}`,
+    );
     const gradeEntry = await this.prisma.gradeEntry.findUnique({
       where: { id: body.gradeEntryId },
       include: {
@@ -558,7 +619,9 @@ export class TeacherService {
     this.logger.log(`submitGradeRevision: gradeEntry found=${!!gradeEntry}`);
 
     if (!gradeEntry) {
-      this.logger.error(`submitGradeRevision: Grade entry not found for id=${body.gradeEntryId}`);
+      this.logger.error(
+        `submitGradeRevision: Grade entry not found for id=${body.gradeEntryId}`,
+      );
       throw new Error('Grade entry not found');
     }
 
@@ -566,7 +629,9 @@ export class TeacherService {
     const targetTeacherId = isHod
       ? await this.resolveTeacherStaffId(gradeEntry.submittedById)
       : requester.staffProfile?.id || requester.id;
-    this.logger.log(`submitGradeRevision: isHod=${isHod}, targetTeacherId=${targetTeacherId}`);
+    this.logger.log(
+      `submitGradeRevision: isHod=${isHod}, targetTeacherId=${targetTeacherId}`,
+    );
 
     try {
       const revision = await this.prisma.gradeRevision.create({
@@ -582,7 +647,9 @@ export class TeacherService {
           history: [],
         },
       });
-      this.logger.log(`submitGradeRevision: created revision id=${revision.id}`);
+      this.logger.log(
+        `submitGradeRevision: created revision id=${revision.id}`,
+      );
 
       if (isHod) {
         this.notifyStaff(
@@ -592,8 +659,11 @@ export class TeacherService {
           requester.id,
         );
       } else {
-        const hodStaffIds = await this.resolveHodStaffIdsForRequester(requester);
-        this.logger.log(`submitGradeRevision: notifying ${hodStaffIds.length} HODs`);
+        const hodStaffIds =
+          await this.resolveHodStaffIdsForRequester(requester);
+        this.logger.log(
+          `submitGradeRevision: notifying ${hodStaffIds.length} HODs`,
+        );
         Promise.allSettled(
           hodStaffIds.map((hodId) =>
             this.notifyStaff(
@@ -645,7 +715,9 @@ export class TeacherService {
       return;
     }
     try {
-      this.logger.log(`notifyStaff: creating notification for staffId=${staffId} title="${title}"`);
+      this.logger.log(
+        `notifyStaff: creating notification for staffId=${staffId} title="${title}"`,
+      );
       const result = await this.prisma.notification.create({
         data: {
           staffId,
@@ -655,7 +727,9 @@ export class TeacherService {
           createdById: createdById || staffId,
         },
       });
-      this.logger.log(`notifyStaff: created notification id=${result.id} for staffId=${staffId}`);
+      this.logger.log(
+        `notifyStaff: created notification id=${result.id} for staffId=${staffId}`,
+      );
     } catch (err) {
       this.logger.error(`notifyStaff failed for staffId=${staffId}:`, err);
     }
@@ -1109,14 +1183,19 @@ export class TeacherService {
     };
   }
 
-  async getMissingObservationsTray(userId?: string, userRole?: Role) {
+  async getMissingObservationsTray(
+    userId?: string,
+    userRole?: Role,
+    options?: { page?: number; limit?: number },
+  ) {
     const activeTerm = await this.prisma.term.findFirst({
       where: { isActive: true },
       orderBy: { startDate: 'desc' },
       select: { id: true },
     });
 
-    if (!activeTerm) return [];
+    if (!activeTerm)
+      return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
 
     const whereClause: any = {
       termId: activeTerm.id,
@@ -1136,7 +1215,8 @@ export class TeacherService {
           select: { subjectId: true, classSectionId: true },
         });
 
-        if (assignments.length === 0) return [];
+        if (assignments.length === 0)
+          return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
 
         const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
         const classSectionIds = [
@@ -1153,34 +1233,44 @@ export class TeacherService {
           })
           .then((s) => s.map((x) => x.id));
 
-        if (studentIds.length === 0) return [];
+        if (studentIds.length === 0)
+          return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
 
         whereClause.studentId = { in: studentIds };
         whereClause.subjectId = { in: subjectIds };
       }
     }
 
-    const entries = await this.prisma.gradeEntry.findMany({
-      where: whereClause,
-      include: {
-        student: {
-          select: {
-            indexNumber: true,
-            firstName: true,
-            lastName: true,
-            currentClass: { select: { name: true } },
+    const page = options?.page && options.page > 0 ? options.page : 1;
+    const limit = options?.limit && options.limit > 0 ? options.limit : 50;
+    const skip = (page - 1) * limit;
+
+    const [entries, total] = await Promise.all([
+      this.prisma.gradeEntry.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          student: {
+            select: {
+              indexNumber: true,
+              firstName: true,
+              lastName: true,
+              currentClass: { select: { name: true } },
+            },
           },
+          subject: { select: { name: true, code: true, departmentId: true } },
         },
-        subject: { select: { name: true, code: true, departmentId: true } },
-      },
-      orderBy: { student: { lastName: 'asc' } },
-    });
+        orderBy: { student: { lastName: 'asc' } },
+      }),
+      this.prisma.gradeEntry.count({ where: whereClause }),
+    ]);
 
     const teacherMap = await this.getTeacherNameMap(
       entries.map((entry) => entry.submittedById),
     );
 
-    return entries.map((entry) => ({
+    const data = entries.map((entry) => ({
       id: entry.id,
       studentId: entry.studentId,
       student: entry.student
@@ -1198,6 +1288,8 @@ export class TeacherService {
         ? teacherMap.get(entry.submittedById) || 'Unknown'
         : 'Unknown',
     }));
+
+    return { data, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
   async getProfile(user: {

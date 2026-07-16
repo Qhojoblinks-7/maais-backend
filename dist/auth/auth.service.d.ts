@@ -14,6 +14,10 @@ export declare class AuthService {
         userId: string;
         user: any;
     }>;
+    changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     refreshTokens(userId: string, token: string): Promise<{
         accessToken: string;
         refreshToken: string;
@@ -25,5 +29,4 @@ export declare class AuthService {
     }>;
     private signAccessToken;
     private createRefreshToken;
-    private sanitizeUser;
 }

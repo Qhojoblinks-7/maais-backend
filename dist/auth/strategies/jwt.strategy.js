@@ -15,55 +15,47 @@ const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../../common/prisma/prisma.service");
+const cache_service_1 = require("../../cache/cache.service");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy, 'jwt') {
-    constructor(config, prisma) {
+    constructor(config, prisma, cacheService) {
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
             secretOrKey: config.get('JWT_ACCESS_SECRET'),
         });
         this.prisma = prisma;
+        this.cacheService = cacheService;
     }
     async validate(payload) {
+        const cacheKey = `jwt:user:${payload.sub}`;
+        const cached = await this.cacheService.get(cacheKey);
+        if (cached) {
+            if (!cached.isActive) {
+                throw new common_1.UnauthorizedException('User not found or deactivated');
+            }
+            return cached;
+        }
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
-            include: {
-                studentProfile: {
-                    select: {
-                        id: true,
-                        indexNumber: true,
-                        firstName: true,
-                        lastName: true,
-                        middleName: true,
-                        gender: true,
-                        dateOfBirth: true,
-                        photoUrl: true,
-                        admissionDate: true,
-                        currentClassId: true,
-                        departmentId: true,
-                    },
-                },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                isActive: true,
                 staffProfile: {
                     select: {
                         id: true,
-                        staffId: true,
-                        firstName: true,
-                        lastName: true,
-                        middleName: true,
-                        gender: true,
-                        dateOfBirth: true,
-                        photoUrl: true,
                         departmentId: true,
+                    },
+                },
+                studentProfile: {
+                    select: {
+                        id: true,
                     },
                 },
                 parentProfile: {
                     select: {
                         id: true,
-                        firstName: true,
-                        lastName: true,
-                        phone: true,
-                        email: true,
-                        occupation: true,
                     },
                 },
             },
@@ -71,6 +63,7 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException('User not found or deactivated');
         }
+        await this.cacheService.set(cacheKey, user, 300);
         return user;
     }
 };
@@ -78,6 +71,7 @@ exports.JwtStrategy = JwtStrategy;
 exports.JwtStrategy = JwtStrategy = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [config_1.ConfigService,
-        prisma_service_1.PrismaService])
+        prisma_service_1.PrismaService,
+        cache_service_1.CacheService])
 ], JwtStrategy);
 //# sourceMappingURL=jwt.strategy.js.map

@@ -21,7 +21,6 @@ export class AuthService {
     const valid = await argon2.verify(user.passwordHash, password);
     if (!valid) return null;
 
-    // Update last login
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -35,12 +34,58 @@ export class AuthService {
       this.signAccessToken(user.id, user.email, user.role),
       this.createRefreshToken(user.id),
     ]);
+
+    const { passwordHash, ...userDto } = user as any;
+    void passwordHash;
+
     return {
       accessToken,
       refreshToken,
       userId: user.id,
-      user: await this.sanitizeUser(user),
+      user: userDto,
     };
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new ForbiddenException('User not found');
+
+    const isValid = await argon2.verify(user.passwordHash, currentPassword);
+    if (!isValid) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+
+    if (newPassword.length < 8) {
+      throw new ForbiddenException(
+        'New password must be at least 8 characters long',
+      );
+    }
+
+    const sameAsOld = await argon2.verify(user.passwordHash, newPassword);
+    if (sameAsOld) {
+      throw new ForbiddenException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const newHash = await argon2.hash(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newHash,
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    // Invalidate other sessions after a password change.
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
+
+    return { success: true, message: 'Password changed successfully' };
   }
 
   async refreshTokens(userId: string, token: string) {
@@ -87,53 +132,5 @@ export class AuthService {
     });
 
     return token;
-  }
-
-  private async sanitizeUser(user: User) {
-    const fullUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        studentProfile: {
-          select: {
-            id: true,
-            indexNumber: true,
-            firstName: true,
-            lastName: true,
-            middleName: true,
-            gender: true,
-            dateOfBirth: true,
-            photoUrl: true,
-            admissionDate: true,
-            currentClassId: true,
-            departmentId: true,
-          },
-        },
-        staffProfile: {
-          select: {
-            id: true,
-            staffId: true,
-            firstName: true,
-            lastName: true,
-            middleName: true,
-            gender: true,
-            dateOfBirth: true,
-            photoUrl: true,
-            departmentId: true,
-          },
-        },
-        parentProfile: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            email: true,
-            occupation: true,
-          },
-        },
-      },
-    });
-    const { passwordHash: _, ...userDto } = fullUser as any;
-    return userDto;
   }
 }

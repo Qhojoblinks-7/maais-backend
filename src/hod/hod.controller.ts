@@ -77,9 +77,17 @@ export class HODController {
 
   @Post('grade-revisions')
   @Roles(Role.HOD)
-  @ApiOperation({ summary: 'HOD requests a grade revision for a class or grade entry' })
+  @ApiOperation({
+    summary: 'HOD requests a grade revision for a class or grade entry',
+  })
   createHODGradeRevision(
-    @Body() body: { classSectionId?: string; gradeEntryId?: string; issue: string; severity: string },
+    @Body()
+    body: {
+      classSectionId?: string;
+      gradeEntryId?: string;
+      issue: string;
+      severity: string;
+    },
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
@@ -95,7 +103,12 @@ export class HODController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
   ) {
-    return this.hodService.approveGradeEntry(gradeEntryId, comment, userId, role);
+    return this.hodService.approveGradeEntry(
+      gradeEntryId,
+      comment,
+      userId,
+      role,
+    );
   }
 
   @Post('records/:recordId/approve')
@@ -231,12 +244,16 @@ export class HODController {
     @CurrentUser('role') role: Role,
     @Query('academicYearId') academicYearId?: string,
     @Query('termNumber') termNumber?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     return this.hodService.getTeacherSubmissionStatus(
       userId,
       role,
       academicYearId,
       termNumber,
+      page,
+      limit,
     );
   }
 
@@ -247,8 +264,14 @@ export class HODController {
     @CurrentUser('id') userId: string,
     @CurrentUser('role') role: Role,
     @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.hodService.getDepartmentTeachers(userId, role, { search });
+    return this.hodService.getDepartmentTeachers(userId, role, {
+      search,
+      page,
+      limit,
+    });
   }
 
   @Get('teachers/submissions/trends')
@@ -650,7 +673,11 @@ export class HODController {
     @CurrentUser('role') role: Role,
     @Res() res: any,
   ) {
-    const csv = await this.hodService.exportDepartmentWAECCSV(termId, userId, role);
+    const csv = await this.hodService.exportDepartmentWAECCSV(
+      termId,
+      userId,
+      role,
+    );
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
@@ -669,7 +696,12 @@ export class HODController {
     @CurrentUser('role') role: Role,
     @Res() res: any,
   ) {
-    const pdfBytes = await this.hodService.exportWAECPDF(termId, className, userId, role);
+    const pdfBytes = await this.hodService.exportWAECPDF(
+      termId,
+      className,
+      userId,
+      role,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -687,7 +719,11 @@ export class HODController {
     @CurrentUser('role') role: Role,
     @Res() res: any,
   ) {
-    const pdfBytes = await this.hodService.exportDepartmentWAECPDF(termId, userId, role);
+    const pdfBytes = await this.hodService.exportDepartmentWAECPDF(
+      termId,
+      userId,
+      role,
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',

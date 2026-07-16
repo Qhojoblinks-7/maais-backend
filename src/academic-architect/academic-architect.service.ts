@@ -136,9 +136,29 @@ export class AcademicArchitectService {
             user: {
               select: { id: true, email: true, role: true, isActive: true },
             },
+            teachingAssignments: {
+              include: {
+                subject: { select: { id: true, name: true, code: true } },
+              },
+            },
           },
         },
-        subjects: true,
+        subjects: {
+          include: {
+            teachingAssignments: {
+              include: {
+                teacher: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    staffId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
         _count: { select: { staff: true, subjects: true } },
       },
       orderBy: { name: 'asc' },
@@ -243,7 +263,10 @@ export class AcademicArchitectService {
 
   async getAssignmentsByClass(classSectionId: string, track?: string) {
     return this.prisma.teachingAssignment.findMany({
-      where: { classSectionId },
+      where: {
+        classSectionId,
+        ...(track ? { classSection: { track } } : {}),
+      },
       include: {
         subject: { include: { department: true } },
         teacher: { include: { user: { select: { email: true } } } },

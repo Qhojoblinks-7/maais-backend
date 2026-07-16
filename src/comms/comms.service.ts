@@ -4,6 +4,7 @@ import { NotificationChannel, Role, AuditAction } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import twilio from 'twilio';
 import { CreateSupportTicketDto } from './dto/create-ticket.dto';
+import { CircuitBreakerService } from '../common/services/circuit-breaker.service';
 
 export interface SendNotificationDto {
   studentIds?: string[];
@@ -20,6 +21,7 @@ export class CommsService {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private circuitBreaker: CircuitBreakerService,
   ) {}
 
   async sendNotification(dto: SendNotificationDto, sentById: string) {
@@ -98,15 +100,22 @@ export class CommsService {
     }
 
     try {
-      const client = twilio(
-        this.config.get('TWILIO_ACCOUNT_SID'),
-        this.config.get('TWILIO_AUTH_TOKEN'),
+      await this.circuitBreaker.execute(
+        'twilio-sms',
+        async () => {
+          const client = twilio(
+            this.config.get('TWILIO_ACCOUNT_SID'),
+            this.config.get('TWILIO_AUTH_TOKEN'),
+          );
+          await client.messages.create({
+            body,
+            from: this.config.get('TWILIO_PHONE_NUMBER'),
+            to,
+          });
+        },
+        5,
+        30_000,
       );
-      await client.messages.create({
-        body,
-        from: this.config.get('TWILIO_PHONE_NUMBER'),
-        to,
-      });
       this.logger.log(`SMS sent to ${to}`);
     } catch (err) {
       this.logger.error(`SMS failed: ${err.message}`);
@@ -205,7 +214,9 @@ export class CommsService {
       take: 50,
     });
 
-    this.logger.log(`Found ${results.length} unread notifications for staffId=${staffProfile.id}`);
+    this.logger.log(
+      `Found ${results.length} unread notifications for staffId=${staffProfile.id}`,
+    );
     return results;
   }
 
@@ -394,6 +405,15 @@ export class CommsService {
             user: { select: { email: true } },
           },
         },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            staffProfile: { select: { firstName: true, lastName: true } },
+            studentProfile: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
     });
   }
@@ -416,7 +436,15 @@ export class CommsService {
             user: { select: { email: true } },
           },
         },
-        createdBy: { select: { id: true, email: true, role: true } },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            staffProfile: { select: { firstName: true, lastName: true } },
+            studentProfile: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
     });
   }
@@ -481,7 +509,15 @@ export class CommsService {
             user: { select: { email: true } },
           },
         },
-        createdBy: { select: { id: true, email: true, role: true } },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            staffProfile: { select: { firstName: true, lastName: true } },
+            studentProfile: { select: { firstName: true, lastName: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -660,13 +696,18 @@ export class CommsService {
     const gradeEntryLogs = recentAuditLogs.filter(
       (l) => l.entity === 'GradeEntry' && l.entityId,
     );
-    const gradeEntryMap = new Map<string, { studentName: string; subjectName: string }>();
+    const gradeEntryMap = new Map<
+      string,
+      { studentName: string; subjectName: string }
+    >();
     if (gradeEntryLogs.length) {
       const geIds = [...new Set(gradeEntryLogs.map((l) => l.entityId))];
       const gradeEntries = await this.prisma.gradeEntry.findMany({
         where: { id: { in: geIds } },
         include: {
-          student: { select: { firstName: true, lastName: true, indexNumber: true } },
+          student: {
+            select: { firstName: true, lastName: true, indexNumber: true },
+          },
           subject: { select: { name: true } },
         },
       });

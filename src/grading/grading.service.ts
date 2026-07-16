@@ -230,7 +230,11 @@ export class GradingService {
 
     if (existing) {
       const clientVersion = dto.version ?? existing.version;
-      await this.occService.verifyVersion('GradeEntry', existing.id, clientVersion);
+      await this.occService.verifyVersion(
+        'GradeEntry',
+        existing.id,
+        clientVersion,
+      );
     }
 
     const entry = await this.prisma.gradeEntry.upsert({
@@ -331,8 +335,7 @@ export class GradingService {
           dto.termId,
           previousTermId,
         );
-      } catch {
-      }
+      } catch {}
     }
 
     return { ...entry, version };
@@ -396,7 +399,11 @@ export class GradingService {
     }
 
     if (clientVersion) {
-      await this.occService.verifyVersion('GradeEntry', gradeEntryId, clientVersion);
+      await this.occService.verifyVersion(
+        'GradeEntry',
+        gradeEntryId,
+        clientVersion,
+      );
     }
 
     const entry = await this.prisma.gradeEntry.update({
@@ -511,7 +518,12 @@ export class GradingService {
     });
   }
 
-  async lockGrade(gradeEntryId: string, lockedById: string, userRole: Role, clientVersion?: number) {
+  async lockGrade(
+    gradeEntryId: string,
+    lockedById: string,
+    userRole: Role,
+    clientVersion?: number,
+  ) {
     if (
       userRole !== Role.HOD &&
       userRole !== Role.HEADMASTER &&
@@ -521,7 +533,11 @@ export class GradingService {
     }
 
     if (clientVersion) {
-      await this.occService.verifyVersion('GradeEntry', gradeEntryId, clientVersion);
+      await this.occService.verifyVersion(
+        'GradeEntry',
+        gradeEntryId,
+        clientVersion,
+      );
     }
 
     const updated = await this.prisma.gradeEntry.update({
@@ -529,7 +545,10 @@ export class GradingService {
       data: { isLocked: true, lockedById, lockedAt: new Date() },
     });
 
-    const version = await this.occService.bumpVersion('GradeEntry', gradeEntryId);
+    const version = await this.occService.bumpVersion(
+      'GradeEntry',
+      gradeEntryId,
+    );
 
     await this.prisma.auditLog.create({
       data: {
@@ -548,7 +567,14 @@ export class GradingService {
     const entryVersion = dto.version ?? 1;
     const entry = await this.prisma.gradeEntry.findUniqueOrThrow({
       where: { id: dto.gradeEntryId },
-      select: { id: true, classScore: true, examScore: true, grade: true, isLocked: true, version: true },
+      select: {
+        id: true,
+        classScore: true,
+        examScore: true,
+        grade: true,
+        isLocked: true,
+        version: true,
+      },
     });
 
     if (entry.isLocked) {
@@ -612,7 +638,10 @@ export class GradingService {
       select: { id: true },
     });
 
-    const newVersion = await this.occService.bumpVersion('GradeEntry', dto.gradeEntryId);
+    const newVersion = await this.occService.bumpVersion(
+      'GradeEntry',
+      dto.gradeEntryId,
+    );
 
     return { ...updated, version: newVersion };
   }
@@ -654,7 +683,6 @@ export class GradingService {
 
     if (assignments.length === 0) return [];
 
-    const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
     const classSectionIds = [
       ...new Set(assignments.map((a) => a.classSectionId)),
     ];
@@ -762,9 +790,11 @@ export class GradingService {
     termId: string,
     userId?: string,
     userRole?: Role,
+    options?: { page?: number; limit?: number },
   ) {
     const effectiveTermId = await this.getEffectiveTermId(termId);
-    if (!effectiveTermId) return [];
+    if (!effectiveTermId)
+      return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
 
     const whereClause: any = {
       termId: effectiveTermId,
@@ -781,27 +811,36 @@ export class GradingService {
         accessibleStudentIds.length === 0 ||
         accessibleSubjectIds.length === 0
       ) {
-        return [];
+        return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
       }
       whereClause.studentId = { in: accessibleStudentIds };
       whereClause.subjectId = { in: accessibleSubjectIds };
     }
 
-    const entries = await this.prisma.gradeEntry.findMany({
-      where: whereClause,
-      include: {
-        student: {
-          select: {
-            indexNumber: true,
-            firstName: true,
-            lastName: true,
-            currentClass: { select: { name: true } },
+    const page = options?.page && options.page > 0 ? options.page : 1;
+    const limit = options?.limit && options.limit > 0 ? options.limit : 50;
+    const skip = (page - 1) * limit;
+
+    const [entries, total] = await Promise.all([
+      this.prisma.gradeEntry.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          student: {
+            select: {
+              indexNumber: true,
+              firstName: true,
+              lastName: true,
+              currentClass: { select: { name: true } },
+            },
           },
+          subject: { select: { name: true, code: true, departmentId: true } },
         },
-        subject: { select: { name: true, code: true, departmentId: true } },
-      },
-      orderBy: { student: { lastName: 'asc' } },
-    });
+        orderBy: { student: { lastName: 'asc' } },
+      }),
+      this.prisma.gradeEntry.count({ where: whereClause }),
+    ]);
 
     const teacherMap = await this.getTeacherNameMap(
       entries.map((entry) => entry.submittedById),
@@ -816,7 +855,7 @@ export class GradingService {
     ];
     const hodMap = await this.getHODMap(departmentIds);
 
-    return entries.map((entry) => ({
+    const data = entries.map((entry) => ({
       ...this.toObservation(
         entry,
         entry.submittedById
@@ -828,9 +867,16 @@ export class GradingService {
       ),
       status: 'Missing',
     }));
+
+    return { data, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
-  async getObservationLogs(userId?: string, userRole?: Role, termId?: string) {
+  async getObservationLogs(
+    userId?: string,
+    userRole?: Role,
+    termId?: string,
+    options?: { page?: number; limit?: number },
+  ) {
     const whereClause: any = {};
 
     if (userRole === Role.TEACHER && userId) {
@@ -854,21 +900,30 @@ export class GradingService {
       whereClause.termId = effectiveTermId;
     }
 
-    const entries = await this.prisma.gradeEntry.findMany({
-      where: whereClause,
-      include: {
-        student: {
-          select: {
-            indexNumber: true,
-            firstName: true,
-            lastName: true,
-            currentClass: { select: { name: true } },
+    const page = options?.page && options.page > 0 ? options.page : 1;
+    const limit = options?.limit && options.limit > 0 ? options.limit : 50;
+    const skip = (page - 1) * limit;
+
+    const [entries, total] = await Promise.all([
+      this.prisma.gradeEntry.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          student: {
+            select: {
+              indexNumber: true,
+              firstName: true,
+              lastName: true,
+              currentClass: { select: { name: true } },
+            },
           },
+          subject: { select: { name: true, code: true, departmentId: true } },
         },
-        subject: { select: { name: true, code: true, departmentId: true } },
-      },
-      orderBy: [{ hasObservation: 'desc' }, { updatedAt: 'desc' }],
-    });
+        orderBy: [{ hasObservation: 'desc' }, { updatedAt: 'desc' }],
+      }),
+      this.prisma.gradeEntry.count({ where: whereClause }),
+    ]);
 
     const teacherMap = await this.getTeacherNameMap(
       entries.map((entry) => entry.submittedById),
@@ -883,7 +938,7 @@ export class GradingService {
     ];
     const hodMap = await this.getHODMap(departmentIds);
 
-    return entries.map((entry) =>
+    const data = entries.map((entry) =>
       this.toObservation(
         entry,
         entry.submittedById
@@ -894,6 +949,14 @@ export class GradingService {
           : 'Unknown',
       ),
     );
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
   }
 
   private async assertObservationAccess(
@@ -989,7 +1052,8 @@ export class GradingService {
         hasObservation: true,
         observationText: comment,
         remark: comment,
-        labSafetyCompliance: body.labSafety ?? entry.labSafetyCompliance ?? false,
+        labSafetyCompliance:
+          body.labSafety ?? entry.labSafetyCompliance ?? false,
         flaggedForReview: body.flagged ?? entry.flaggedForReview ?? false,
         submittedById: userId,
         submittedAt: new Date(),
@@ -1007,8 +1071,6 @@ export class GradingService {
         subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
-
-    const newVersion = await this.occService.bumpVersion('GradeEntry', entry.id);
 
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId
@@ -1039,7 +1101,11 @@ export class GradingService {
     }
 
     const clientVersion = body.version ?? entry.version ?? 1;
-    await this.occService.verifyVersion('GradeEntry', observationId, clientVersion);
+    await this.occService.verifyVersion(
+      'GradeEntry',
+      observationId,
+      clientVersion,
+    );
 
     const fullEntry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
@@ -1095,8 +1161,6 @@ export class GradingService {
       },
     });
 
-    const newVersion = await this.occService.bumpVersion('GradeEntry', observationId);
-
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId
       ? (await this.getHODMap([updated.subject.departmentId])).get(
@@ -1110,11 +1174,7 @@ export class GradingService {
     );
   }
 
-  async deleteObservation(
-    observationId: string,
-    userId?: string,
-    userRole?: Role,
-  ) {
+  async deleteObservation(observationId: string, userId?: string) {
     const entry = await this.prisma.gradeEntry.findUnique({
       where: { id: observationId },
       select: { id: true, version: true },
@@ -1124,7 +1184,11 @@ export class GradingService {
       throw new NotFoundException('Observation not found');
     }
 
-    await this.occService.verifyVersion('GradeEntry', observationId, entry.version ?? 1);
+    await this.occService.verifyVersion(
+      'GradeEntry',
+      observationId,
+      entry.version ?? 1,
+    );
 
     const updated = await this.prisma.gradeEntry.update({
       where: { id: observationId },
@@ -1147,8 +1211,6 @@ export class GradingService {
         subject: { select: { name: true, code: true, departmentId: true } },
       },
     });
-
-    const newVersion = await this.occService.bumpVersion('GradeEntry', observationId);
 
     const teacherMap = await this.getTeacherNameMap([userId]);
     const hod = updated.subject?.departmentId
