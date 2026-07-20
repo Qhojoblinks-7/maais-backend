@@ -1,17 +1,51 @@
 import { PrismaClient } from '@prisma/client';
 
+const CORE_CODES = ['302', '402', '502', '204'];
+
+const programElectives: Record<string, string[]> = {
+  'Science': ['401', '512', '505', '504'],
+  'General Arts': ['210', '205', '207', '202'],
+  'Business': ['103', '104', '113', '203'],
+  'Home Economics': ['702', '703', '504', '216'],
+  'Technical': ['319', '608', '512', '505'],
+};
+
 export async function seedGrades(prisma: PrismaClient, students: any[], subjects: any[], termId: string, teachers: any[]) {
   const grades = [];
+  const subjectMap = new Map(subjects.map(s => [s.code, s]));
 
-  for (let i = 0; i < students.length; i++) {
-    const student = students[i];
-    for (let j = 0; j < subjects.length; j++) {
-      const subject = subjects[j];
-      const classScore = Math.floor(Math.random() * 20) + 10; // 10-30
-      const examScore = Math.floor(Math.random() * 40) + 30; // 30-70
+  console.log(`[DEBUG] seedGrades: students=${students.length}, subjects=${subjects.length}, termId=${termId}`);
+  if (students.length > 0) {
+    console.log(`[DEBUG] first student currentClass=${students[0].currentClass?.name}, currentClassId=${students[0].currentClassId}`);
+  }
+
+  let withClass = 0;
+  let withoutClass = 0;
+
+  for (const student of students) {
+    let cls = student.currentClass;
+    if (!cls && student.currentClassId) {
+      cls = await prisma.classSection.findUnique({ where: { id: student.currentClassId } });
+    }
+    if (!cls) {
+      withoutClass++;
+      continue;
+    }
+    withClass++;
+
+    const program = cls.program || 'General Arts';
+    const electives = programElectives[program] || programElectives['General Arts'];
+    const classSubjectCodes = [...CORE_CODES, ...electives];
+
+    for (let j = 0; j < classSubjectCodes.length; j++) {
+      const code = classSubjectCodes[j];
+      const subject = subjectMap.get(code);
+      if (!subject) continue;
+
+      const classScore = Math.floor(Math.random() * 20) + 10;
+      const examScore = Math.floor(Math.random() * 40) + 30;
       const totalScore = classScore + examScore;
 
-      // Determine grade based on totalScore
       let grade = 'F9';
       if (totalScore >= 80) grade = 'A1';
       else if (totalScore >= 70) grade = 'B2';
@@ -22,7 +56,6 @@ export async function seedGrades(prisma: PrismaClient, students: any[], subjects
       else if (totalScore >= 45) grade = 'D7';
       else if (totalScore >= 40) grade = 'E8';
 
-      // Assign a teacher by index cycling through
       const teacher = teachers[j % teachers.length];
 
       const entry = await prisma.gradeEntry.upsert({
@@ -42,7 +75,7 @@ export async function seedGrades(prisma: PrismaClient, students: any[], subjects
           examScore,
           totalScore,
           grade,
-          hasObservation: j % 3 === 0, // Every 3rd entry has observation (simulate mixed state)
+          hasObservation: j % 3 === 0,
           submittedById: teacher?.userId,
           submittedAt: new Date(),
           isApproved: true,
@@ -53,6 +86,6 @@ export async function seedGrades(prisma: PrismaClient, students: any[], subjects
     }
   }
 
-  console.log(`✅ ${grades.length} Grade Entries seeded`);
+  console.log(`✅ ${grades.length} Grade Entries seeded (students with class: ${withClass}, without class: ${withoutClass})`);
   return grades;
 }

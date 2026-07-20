@@ -23,6 +23,7 @@ describe('GradingService', () => {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      createMany: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
     },
@@ -31,6 +32,7 @@ describe('GradingService', () => {
     },
     auditLog: {
       create: jest.fn(),
+      createMany: jest.fn(),
     },
     studentProfile: {
       findMany: jest.fn(),
@@ -61,6 +63,12 @@ describe('GradingService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    $transaction: jest.fn(async (ops) => {
+      for (const op of ops) {
+        if (typeof op === 'function') await op();
+      }
+      return ops;
+    }),
     $queryRaw: jest.fn(),
   };
 
@@ -385,16 +393,27 @@ describe('GradingService', () => {
 
   describe('bulkUpsertGrades', () => {
     it('processes all entries and computes positions', async () => {
-      const upsertSpy = jest.spyOn(service, 'upsertGrade').mockResolvedValue({
-        id: 'ge-1',
-        version: 1,
-      } as any);
-      mockPrisma.gradeEntry.findMany = jest.fn().mockResolvedValue([]);
+      mockPrisma.gradeEntry.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([
+          { id: 'ge-1', studentId: 's1' },
+          { id: 'ge-2', studentId: 's2' },
+        ]);
+      mockPrisma.gradeEntry.createMany = jest.fn().mockResolvedValue({ count: 2 });
       mockPrisma.gradeEntry.update = jest.fn().mockResolvedValue({});
-      mockPrisma.auditLog.create = jest.fn().mockResolvedValue({});
+      mockPrisma.auditLog.createMany = jest.fn().mockResolvedValue({ count: 2 });
+      mockPrisma.term.findUniqueOrThrow = jest
+        .fn()
+        .mockResolvedValue({ id: 'term-1', isLocked: false });
+      mockPrisma.$transaction = jest.fn(async (ops) => {
+        for (const op of ops) {
+          if (typeof op === 'function') await op();
+        }
+        return ops;
+      });
       mockPrisma.term.findMany = jest.fn().mockResolvedValue([]);
       mockPrisma.academicYear.findFirst = jest.fn().mockResolvedValue(null);
-      mockOCC.bumpVersion = jest.fn().mockResolvedValue(2);
       mockInterventions.checkPerformanceDrop = jest.fn().mockResolvedValue({});
 
       const entries = [
@@ -417,7 +436,8 @@ describe('GradingService', () => {
       const result = await service.bulkUpsertGrades(entries, 'user-1');
 
       expect(result.length).toBe(2);
-      expect(upsertSpy).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.gradeEntry.createMany).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -491,7 +511,7 @@ describe('GradingService', () => {
         Role.TEACHER,
       );
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ data: [], total: 0, page: 1, limit: 50, pages: 0 });
     });
   });
 

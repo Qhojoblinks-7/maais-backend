@@ -87,6 +87,13 @@ export class AcademicArchitectController {
     return this.service.setActiveTerm(id);
   }
 
+  @Patch('terms/:id/deactivate')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Deactivate a term' })
+  deactivateTerm(@Param('id') id: string) {
+    return this.service.deactivateTerm(id);
+  }
+
   @Post('departments')
   @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a department' })
@@ -115,7 +122,9 @@ export class AcademicArchitectController {
     Role.HEADMASTER,
     Role.SUPER_ADMIN,
   )
-  @ApiOperation({ summary: 'Get a single department with its staff and subjects' })
+  @ApiOperation({
+    summary: 'Get a single department with its staff and subjects',
+  })
   getDepartment(@Param('id') id: string) {
     return this.service.getDepartmentById(id);
   }
@@ -211,7 +220,7 @@ export class AcademicArchitectController {
   }
 
   @Get('assignments/class/:classId')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get teaching assignments for a class' })
   getAssignmentsByClass(
     @Param('classId') classId: string,

@@ -25,14 +25,14 @@ export class TimetableController {
   constructor(private timetableService: TimetableService) {}
 
   @Post()
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Create a timetable entry' })
   create(@Body() body: any) {
     return this.timetableService.create(body);
   }
 
   @Get()
-  @Roles(Role.STUDENT, Role.TEACHER)
+  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,
@@ -74,7 +74,7 @@ export class TimetableController {
   }
 
   @Get('class/:classId')
-  @Roles(Role.STUDENT)
+  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get timetable for a specific class' })
   getByClass(
     @Param('classId') classId: string,
@@ -121,21 +121,21 @@ export class TimetableController {
   }
 
   @Put(':id')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a timetable entry' })
   update(@Param('id') id: string, @Body() body: any) {
     return this.timetableService.update(id, body);
   }
 
   @Delete(':id')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Delete a timetable entry' })
   delete(@Param('id') id: string) {
     return this.timetableService.delete(id);
   }
 
   @Post('broadcast')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Broadcast timetable to student and teacher portals',
   })
@@ -144,7 +144,7 @@ export class TimetableController {
   }
 
   @Post('finalize')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Finalize the timetable and lock into registrar records',
   })

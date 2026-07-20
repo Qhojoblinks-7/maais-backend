@@ -59,6 +59,17 @@ export class BehaviorController {
     return this.behaviorService.getStudentBehavior(studentId, userId, role);
   }
 
+  @Post('behavior/batch')
+  @Roles(Role.TEACHER, Role.HEADMASTER, Role.SUPER_ADMIN, Role.HOD)
+  @ApiOperation({ summary: 'Get behavior observations for multiple students' })
+  async getBehaviorBatch(
+    @Body() body: { studentIds: string[] },
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: Role,
+  ) {
+    return this.behaviorService.getBehaviorBatch(body.studentIds);
+  }
+
   /* @Get(':id/traits')
   getTraits(
     @Param('id') studentId: string,

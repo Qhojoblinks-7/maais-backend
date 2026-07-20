@@ -1,7 +1,7 @@
 import { PrismaClient, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 
-export async function seedParents(prisma: PrismaClient, students: any[]) {
+export async function seedParents(prisma: PrismaClient, students: any[], yearLabel: string) {
   const passwordHash = await argon2.hash('Parent@2024');
   const parents = [];
 
@@ -23,9 +23,11 @@ export async function seedParents(prisma: PrismaClient, students: any[]) {
     { firstName: 'Peter', lastName: 'Gyamfi' },
   ];
 
+  const yearSuffix = yearLabel.split('/')[0].slice(-2);
+
   for (let i = 0; i < 15; i++) {
     const data = parentNames[i];
-    const email = `${data.firstName.toLowerCase()}.${data.lastName.toLowerCase()}${i}@parent.mandoshts.edu.gh`;
+    const email = `${data.firstName.toLowerCase()}.${data.lastName.toLowerCase()}${yearSuffix}${i}@parent.mandoshts.edu.gh`;
 
     const parent = await prisma.user.upsert({
       where: { email },
@@ -46,7 +48,6 @@ export async function seedParents(prisma: PrismaClient, students: any[]) {
     });
     parents.push(parent.parentProfile);
 
-    // Link to 2 students (use upsert to handle re-runs)
     const student1 = students[i * 2];
     const student2 = students[i * 2 + 1];
     const parentId = parent.parentProfile!.id;
@@ -77,6 +78,6 @@ export async function seedParents(prisma: PrismaClient, students: any[]) {
     }
   }
 
-  console.log(`✅ ${parents.length} Parents seeded and linked to students`);
+  console.log(`✅ ${parents.length} Parents seeded and linked to students for ${yearLabel}`);
   return parents;
 }

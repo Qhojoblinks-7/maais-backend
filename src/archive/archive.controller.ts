@@ -33,7 +33,7 @@ export class ArchiveController {
   }
 
   @Get('vault/search')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'Search The Vault for historical records' })
   searchVault(
     @Query() query: any,

@@ -250,6 +250,17 @@ export class TeacherController {
     return this.teacherService.getGradingIds(subjectName, className);
   }
 
+  @Get('students')
+  @Roles(Role.TEACHER)
+  @ApiOperation({ summary: 'List students enrolled in the teacher\'s assigned classes' })
+  getStudents(
+    @CurrentUser()
+    user: { id: string; role: Role; staffProfile?: { id: string } },
+    @Query('search') search?: string,
+  ) {
+    return this.teacherService.getStudents(user, search);
+  }
+
   @Post('grade-revisions')
   @Roles(Role.TEACHER, Role.HOD)
   @ApiOperation({ summary: 'Submit a grade revision request' })

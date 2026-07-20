@@ -10,148 +10,180 @@ const prisma = new PrismaClient({
   adapter
 });
 
-/* async function main() {
-  console.log('🌱 Starting full MAAIS database seed...\n');
+const YEARS = [
+  { label: '2022/2023', startDate: new Date('2022-09-01'), endDate: new Date('2023-07-15') },
+  { label: '2023/2024', startDate: new Date('2023-09-01'), endDate: new Date('2024-07-15') },
+  { label: '2024/2025', startDate: new Date('2024-09-02'), endDate: new Date('2025-07-31') },
+];
 
-  // 1. Admin
-  const admin = await seeds.seedAdmin(prisma);
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  // 2. Departments
-  const departments = await seeds.seedDepartments(prisma);
-  const deptMap = Object.fromEntries(departments.map((d) => [d.code, d.id]));
-
-  // 3. Subjects
-  const subjects = await seeds.seedSubjects(prisma, deptMap);
-
-  // 4. Academic (Year, Terms, Classes)
-  const { year, terms, classes } = await seeds.seedAcademic(prisma);
-  const currentTerm = terms[0]; // Term 1
-
-  // 5. Grading
-  await seeds.seedGrading(prisma);
-
-  // 6. Staff (Teachers)
-  const teachers = await seeds.seedStaff(prisma, departments, classes);
-
-  // 7. Students
-  const students = await seeds.seedStudents(prisma, classes, departments);
-
-  // 8. Parents
-  await seeds.seedParents(prisma, students);
-
-  // 9. Teaching Assignments
-  await seeds.seedAssignments(prisma, teachers, subjects, classes, year.id);
-
-  // 10. Grades (Current Term)
-  await seeds.seedGrades(prisma, students, subjects, currentTerm.id);
-
-  // 11. Attendance (All Terms)
-  await seeds.seedAttendance(prisma, students, terms);
-
-  // 12. Reports (Current Term)
-  await seeds.seedReports(prisma, students, currentTerm.id);
-
-  // 13. Behavior & Traits (Current Term)
-  await seeds.seedBehavior(prisma, students, currentTerm.id);
-
-  // 14. Interventions
-  await seeds.seedInterventions(prisma, students);
-
-  // 15. Notifications
-  await seeds.seedNotifications(prisma, students);
-
-  // 16. Timetable
-  await seeds.seedTimetable(prisma, classes, subjects, teachers);
-
-  // 17. Audit Logs
-  await seeds.seedAudit(prisma, admin.id);
-
-  console.log('\n🎉 Full seed complete!');
-  console.log('   Admin login: admin@mandoshts.edu.gh / Admin@2024!');
-} */
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, label: string): Promise<T> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      const isConnection = msg.includes('Connection terminated') || msg.includes('ECONNRESET') || msg.includes('timeout');
+      if (!isConnection || attempt === retries) {
+        console.error(`❌ ${label} failed after ${attempt} attempt(s):`, msg);
+        throw err;
+      }
+      console.warn(`⚠️ ${label} attempt ${attempt} failed (${msg}). Retrying in 2s...`);
+      await delay(2000);
+    }
+  }
+  throw new Error('Unreachable');
+}
 
 async function main() {
   console.log('🌱 Starting full MAAIS database seed...\n');
 
-  // 1. Admin
-  const admin = await seeds.seedAdmin(prisma);
-
-  // 2. Departments
-  const departments = await seeds.seedDepartments(prisma);
+  const admin = await withRetry(() => seeds.seedAdmin(prisma), 3, 'seedAdmin');
+  const departments = await withRetry(() => seeds.seedDepartments(prisma), 3, 'seedDepartments');
   const deptMap = Object.fromEntries(departments.map((d) => [d.code, d.id]));
+  const hods = await withRetry(() => seeds.seedHODs(prisma, departments), 3, 'seedHODs');
+  const subjects = await withRetry(() => seeds.seedSubjects(prisma, deptMap), 3, 'seedSubjects');
+  await withRetry(() => seeds.seedGrading(prisma), 3, 'seedGrading');
+  const classes = await withRetry(() => seeds.seedClasses(prisma), 3, 'seedClasses');
+  const teachers = await withRetry(() => seeds.seedStaff(prisma, departments, classes), 3, 'seedStaff');
 
-  // 3. HODs
-  const hods = await seeds.seedHODs(prisma, departments);
+  await withRetry(() => seeds.seedAdminSettings(prisma), 3, 'seedAdminSettings');
+  await withRetry(() => seeds.seedDigitalSeals(prisma, teachers), 3, 'seedDigitalSeals');
+  await withRetry(() => seeds.seedApprovals(prisma, teachers), 3, 'seedApprovals');
 
-  // 4. Subjects
-  const subjects = await seeds.seedSubjects(prisma, deptMap);
+  for (const yearConfig of YEARS) {
+    console.log(`\n📚 Seeding data for ${yearConfig.label}...`);
 
-  // 5. Academic (Year, Terms, Classes)
-  const { year, terms, classes } = await seeds.seedAcademic(prisma);
-  const currentTerm = terms[0]; // Term 1
+    const { year, terms } = await withRetry(
+      () => seeds.seedAcademicYear(prisma, yearConfig.label, yearConfig.startDate, yearConfig.endDate),
+      3,
+      `seedAcademicYear(${yearConfig.label})`
+    );
 
-  // 6. Grading
-  await seeds.seedGrading(prisma);
+    const students = await withRetry(
+      () => seeds.seedStudents(prisma, classes, departments, yearConfig.label),
+      3,
+      `seedStudents(${yearConfig.label})`
+    );
 
-  // 7. Staff (Teachers)
-  const teachers = await seeds.seedStaff(prisma, departments, classes);
+    await withRetry(
+      () => seeds.seedParents(prisma, students, yearConfig.label),
+      3,
+      `seedParents(${yearConfig.label})`
+    );
 
-  // 8. Students
-  const students = await seeds.seedStudents(prisma, classes, departments);
+    await withRetry(
+      () => seeds.seedAssignments(prisma, teachers, subjects, classes, year.id),
+      3,
+      `seedAssignments(${yearConfig.label})`
+    );
 
-  // 9. Parents
-  await seeds.seedParents(prisma, students);
+    const allGradeEntries = [];
+    for (const term of terms) {
+      const gradeEntries = await withRetry(
+        () => seeds.seedGrades(prisma, students, subjects, term.id, teachers),
+        3,
+        `seedGrades(${yearConfig.label} term ${term.termNumber})`
+      );
+      allGradeEntries.push(...gradeEntries);
+    }
 
-  // 10. Teaching Assignments
-  await seeds.seedAssignments(prisma, teachers, subjects, classes, year.id);
+    if (allGradeEntries.length > 0) {
+      await withRetry(
+        () => seeds.seedGradeCorrections(prisma, allGradeEntries.slice(0, 20), teachers),
+        3,
+        `seedGradeCorrections(${yearConfig.label})`
+      );
+    }
 
-// 11. Grades (Current Term)
-  const gradeEntries = await seeds.seedGrades(prisma, students, subjects, currentTerm.id, teachers);
+    if (allGradeEntries.length > 0) {
+      await withRetry(
+        () => seeds.seedGradeRevisions(prisma, allGradeEntries.slice(0, 15), teachers, subjects),
+        3,
+        `seedGradeRevisions(${yearConfig.label})`
+      );
+    }
 
-  // 11b. Grade Corrections
-  await seeds.seedGradeCorrections(prisma, gradeEntries, teachers);
+    await withRetry(
+      () => seeds.seedAttendance(prisma, students, terms),
+      3,
+      `seedAttendance(${yearConfig.label})`
+    );
 
-  // 11c. Grade Revisions
-  await seeds.seedGradeRevisions(prisma, gradeEntries, teachers, subjects);
+    for (const term of terms) {
+      await withRetry(
+        () => seeds.seedReports(prisma, students, term.id),
+        3,
+        `seedReports(${yearConfig.label} term ${term.termNumber})`
+      );
+    }
 
-  // 12. Attendance (All Terms)
-  await seeds.seedAttendance(prisma, students, terms);
+    for (const term of terms) {
+      await withRetry(
+        () => seeds.seedBehavior(prisma, students, term.id),
+        3,
+        `seedBehavior(${yearConfig.label} term ${term.termNumber})`
+      );
+    }
 
-  // 13. Reports (Current Term)
-  await seeds.seedReports(prisma, students, currentTerm.id);
+    await withRetry(
+      () => seeds.seedInterventions(prisma, students),
+      3,
+      `seedInterventions(${yearConfig.label})`
+    );
 
-  // 14. Behavior & Traits (Current Term)
-  await seeds.seedBehavior(prisma, students, currentTerm.id);
+    await withRetry(
+      () => seeds.seedPromotions(prisma, students, year, admin),
+      3,
+      `seedPromotions(${yearConfig.label})`
+    );
 
-  // 15. Interventions
-  await seeds.seedInterventions(prisma, students);
+    await withRetry(
+      () => seeds.seedNotifications(prisma, students),
+      3,
+      `seedNotifications(${yearConfig.label})`
+    );
 
-  // 16. Promotions
-  await seeds.seedPromotions(prisma, students, year, admin);
+    await withRetry(
+      () => seeds.seedSupportTickets(prisma, students, teachers),
+      3,
+      `seedSupportTickets(${yearConfig.label})`
+    );
 
-  // 17. Notifications
-  await seeds.seedNotifications(prisma, students);
+    await withRetry(
+      () => seeds.seedTranscripts(prisma, students),
+      3,
+      `seedTranscripts(${yearConfig.label})`
+    );
 
-  // 18. Timetable
-  await seeds.seedTimetable(prisma, classes, subjects, teachers);
+    await withRetry(
+      () => seeds.seedAudit(prisma, admin.id),
+      3,
+      `seedAudit(${yearConfig.label})`
+    );
 
-  // 19. Audit Logs
-  await seeds.seedAudit(prisma, admin.id);
+    console.log(`✅ ${yearConfig.label} complete`);
+  }
 
-  // 20. Admin Settings
-  await seeds.seedAdminSettings(prisma);
-
-  // 21. Digital Seal
-  await seeds.seedDigitalSeals(prisma, teachers);
-
-  // 22. Support Tickets
-  await seeds.seedSupportTickets(prisma, students, teachers);
-
-// 23. Transcripts
-  await seeds.seedTranscripts(prisma, students);
-
-  // 24. Approval Requests
-  await seeds.seedApprovals(prisma, teachers);
+  const activeYear = YEARS[YEARS.length - 1];
+  const activeYearData = await withRetry(
+    () => prisma.academicYear.findFirst({
+      where: { label: activeYear.label },
+      include: { terms: { where: { termNumber: 'TERM_1' } } },
+    }),
+    3,
+    'findActiveYear'
+  );
+  if (activeYearData && activeYearData.terms.length > 0) {
+    await withRetry(
+      () => seeds.seedTimetable(prisma, classes, subjects, teachers),
+      3,
+      'seedTimetable'
+    );
+  }
 
   console.log('\n🎉 Full seed complete!');
   console.log('   Admin login: admin@mandoshts.edu.gh / Admin@2024!');

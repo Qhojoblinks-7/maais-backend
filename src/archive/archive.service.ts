@@ -152,11 +152,13 @@ export class ArchiveService {
    */
   async searchVault(
     query: {
+      id?: string;
       indexNumber?: string;
       firstName?: string;
       lastName?: string;
       academicYearId?: string;
       classLevel?: ClassLevel;
+      detailed?: boolean;
     },
     userId?: string,
     userRole?: Role,
@@ -196,6 +198,9 @@ export class ArchiveService {
       where: {
         AND: [
           roleFilter,
+          query.id
+            ? { id: query.id }
+            : {},
           query.indexNumber
             ? {
                 indexNumber: {
@@ -221,12 +226,23 @@ export class ArchiveService {
             term: { include: { academicYear: true } },
           },
         },
-        reportCards: {
-          include: { term: { include: { academicYear: true } } },
-        },
         promotions: {
           include: { academicYear: true },
         },
+        ...(query.detailed
+          ? {
+              reportCards: {
+                include: { term: { include: { academicYear: true } } },
+              },
+              behaviors: {
+                include: { recordedBy: { select: { firstName: true, lastName: true } } },
+                orderBy: { createdAt: 'desc' },
+              },
+              interventionAlerts: {
+                orderBy: { createdAt: 'desc' },
+              },
+            }
+          : {}),
       },
       take: 50,
     });

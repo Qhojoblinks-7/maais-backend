@@ -145,9 +145,10 @@ export class HODArchiveService {
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
 
+    const isCurrent = params?.mode === 'current';
     const whereClause: any = {
-      archivedAt: { not: null },
       departmentId: staffProfile.departmentId,
+      archivedAt: isCurrent ? null : { not: null },
     };
     if (params?.year) {
       whereClause.promotions = {
@@ -161,6 +162,11 @@ export class HODArchiveService {
         promotions: { include: { academicYear: true } },
         currentClass: { select: { name: true } },
         grades: {
+          where: isCurrent
+            ? {
+                subject: { departmentId: staffProfile.departmentId },
+              }
+            : undefined,
           include: {
             subject: { select: { id: true, name: true } },
             term: { include: { academicYear: { select: { label: true } } } },

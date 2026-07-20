@@ -237,7 +237,7 @@ export class GradingController {
   }
 
   @Get('term-summary/:termId')
-  @Roles(Role.HOD)
+  @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({
     summary: 'Get summary stats for a term (student count, grade entry count)',
   })
@@ -347,24 +347,32 @@ export class GradingController {
         },
       });
     }
-    return this.prisma.assessmentRules.upsert({
+    const existing = await this.prisma.assessmentRules.findUnique({
       where: { termId: body.termId },
-      create: {
-        termId: body.termId,
-        caWeight: body.caWeight ?? 30,
-        examWeight: body.examWeight ?? 70,
-        normalizationEnabled: body.normalizationEnabled ?? true,
+    });
+    if (!existing) {
+      return this.prisma.assessmentRules.create({
+        data: {
+          termId: body.termId,
+          caWeight: body.caWeight ?? 30,
+          examWeight: body.examWeight ?? 70,
+          normalizationEnabled: body.normalizationEnabled ?? true,
+          submissionDeadline: body.submissionDeadline
+            ? new Date(body.submissionDeadline)
+            : undefined,
+        },
+      });
+    }
+    return this.prisma.assessmentRules.update({
+      where: { id: existing.id },
+      data: {
+        caWeight: body.caWeight ?? existing.caWeight,
+        examWeight: body.examWeight ?? existing.examWeight,
+        normalizationEnabled:
+          body.normalizationEnabled ?? existing.normalizationEnabled,
         submissionDeadline: body.submissionDeadline
           ? new Date(body.submissionDeadline)
-          : undefined,
-      },
-      update: {
-        caWeight: body.caWeight ?? 30,
-        examWeight: body.examWeight ?? 70,
-        normalizationEnabled: body.normalizationEnabled ?? true,
-        submissionDeadline: body.submissionDeadline
-          ? new Date(body.submissionDeadline)
-          : undefined,
+          : existing.submissionDeadline,
       },
     });
   }

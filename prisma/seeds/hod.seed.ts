@@ -8,8 +8,9 @@ export async function seedHODs(prisma: PrismaClient, departments: any[]) {
     { firstName: 'Michael', lastName: 'Osei', email: 'm.osei@mandoshts.edu.gh', gender: Gender.MALE, deptCode: 'GEN', canTeach: false },
     { firstName: 'Sarah', lastName: 'Mensah', email: 's.mensah@mandoshts.edu.gh', gender: Gender.FEMALE, deptCode: 'SCI', canTeach: true },
     { firstName: 'David', lastName: 'Boateng', email: 'd.boateng@mandoshts.edu.gh', gender: Gender.MALE, deptCode: 'BUS', canTeach: false },
-    { firstName: 'Grace', lastName: 'Amoah', email: 'g.amoah@mandoshts.edu.gh', gender: Gender.FEMALE, deptCode: 'VTG', canTeach: false },
+    { firstName: 'Grace', lastName: 'Amoah', email: 'g.amoah@mandoshts.edu.gh', gender: Gender.FEMALE, deptCode: 'HEC', canTeach: false },
     { firstName: 'Thomas', lastName: 'Brew', email: 't.brew@mandoshts.edu.gh', gender: Gender.MALE, deptCode: 'ART', canTeach: false },
+    { firstName: 'Patricia', lastName: 'Owusu', email: 'p.owusu@mandoshts.edu.gh', gender: Gender.FEMALE, deptCode: 'TEC', canTeach: true },
   ];
 
   const hods = [];

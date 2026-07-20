@@ -49,4 +49,40 @@ export class BehaviorService {
 
     return { logs, traits };
   }
+
+  async getBehaviorBatch(studentIds: string[]) {
+    const logs = await this.prisma.studentBehavior.findMany({
+      where: { studentId: { in: studentIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const traits = await this.prisma.characterTrait.findMany({
+      where: { studentId: { in: studentIds } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const logsByStudent = new Map<string, typeof logs>();
+    for (const log of logs) {
+      if (!logsByStudent.has(log.studentId)) {
+        logsByStudent.set(log.studentId, []);
+      }
+      logsByStudent.get(log.studentId)!.push(log);
+    }
+
+    const traitsByStudent = new Map<string, typeof traits>();
+    for (const trait of traits) {
+      if (!traitsByStudent.has(trait.studentId)) {
+        traitsByStudent.set(trait.studentId, []);
+      }
+      traitsByStudent.get(trait.studentId)!.push(trait);
+    }
+
+    return {
+      byStudent: studentIds.map((id) => ({
+        studentId: id,
+        logs: logsByStudent.get(id) || [],
+        traits: traitsByStudent.get(id) || [],
+      })),
+    };
+  }
 }

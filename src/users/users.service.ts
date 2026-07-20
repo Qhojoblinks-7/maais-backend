@@ -14,7 +14,8 @@ export const STUDENT_EMAIL_DOMAIN = 'st.mandoshts.edu.gh';
 
 // Default password assigned to students on creation. They are forced to change
 // it on first login (User.mustChangePassword is set true by the schema default).
-export const DEFAULT_STUDENT_PASSWORD = 'Student@2024!';
+export const DEFAULT_STUDENT_PASSWORD = 'Student@123!';
+export const DEFAULT_STAFF_PASSWORD = 'Staff@123!';
 
 /**
  * Student index numbers must be plain identifiers (e.g. "MSHTS/2024/001" or a
@@ -49,6 +50,15 @@ function deriveStudentEmail(indexNumber: string): string {
   // Use the raw index number as the local part; the domain is fixed and never
   // influenced by user input.
   return `${indexNumber}@${STUDENT_EMAIL_DOMAIN}`;
+}
+
+function generateTemporaryPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
 }
 
 export interface CreateStaffDto {
@@ -93,6 +103,7 @@ export interface CreateStudentDto {
   parentPhone?: string;
   parentEmail?: string;
   parentRelationship?: string;
+  isBoarder?: boolean;
 }
 
 export interface CreateParentDto {
@@ -102,6 +113,7 @@ export interface CreateParentDto {
   lastName: string;
   phone: string;
   occupation?: string;
+  studentIds?: string[];
 }
 
 @Injectable()
@@ -114,13 +126,14 @@ export class UsersService {
     });
     if (exists) throw new ConflictException('Email already in use');
 
-    const passwordHash = await argon2.hash(dto.password);
+    const passwordHash = await argon2.hash(dto.password || DEFAULT_STAFF_PASSWORD);
 
     return this.prisma.user.create({
       data: {
         email: dto.email,
         passwordHash,
         role: dto.role,
+        mustChangePassword: true,
         staffProfile: {
           create: {
             staffId: dto.staffId,
@@ -197,8 +210,6 @@ export class UsersService {
       dto.password || DEFAULT_STUDENT_PASSWORD,
     );
 
-    // Email is ALWAYS derived from the index number. Any client-supplied email
-    // is ignored so it can never be spoofed or used to inject data.
     const email = deriveStudentEmail(indexNumber);
 
     const student = await this.prisma.user.create({
@@ -217,6 +228,7 @@ export class UsersService {
             dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
             currentClassId: dto.currentClassId,
             departmentId: dto.departmentId,
+            isBoarder: dto.isBoarder ?? false,
           },
         },
       },
@@ -225,7 +237,54 @@ export class UsersService {
       },
     });
 
-    // Parent contact info is stored in student profile only; no separate parent user accounts
+    if (dto.parentPhone || dto.parentEmail) {
+      const parentPhone = dto.parentPhone || '';
+      const parentEmail = dto.parentEmail || `${parentPhone}@parent.com`;
+
+      let parent = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: parentPhone },
+            { email: parentEmail },
+          ],
+          role: Role.PARENT,
+        },
+        include: { parentProfile: true },
+      });
+
+      if (!parent) {
+        const passwordHash = await argon2.hash('Parent@123!');
+        parent = await this.prisma.user.create({
+          data: {
+            email: parentEmail,
+            passwordHash,
+            role: Role.PARENT,
+            phone: parentPhone || null,
+            mustChangePassword: true,
+            parentProfile: {
+              create: {
+                firstName: sanitizeText(dto.parentFirstName || ''),
+                lastName: sanitizeText(dto.parentLastName || ''),
+                phone: parentPhone,
+                email: parentEmail,
+                occupation: null,
+              },
+            },
+          },
+          include: { parentProfile: true },
+        });
+      }
+
+      await this.prisma.studentParentLink.create({
+        data: {
+          studentId: student.studentProfile.id,
+          parentId: parent.parentProfile!.id,
+          relationship: dto.parentRelationship || 'Guardian',
+          isPrimary: true,
+        },
+      });
+    }
+
     return student;
   }
 
@@ -239,12 +298,13 @@ export class UsersService {
 
     const passwordHash = await argon2.hash(dto.password || 'Parent@123!');
 
-    return this.prisma.user.create({
+    const parent = await this.prisma.user.create({
       data: {
         email,
         passwordHash,
         role: Role.PARENT,
         phone: dto.phone,
+        mustChangePassword: true,
         parentProfile: {
           create: {
             firstName: dto.firstName,
@@ -257,6 +317,18 @@ export class UsersService {
       },
       include: { parentProfile: true },
     });
+
+    if (dto.studentIds?.length) {
+      const links = dto.studentIds.map(studentId => ({
+        studentId,
+        parentId: parent.parentProfile!.id,
+        relationship: 'Guardian',
+        isPrimary: true,
+      }));
+      await this.prisma.studentParentLink.createMany({ data: links });
+    }
+
+    return parent;
   }
 
   async getAllStudents(user?: { id: string; role: Role }, search?: string) {
@@ -762,9 +834,18 @@ export class UsersService {
 
     for (const s of staffList) {
       try {
+        let departmentId = s.departmentId;
+
+        if (!departmentId && s.departmentName) {
+          const dept = await this.prisma.department.findFirst({
+            where: { name: { equals: s.departmentName, mode: 'insensitive' } },
+          });
+          if (dept) departmentId = dept.id;
+        }
+
         const dto: CreateStaffDto = {
           email: s.email,
-          password: s.password || 'Staff@2024!',
+          password: s.password || DEFAULT_STAFF_PASSWORD,
           role: s.role || Role.TEACHER,
           staffId: s.staffId || `STF-${Date.now()}-${results.success + results.failed}`,
           firstName: s.firstName,
@@ -772,7 +853,7 @@ export class UsersService {
           middleName: s.middleName,
           gender: (s.gender || 'MALE').toUpperCase(),
           phone: s.phone,
-          departmentId: s.departmentId,
+          departmentId,
         };
         await this.createStaff(dto);
         results.success++;
@@ -793,15 +874,51 @@ export class UsersService {
 
     for (const s of students) {
       try {
+        let currentClassId = s.currentClassId || s.currentclassid;
+        let departmentId = s.departmentId || s.departmentid;
+
+        if (!currentClassId && s.className) {
+          const cls = await this.prisma.classSection.findFirst({
+            where: { name: { equals: s.className, mode: 'insensitive' } },
+          });
+          if (cls) currentClassId = cls.id;
+        }
+
+        if (!departmentId && s.departmentName) {
+          const dept = await this.prisma.department.findFirst({
+            where: { name: { equals: s.departmentName, mode: 'insensitive' } },
+          });
+          if (dept) departmentId = dept.id;
+        }
+
+        const indexNumber = s.indexNumber || s.index_number;
+        if (!indexNumber) {
+          throw new Error('Index number is required');
+        }
+
+        const existing = await this.prisma.studentProfile.findUnique({
+          where: { indexNumber },
+        });
+        if (existing) {
+          throw new Error(`Student with index number ${indexNumber} already exists`);
+        }
+
         const dto = {
-          indexNumber: s.indexNumber || s.index_number,
+          password: 'Student@123!',
+          indexNumber,
           firstName: s.firstName || s.first_name,
           lastName: s.lastName || s.last_name,
           middleName: s.middleName || s.middle_name,
           gender: (s.gender || 'MALE').toUpperCase(),
           dateOfBirth: s.dateOfBirth || s.date_of_birth || s.dob,
-          email: s.email,
-          password: s.password || 'Student@123!',
+          currentClassId,
+          departmentId,
+          parentFirstName: s.parentFirstName || s.parent_first_name || s.parentFirstName,
+          parentLastName: s.parentLastName || s.parent_last_name || s.parentLastName,
+          parentPhone: s.parentPhone || s.parent_phone || s.parentPhone,
+          parentEmail: s.parentEmail || s.parent_email || s.parentEmail,
+          parentRelationship: s.parentRelationship || s.parent_relationship || s.parentRelationship || 'Guardian',
+          isBoarder: s.isBoarder != null ? s.isBoarder : (s.residential_status === 'BOARDING' ? true : (s.boarding === 'true' ? true : false)),
         };
 
         await this.createStudent(dto);
@@ -809,7 +926,7 @@ export class UsersService {
       } catch (err: any) {
         results.failed++;
         results.errors.push({
-          indexNumber: s.indexNumber,
+          indexNumber: s.indexNumber || s.index_number || 'unknown',
           error: err.message || 'Unknown error',
         });
       }

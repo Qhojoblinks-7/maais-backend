@@ -70,7 +70,7 @@ export class TeacherService {
           select: { id: true },
         }),
         this.prisma.teachingAssignment.findMany({
-          where: { teacherId },
+          where: { teacherId: staffProfile.id },
           include: {
             subject: { include: { department: { select: { name: true } } } },
             classSection: { select: { id: true, name: true, level: true } },
@@ -1477,6 +1477,10 @@ export class TeacherService {
     className: string,
     user: { id: string; role: Role; staffProfile?: { id: string } },
   ) {
+    if (!subjectName || !className) {
+      return [];
+    }
+
     const subject = await this.prisma.subject.findFirst({
       where: { name: subjectName },
       select: { id: true },
@@ -1584,6 +1588,73 @@ export class TeacherService {
         labSafetyCompliance: g?.labSafetyCompliance ?? false,
         flaggedForReview: g?.flaggedForReview ?? false,
       };
+    });
+  }
+
+  async getStudents(
+    user: { id: string; role: Role; staffProfile?: { id: string } },
+    search?: string,
+  ) {
+    let staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { id: user.staffProfile?.id || user.id },
+      select: { id: true, userId: true },
+    });
+
+    if (!staffProfile) {
+      staffProfile = await this.prisma.staffProfile.findUnique({
+        where: { userId: user.id },
+        select: { id: true, userId: true },
+      });
+    }
+
+    if (!staffProfile) {
+      return [];
+    }
+
+    if (
+      user.role === Role.TEACHER &&
+      user.staffProfile?.id !== staffProfile.id &&
+      user.id !== staffProfile.userId
+    ) {
+      return [];
+    }
+
+    const teacherAssignments = await this.prisma.teachingAssignment.findMany({
+      where: { teacherId: staffProfile.id },
+      select: { classSectionId: true },
+    });
+
+    const classSectionIds = teacherAssignments.map((a) => a.classSectionId);
+
+    const where: any = {
+      archivedAt: null,
+      currentClassId: { in: classSectionIds },
+    };
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { indexNumber: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    return this.prisma.studentProfile.findMany({
+      where,
+      include: {
+        currentClass: true,
+        department: true,
+        user: {
+          select: {
+            email: true,
+            phone: true,
+            isActive: true,
+            role: true,
+            lastLoginAt: true,
+          },
+        },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
   }
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { GradeRemark, Role, AuditAction } from '@prisma/client';
@@ -111,11 +112,14 @@ export interface UpsertGradeDto {
   studentId: string;
   subjectId: string;
   termId: string;
+  version?: number;
   classScore?: number;
   examScore?: number;
   remark?: string;
   hasObservation?: boolean;
   observationText?: string;
+  labSafety?: boolean;
+  flagged?: boolean;
 }
 
 export interface CorrectGradeDto {
@@ -161,7 +165,7 @@ export class GradingService {
     return GRADE_BOUNDARIES.find((b) => b.grade === grade)?.smartRemarks ?? [];
   }
 
-  async upsertGrade(dto: any, submittedById: string) {
+  async upsertGrade(dto: any, submittedById: string, term?: any, existingEntry?: any, previousTermId?: string | null) {
     console.log(
       `[GradingService] upsertGrade called:`,
       JSON.stringify(dto, null, 2),
@@ -180,15 +184,15 @@ export class GradingService {
       throw new Error('termId is required');
     }
 
-    const term = await this.prisma.term.findUniqueOrThrow({
+    const activeTerm = term ?? await this.prisma.term.findUniqueOrThrow({
       where: { id: dto.termId },
     });
 
     console.log(
-      `[GradingService] Term found: id=${term.id}, isLocked=${term.isLocked}`,
+      `[GradingService] Term found: id=${activeTerm.id}, isLocked=${activeTerm.isLocked}`,
     );
 
-    if (term.isLocked) {
+    if (activeTerm.isLocked) {
       throw new ForbiddenException(
         'Term is locked. Grades cannot be modified.',
       );
@@ -205,7 +209,7 @@ export class GradingService {
       grade = computed.grade;
     }
 
-    const existing = await this.prisma.gradeEntry.findFirst({
+    const existing = existingEntry ?? await this.prisma.gradeEntry.findFirst({
       where: {
         studentId: dto.studentId,
         subjectId: dto.subjectId,
@@ -327,13 +331,13 @@ export class GradingService {
       },
     });
 
-    const previousTermId = await this.getPreviousTermId(dto.termId);
-    if (previousTermId) {
+    const resolvedPreviousTermId = previousTermId ?? await this.getPreviousTermId(dto.termId);
+    if (resolvedPreviousTermId) {
       try {
         await this.interventionsService.checkPerformanceDrop(
           dto.studentId,
           dto.termId,
-          previousTermId,
+          resolvedPreviousTermId,
         );
       } catch {}
     }
@@ -1244,32 +1248,156 @@ export class GradingService {
   }
 
   async bulkUpsertGrades(entries: UpsertGradeDto[], submittedById: string) {
-    console.log(
-      `[GradingService] bulkUpsertGrades called with ${entries?.length || 0} entries, submittedById: ${submittedById}`,
-    );
-    console.log(`[GradingService] Payload:`, JSON.stringify(entries, null, 2));
-    try {
-      const results = await Promise.all(
-        entries.map((e) => this.upsertGrade(e, submittedById)),
-      );
+    if (!entries?.length) return [];
 
-      if (entries.length > 0) {
-        const { subjectId, termId } = entries[0];
-        console.log(
-          `[GradingService] Computing positions for subjectId: ${subjectId}, termId: ${termId}`,
-        );
-        await this.computeSubjectPositions(subjectId, termId);
+    const { termId, subjectId } = entries[0];
+
+    const term = await this.prisma.term.findUniqueOrThrow({ where: { id: termId } });
+
+    if (term.isLocked) {
+      throw new ForbiddenException('Term is locked. Grades cannot be modified.');
+    }
+
+    const existingEntries = await this.prisma.gradeEntry.findMany({
+      where: {
+        studentId: { in: entries.map((e) => e.studentId) },
+        subjectId,
+        termId,
+      },
+      select: {
+        id: true,
+        studentId: true,
+        classScore: true,
+        examScore: true,
+        totalScore: true,
+        grade: true,
+        isLocked: true,
+        version: true,
+      },
+    });
+
+    const existingMap = new Map(existingEntries.map((e) => [e.studentId, e]));
+
+    const toCreate = [];
+    const toUpdate = [];
+    const lockedConflicts = [];
+
+    for (const e of entries) {
+      const cs = e.classScore ?? 0;
+      const es = e.examScore ?? 0;
+      const computed = this.computeGrade(cs, es);
+      const existing = existingMap.get(e.studentId);
+
+      if (existing?.isLocked) {
+        lockedConflicts.push(e.studentId);
+        continue;
       }
 
-      return results;
-    } catch (err) {
-      console.error(
-        `[GradingService] bulkUpsertGrades error:`,
-        err.message || err,
-        err.stack || '',
-      );
-      throw err;
+      if (existing) {
+        const clientVersion = e.version ?? existing.version;
+        if (clientVersion !== existing.version) {
+          throw new ConflictException(
+            `A grade for a student in this sheet was changed elsewhere. Please refresh and retry.`,
+          );
+        }
+        toUpdate.push({
+          where: { id: existing.id },
+          data: {
+            classScore: e.classScore,
+            examScore: e.examScore,
+            totalScore: computed.totalScore,
+            grade: computed.grade,
+            remark: e.remark,
+            submittedById,
+            submittedAt: new Date(),
+            isApproved: false,
+            version: { increment: 1 },
+          },
+        });
+      } else {
+        toCreate.push({
+          studentId: e.studentId,
+          subjectId,
+          termId,
+          classScore: e.classScore,
+          examScore: e.examScore,
+          totalScore: computed.totalScore,
+          grade: computed.grade,
+          remark: e.remark,
+          hasObservation: e.hasObservation ?? false,
+          observationText: e.observationText,
+          labSafetyCompliance: e.labSafety ?? false,
+          flaggedForReview: e.flagged ?? false,
+          submittedById,
+          submittedAt: new Date(),
+          isApproved: false,
+        });
+      }
     }
+
+    if (lockedConflicts.length) {
+      throw new ForbiddenException(
+        `Grades for ${lockedConflicts.length} locked student(s) were skipped. Contact your HOD to unlock them.`,
+      );
+    }
+
+    await this.prisma.$transaction([
+      ...(toCreate.length
+        ? [this.prisma.gradeEntry.createMany({ data: toCreate })]
+        : []),
+      ...toUpdate.map((u) => this.prisma.gradeEntry.update(u)),
+      this.prisma.auditLog.createMany({
+        data: entries.map((e) => ({
+          userId: submittedById,
+          action: existingMap.get(e.studentId) ? AuditAction.UPDATE : AuditAction.CREATE,
+          entity: 'GradeEntry',
+          entityId: existingMap.get(e.studentId)?.id ?? 'pending',
+          payload: {
+            studentId: e.studentId,
+            subjectId,
+            termId,
+          },
+        })),
+      }),
+    ]);
+
+    await this.computeSubjectPositions(subjectId, termId);
+
+    const studentIds = entries.map((e) => e.studentId);
+    const saved = await this.prisma.gradeEntry.findMany({
+      where: { studentId: { in: studentIds }, subjectId, termId },
+      select: {
+        id: true,
+        studentId: true,
+        classScore: true,
+        examScore: true,
+        totalScore: true,
+        grade: true,
+        remark: true,
+        hasObservation: true,
+        labSafetyCompliance: true,
+        flaggedForReview: true,
+        isLocked: true,
+        version: true,
+      },
+    });
+
+    const previousTermId = await this.getPreviousTermId(termId);
+    if (previousTermId) {
+      for (const e of entries) {
+        try {
+          await this.interventionsService.checkPerformanceDrop(
+            e.studentId,
+            termId,
+            previousTermId,
+          );
+        } catch {
+          /* non-blocking */
+        }
+      }
+    }
+
+    return saved;
   }
 
   async computeSubjectPositions(subjectId: string, termId: string) {
@@ -1279,6 +1407,7 @@ export class GradingService {
     });
 
     let currentRank = 1;
+    const updates = [];
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       if (i > 0 && entry.totalScore === entries[i - 1].totalScore) {
@@ -1286,11 +1415,15 @@ export class GradingService {
         currentRank = i + 1;
       }
 
-      await this.prisma.gradeEntry.update({
-        where: { id: entry.id },
-        data: { position: currentRank },
-      });
+      updates.push(
+        this.prisma.gradeEntry.update({
+          where: { id: entry.id },
+          data: { position: currentRank },
+        }),
+      );
     }
+
+    await Promise.all(updates);
   }
 
   async getStudentsForGrading(

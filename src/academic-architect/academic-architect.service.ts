@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { TermNumber, ClassLevel, SubjectType } from '@prisma/client';
 
@@ -63,14 +67,64 @@ export class AcademicArchitectService {
     endDate: Date,
     termSystem?: string,
   ) {
+    const system =
+      termSystem === 'TWO_SEMESTERS' ? 'TWO_SEMESTERS' : 'THREE_TERMS';
+    const yearStart = new Date(startDate);
+    const yearEnd = new Date(endDate);
+
+    const terms =
+      system === 'TWO_SEMESTERS'
+        ? this.buildSemesters(yearStart, yearEnd)
+        : this.buildTerms(yearStart, yearEnd);
+
     return this.prisma.academicYear.create({
       data: {
         label,
-        startDate,
-        endDate,
-        termSystem: termSystem || 'THREE_TERMS',
+        startDate: yearStart,
+        endDate: yearEnd,
+        termSystem: system,
+        terms: {
+          create: terms.map((t, idx) => ({
+            ...t,
+            isActive: idx === 0,
+          })),
+        },
       },
+      include: { terms: { orderBy: { termNumber: 'asc' } } },
     });
+  }
+
+  private splitRange(start: Date, end: Date, parts: number) {
+    const total = end.getTime() - start.getTime();
+    const step = total / parts;
+    const bounds: Date[] = [new Date(start)];
+    for (let i = 1; i < parts; i++)
+      bounds.push(new Date(start.getTime() + step * i));
+    bounds.push(new Date(end));
+    const segments = [];
+    for (let i = 0; i < parts; i++) {
+      segments.push({
+        start: new Date(bounds[i]),
+        end: new Date(bounds[i + 1]),
+      });
+    }
+    return segments;
+  }
+
+  private buildTerms(yearStart: Date, yearEnd: Date) {
+    return this.splitRange(yearStart, yearEnd, 3).map((seg, idx) => ({
+      termNumber: `TERM_${idx + 1}` as TermNumber,
+      startDate: seg.start,
+      endDate: seg.end,
+    }));
+  }
+
+  private buildSemesters(yearStart: Date, yearEnd: Date) {
+    return this.splitRange(yearStart, yearEnd, 2).map((seg, idx) => ({
+      termNumber: `SEMESTER_${idx + 1}` as TermNumber,
+      startDate: seg.start,
+      endDate: seg.end,
+    }));
   }
 
   async setActiveYear(yearId: string) {
@@ -119,6 +173,13 @@ export class AcademicArchitectService {
     return this.prisma.term.update({
       where: { id: termId },
       data: { isActive: true },
+    });
+  }
+
+  async deactivateTerm(termId: string) {
+    return this.prisma.term.update({
+      where: { id: termId },
+      data: { isActive: false },
     });
   }
 

@@ -617,10 +617,17 @@ export class HODGradeService {
     });
     if (!term) throw new NotFoundException('Term not found');
 
-    return this.prisma.term.update({
+    const updated = await this.prisma.term.update({
       where: { id: termId },
       data: { isLocked: false },
     });
+
+    await this.prisma.gradeEntry.updateMany({
+      where: { termId },
+      data: { isLocked: false, lockedById: null, lockedAt: null },
+    });
+
+    return updated;
   }
 
   async unlockClassMatrix(classSectionId: string, userId: string, role: Role) {
