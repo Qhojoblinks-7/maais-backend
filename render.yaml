@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: maais-backend
+    runtime: node
+    plan: starter
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: APP_URL
+        value: https://your-backend-url.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: maais-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: maais-db
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: REDIS_URL
+        value: rediss://default:gQAAAAAAAmxVAAIgcDI0MjkyOWM2M2YxYWI0YTVhYmI2ZjE1N2MwODhjMGU4Zg@crucial-rabbit-158805.upstash.io:6379
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        value: your-email@gmail.com
+      - key: SMTP_PASS
+        value: your-app-password
+      - key: STORAGE_BUCKET_URL
+        value: https://xxxx.supabase.co/storage/v1/object/public/maais
+      - key: STORAGE_SECRET
+        value: your-storage-secret
+      - key: QR_BASE_URL
+        value: https://verify.mandoshts.edu.gh
+
+databases:
+  - name: maais-db
+    plan: starter
+    databaseName: maais
+    user: maais
+    postgresMajorVersion: 16
