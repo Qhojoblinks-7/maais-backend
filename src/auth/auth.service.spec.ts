@@ -6,10 +6,10 @@ import { ConfigService } from '@nestjs/config';
 import { User, Role } from '@prisma/client';
 import { ForbiddenException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
-import * as argon2 from 'argon2';
+import * as bcrypt from 'bcryptjs';
 
-jest.mock('argon2', () => ({
-  verify: jest.fn(),
+jest.mock('bcryptjs', () => ({
+  compare: jest.fn(),
   hash: jest.fn(),
 }));
 
@@ -63,8 +63,8 @@ describe('AuthService', () => {
     const mockV4 = uuidv4 as jest.Mock;
     mockV4.mockReturnValue('refresh-token-uuid');
 
-    const mockVerify = (argon2 as any).verify as jest.Mock;
-    mockVerify.mockResolvedValue(true);
+    const mockCompare = (bcrypt as any).compare as jest.Mock;
+    mockCompare.mockResolvedValue(true);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -100,8 +100,8 @@ describe('AuthService', () => {
     });
 
     it('returns null for wrong password', async () => {
-      const mockVerify = (argon2 as any).verify as jest.Mock;
-      mockVerify.mockResolvedValue(false);
+      const mockCompare = (bcrypt as any).compare as jest.Mock;
+      mockCompare.mockResolvedValue(false);
       prisma.user.findUnique = jest.fn().mockResolvedValue(mockUser);
 
       const result = await service.validateUser('test@example.com', 'wrong');

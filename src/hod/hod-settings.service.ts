@@ -3,7 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import * as argon2 from 'argon2';
+import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -114,10 +114,10 @@ export class HODSettingsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    const isValid = await argon2.verify(user.passwordHash, currentPassword);
+      const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValid) throw new ForbiddenException('Current password is incorrect');
 
-    const newHash = await argon2.hash(newPassword);
+      const newHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({
       where: { id: userId },
       data: {

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role } from '@prisma/client';
-import * as argon2 from 'argon2';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AdminService {
@@ -214,7 +214,7 @@ export class AdminService {
     }
 
     const tempPassword = temporaryPassword || this.generateTemporaryPassword();
-    const passwordHash = await argon2.hash(tempPassword);
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
 
     await this.prisma.user.update({
       where: { id: staff.user.id },
@@ -402,15 +402,15 @@ export class AdminService {
       throw new Error('No admin user found');
     }
     if (body.currentPassword) {
-      const valid = await argon2.verify(
-        adminUser.passwordHash,
+      const valid = await bcrypt.compare(
         body.currentPassword,
+        adminUser.passwordHash,
       );
       if (!valid) {
         throw new Error('Current password is incorrect');
       }
     }
-    const newHash = await argon2.hash(body.newPassword);
+    const newHash = await bcrypt.hash(body.newPassword, 10);
     await this.prisma.user.update({
       where: { id: adminUser.id },
       data: { passwordHash: newHash },

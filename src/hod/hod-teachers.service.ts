@@ -7,7 +7,7 @@ import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, AuditAction } from '@prisma/client';
 import { CacheService } from '../cache/cache.service';
 import { OCCService } from '../common/services/occ.service';
-import * as argon2 from 'argon2';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class HODTeacherService {
@@ -475,7 +475,7 @@ export class HODTeacherService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    return argon2.hash(password);
+    return bcrypt.hash(password, 10);
   }
 
   async getAuditLogs(userId: string, role: Role, params?: any) {

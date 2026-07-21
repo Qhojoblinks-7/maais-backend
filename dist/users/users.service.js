@@ -46,7 +46,7 @@ exports.UsersService = exports.DEFAULT_STAFF_PASSWORD = exports.DEFAULT_STUDENT_
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../common/prisma/prisma.service");
 const client_1 = require("@prisma/client");
-const argon2 = __importStar(require("argon2"));
+const bcrypt = __importStar(require("bcryptjs"));
 exports.STUDENT_EMAIL_DOMAIN = 'st.mandoshts.edu.gh';
 exports.DEFAULT_STUDENT_PASSWORD = 'Student@123!';
 exports.DEFAULT_STAFF_PASSWORD = 'Staff@123!';
@@ -90,7 +90,7 @@ let UsersService = class UsersService {
         });
         if (exists)
             throw new common_1.ConflictException('Email already in use');
-        const passwordHash = await argon2.hash(dto.password || exports.DEFAULT_STAFF_PASSWORD);
+        const passwordHash = await bcrypt.hash(dto.password || exports.DEFAULT_STAFF_PASSWORD, 10);
         return this.prisma.user.create({
             data: {
                 email: dto.email,
@@ -168,7 +168,7 @@ let UsersService = class UsersService {
         });
         if (indexExists)
             throw new common_1.ConflictException(`Index number ${indexNumber} already registered`);
-        const passwordHash = await argon2.hash(dto.password || exports.DEFAULT_STUDENT_PASSWORD);
+        const passwordHash = await bcrypt.hash(dto.password || exports.DEFAULT_STUDENT_PASSWORD, 10);
         const email = deriveStudentEmail(indexNumber);
         const student = await this.prisma.user.create({
             data: {
@@ -208,7 +208,7 @@ let UsersService = class UsersService {
                 include: { parentProfile: true },
             });
             if (!parent) {
-                const passwordHash = await argon2.hash('Parent@123!');
+                const passwordHash = await bcrypt.hash('Parent@123!', 10);
                 parent = await this.prisma.user.create({
                     data: {
                         email: parentEmail,
@@ -247,7 +247,7 @@ let UsersService = class UsersService {
         });
         if (exists)
             throw new common_1.ConflictException('Parent email/phone already in use');
-        const passwordHash = await argon2.hash(dto.password || 'Parent@123!');
+        const passwordHash = await bcrypt.hash(dto.password || 'Parent@123!', 10);
         const parent = await this.prisma.user.create({
             data: {
                 email,

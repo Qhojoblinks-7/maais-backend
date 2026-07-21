@@ -47,7 +47,7 @@ const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const prisma_service_1 = require("../common/prisma/prisma.service");
-const argon2 = __importStar(require("argon2"));
+const bcrypt = __importStar(require("bcryptjs"));
 const uuid_1 = require("uuid");
 let AuthService = class AuthService {
     constructor(prisma, jwt, config) {
@@ -59,7 +59,7 @@ let AuthService = class AuthService {
         const user = await this.prisma.user.findUnique({ where: { email } });
         if (!user || !user.isActive)
             return null;
-        const valid = await argon2.verify(user.passwordHash, password);
+        const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid)
             return null;
         await this.prisma.user.update({
@@ -86,18 +86,18 @@ let AuthService = class AuthService {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user)
             throw new common_1.ForbiddenException('User not found');
-        const isValid = await argon2.verify(user.passwordHash, currentPassword);
+        const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
         if (!isValid) {
             throw new common_1.ForbiddenException('Current password is incorrect');
         }
         if (newPassword.length < 8) {
             throw new common_1.ForbiddenException('New password must be at least 8 characters long');
         }
-        const sameAsOld = await argon2.verify(user.passwordHash, newPassword);
+        const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
         if (sameAsOld) {
             throw new common_1.ForbiddenException('New password must be different from the current password');
         }
-        const newHash = await argon2.hash(newPassword);
+        const newHash = await bcrypt.hash(newPassword, 10);
         await this.prisma.user.update({
             where: { id: userId },
             data: {
