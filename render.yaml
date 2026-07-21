@@ -6,13 +6,12 @@ services:
     buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/v1/health
+    healthCheckTimeout: 120
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: APP_URL
-        value: https://maais-backend-6xh0.onrender.com
+        value: https://maais-backend-e3jh.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: maais-db
