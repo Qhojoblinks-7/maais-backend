@@ -109,7 +109,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  const port = process.env.PORT || 3000;
+  const port = Number(process.env.PORT) || 3000;
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
   await app.listen(port, '0.0.0.0');
   await waitForPort(port, 10000);
