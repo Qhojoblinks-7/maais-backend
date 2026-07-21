@@ -50,6 +50,8 @@ async function bootstrap() {
       'http://localhost:5175',
       'http://localhost:4173',
       'http://localhost:3000',
+      'https://maais-academic-audit-system.vercel.app',
+      'https://maais-academic-audit-system.vercel.app',
     ].filter(Boolean),
     credentials: true,
   });

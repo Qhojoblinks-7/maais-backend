@@ -12,7 +12,7 @@ services:
       - key: PORT
         value: 10000
       - key: APP_URL
-        value: https://your-backend-url.onrender.com
+        value: https://maais-backend-6xh0.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: maais-db
@@ -45,6 +45,8 @@ services:
         value: your-storage-secret
       - key: QR_BASE_URL
         value: https://verify.mandoshts.edu.gh
+      - key: FRONTEND_URL
+        value: https://maais-academic-audit-system.vercel.app
 
 databases:
   - name: maais-db
