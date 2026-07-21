@@ -42,8 +42,8 @@ async function bootstrap() {
   );
 
   // CORS
-  app.enableCors({
-    origin: [
+  const isKnownOrigin = (origin: string) => {
+    const allowed = [
       process.env.FRONTEND_URL,
       'http://localhost:5173',
       'http://localhost:5174',
@@ -51,8 +51,14 @@ async function bootstrap() {
       'http://localhost:4173',
       'http://localhost:3000',
       'https://maais-academic-audit-system.vercel.app',
-      'https://maais-academic-audit-system.vercel.app',
-    ].filter(Boolean),
+    ].filter(Boolean);
+    if (allowed.includes(origin)) return true;
+    if (/\.vercel\.app$/.test(new URL(origin).hostname)) return true;
+    return false;
+  };
+
+  app.enableCors({
+    origin: (origin) => (isKnownOrigin(origin) ? origin : false),
     credentials: true,
   });
 
