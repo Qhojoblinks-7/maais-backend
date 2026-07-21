@@ -77,8 +77,9 @@ async function bootstrap() {
   });
 
   const port = process.env.PORT || 3000;
+  const appUrl = process.env.APP_URL || `http://localhost:${port}`;
   await app.listen(port);
-  console.log(`🏫 MAAIS API running on http://localhost:${port}/api/v1`);
-  console.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
+  console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
+  console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
 }
 bootstrap();
