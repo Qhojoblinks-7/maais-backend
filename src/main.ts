@@ -5,6 +5,28 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseCompressionMiddleware } from './common/middleware/response-compression.middleware';
 import { QueryProfilingMiddleware } from './common/middleware/query-profiling.middleware';
 import { RateLimitingMiddleware } from './common/middleware/rate-limiting.middleware';
+import * as net from 'net';
+
+async function waitForPort(port: number, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const socket = net.createConnection(port, '0.0.0.0');
+      socket.once('connect', () => {
+        socket.end();
+        resolve();
+      });
+      socket.once('error', () => {
+        if (Date.now() < deadline) {
+          setTimeout(check, 100);
+        } else {
+          reject(new Error(`Port ${port} did not open within ${timeoutMs}ms`));
+        }
+      });
+    };
+    check();
+  });
+}
 
 // Logs any request that breaches the 2–5s UI response budget so slow
 // endpoints can be identified and optimized.
@@ -89,8 +111,8 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
-  const server = await app.listen(port, '0.0.0.0');
-  await new Promise((resolve) => server.on('listening', resolve));
+  await app.listen(port, '0.0.0.0');
+  await waitForPort(port, 10000);
   console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
   console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
 }
