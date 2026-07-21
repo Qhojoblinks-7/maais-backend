@@ -20,12 +20,28 @@ export class DatabaseInitService implements OnModuleInit {
         return;
       }
 
-      this.logger.warn(
-        'DB-level audit_logs insert-only trigger not found. Application-level immutability is enforced. Run the SQL migration manually to add the DB trigger.',
-      );
+      this.logger.warn('DB-level audit_logs insert-only trigger not found. Creating it now.');
+
+      await this.prisma.$executeRaw`
+        CREATE OR REPLACE FUNCTION prevent_audit_log_modification()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          RAISE EXCEPTION 'audit_logs table is immutable. INSERT only.';
+        END;
+        $$ LANGUAGE plpgsql;
+      `;
+
+      await this.prisma.$executeRaw`
+        CREATE TRIGGER audit_logs_insert_only
+        BEFORE UPDATE OR DELETE ON audit_logs
+        FOR EACH ROW
+        EXECUTE FUNCTION prevent_audit_log_modification();
+      `;
+
+      this.logger.log('audit_logs insert-only trigger created successfully');
     } catch {
       this.logger.warn(
-        'Could not check audit_logs trigger state. Application-level immutability is still enforced.',
+        'Could not check or create audit_logs trigger. Application-level immutability is still enforced.',
       );
     }
   }
