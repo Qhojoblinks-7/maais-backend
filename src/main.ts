@@ -53,7 +53,13 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://maais-academic-audit-system.vercel.app',
     ].filter(Boolean);
-    return allowed.includes(origin);
+    if (allowed.includes(origin)) return true;
+    try {
+      if (/^https:\/\/maais-academic-audit-system(?:-[\w-]+)?\.vercel\.app$/.test(new URL(origin).hostname)) return true;
+    } catch {
+      return false;
+    }
+    return false;
   };
 
   app.enableCors({
