@@ -99,7 +99,7 @@ async function bootstrap() {
   const port = Number(process.env.PORT) || 3000;
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
   console.log(`LISTEN_START port=${port}`);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`LISTEN_OK port=${port}`);
   console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
   console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
