@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { Role, Gender } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import * as argon2 from 'argon2';
 
 // Student accounts always use a strict, deterministic email derived from the
 // index number. This guarantees a 1:1 mapping (index → email) and removes any
@@ -126,7 +126,7 @@ export class UsersService {
     });
     if (exists) throw new ConflictException('Email already in use');
 
-    const passwordHash = await bcrypt.hash(dto.password || DEFAULT_STAFF_PASSWORD, 10);
+    const passwordHash = await argon2.hash(dto.password || DEFAULT_STAFF_PASSWORD);
 
     return this.prisma.user.create({
       data: {
@@ -206,9 +206,8 @@ export class UsersService {
         `Index number ${indexNumber} already registered`,
       );
 
-      const passwordHash = await bcrypt.hash(
+      const passwordHash = await argon2.hash(
         dto.password || DEFAULT_STUDENT_PASSWORD,
-        10,
       );
 
     const email = deriveStudentEmail(indexNumber);
@@ -254,7 +253,7 @@ export class UsersService {
       });
 
       if (!parent) {
-        const passwordHash = await bcrypt.hash('Parent@123!', 10);
+        const passwordHash = await argon2.hash('Parent@123!');
         parent = await this.prisma.user.create({
           data: {
             email: parentEmail,
@@ -297,7 +296,7 @@ export class UsersService {
     if (exists)
       throw new ConflictException('Parent email/phone already in use');
 
-    const passwordHash = await bcrypt.hash(dto.password || 'Parent@123!', 10);
+    const passwordHash = await argon2.hash(dto.password || 'Parent@123!');
 
     const parent = await this.prisma.user.create({
       data: {

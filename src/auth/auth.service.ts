@@ -2,7 +2,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
-import * as bcrypt from 'bcryptjs';
+import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '@prisma/client';
 
@@ -18,7 +18,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive) return null;
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const valid = await argon2.verify(user.passwordHash, password);
     if (!valid) return null;
 
     await this.prisma.user.update({
@@ -54,7 +54,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new ForbiddenException('User not found');
 
-    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    const isValid = await argon2.verify(user.passwordHash, currentPassword);
     if (!isValid) {
       throw new ForbiddenException('Current password is incorrect');
     }
@@ -65,14 +65,14 @@ export class AuthService {
       );
     }
 
-    const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
+    const sameAsOld = await argon2.verify(user.passwordHash, newPassword);
     if (sameAsOld) {
       throw new ForbiddenException(
         'New password must be different from the current password',
       );
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await argon2.hash(newPassword);
     await this.prisma.user.update({
       where: { id: userId },
       data: {
