@@ -96,9 +96,12 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  const port = Number(process.env.PORT) || 3000;
+  const port = Number(process.env.PORT);
+  if (!port || isNaN(port) || port <= 0) {
+    throw new Error(`Invalid PORT env: "${process.env.PORT}". Render must provide a valid port.`);
+  }
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
-  console.log(`LISTEN_START port=${port}`);
+  console.log(`LISTEN_START port=${port} APP_URL=${appUrl}`);
   await app.listen(port, '0.0.0.0');
   console.log(`LISTEN_OK port=${port}`);
   console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
