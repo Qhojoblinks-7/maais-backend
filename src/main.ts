@@ -6,22 +6,11 @@ import { ResponseCompressionMiddleware } from './common/middleware/response-comp
 import { QueryProfilingMiddleware } from './common/middleware/query-profiling.middleware';
 import { RateLimitingMiddleware } from './common/middleware/rate-limiting.middleware';
 
-process.on('uncaughtException', (error) => {
-  console.error('UNCAUGHT_EXCEPTION', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('UNHANDLED_REJECTION', reason);
-  process.exit(1);
-});
-
 function requestTimingMiddleware(req: any, res: any, next: () => void) {
   const start = Date.now();
   res.on('finish', () => {
     const ms = Date.now() - start;
     if (ms > 2000) {
-      // eslint-disable-next-line no-console
       console.warn(`[PERF] ${req.method} ${req.originalUrl} took ${ms}ms`);
     }
   });
@@ -29,19 +18,15 @@ function requestTimingMiddleware(req: any, res: any, next: () => void) {
 }
 
 async function bootstrap() {
-  console.log('BOOTSTRAP_START');
   const app = await NestFactory.create(AppModule);
 
-  // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // Compression (zero-dep, zlib) + slow-request timing for all roles.
   app.use(new QueryProfilingMiddleware().use);
   app.use(requestTimingMiddleware);
   app.use(new RateLimitingMiddleware().use);
   app.use(new ResponseCompressionMiddleware().use);
 
-  // Global validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -50,10 +35,8 @@ async function bootstrap() {
     }),
   );
 
-  // CORS
-  const isKnownOrigin = (origin) => {
-    if (!origin) return false;
-    const allowed = [
+  app.enableCors({
+    origin: [
       process.env.FRONTEND_URL,
       'http://localhost:5173',
       'http://localhost:5174',
@@ -61,22 +44,10 @@ async function bootstrap() {
       'http://localhost:4173',
       'http://localhost:3000',
       'https://maais-academic-audit-system.vercel.app',
-    ].filter(Boolean);
-    if (allowed.includes(origin)) return true;
-    try {
-      if (/^https:\/\/maais-academic-audit-system(?:-[\w-]+)?\.vercel\.app$/.test(new URL(origin).hostname)) return true;
-    } catch {
-      return false;
-    }
-    return false;
-  };
-
-  app.enableCors({
-    origin: (origin) => (isKnownOrigin(origin) ? origin : false),
+    ].filter(Boolean),
     credentials: true,
   });
 
-  // Swagger
   const config = new DocumentBuilder()
     .setTitle('MAAIS API')
     .setDescription('Mando SHTS Academic Audit & Intervention System')
@@ -96,19 +67,9 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  const port = Number(process.env.PORT);
-  if (!port || isNaN(port) || port <= 0) {
-    throw new Error(`Invalid PORT env: "${process.env.PORT}". Render must provide a valid port.`);
-  }
-  const appUrl = process.env.APP_URL || `http://localhost:${port}`;
-  console.log(`LISTEN_START port=${port} APP_URL=${appUrl}`);
-  await app.listen(port, '0.0.0.0');
-  console.log(`LISTEN_OK port=${port}`);
-  console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
-  console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
-  console.log('BOOTSTRAP_END');
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`🏫 MAAIS API running on http://localhost:${port}/api/v1`);
+  console.log(`📖 Swagger docs: http://localhost:${port}/api/docs`);
 }
-bootstrap().catch((error) => {
-  console.error('BOOTSTRAP_FATAL', error);
-  process.exit(1);
-});
+bootstrap();
