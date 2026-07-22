@@ -19,6 +19,7 @@ function requestTimingMiddleware(req: any, res: any, next: () => void) {
 }
 
 async function bootstrap() {
+  console.log('BOOTSTRAP_START');
   const app = await NestFactory.create(AppModule);
 
   // Global prefix
@@ -87,8 +88,14 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT) || 3000;
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+  console.log(`LISTEN_START port=${port}`);
   await app.listen(port);
+  console.log(`LISTEN_OK port=${port}`);
   console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
   console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
+  console.log('BOOTSTRAP_END');
 }
-bootstrap();
+bootstrap().catch((error) => {
+  console.error('BOOTSTRAP_FATAL', error);
+  process.exit(1);
+});
