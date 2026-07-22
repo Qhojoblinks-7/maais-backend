@@ -111,7 +111,7 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT) || 3000;
   const appUrl = process.env.APP_URL || `http://localhost:${port}`;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port);
   await waitForPort(port, 10000);
   console.log(`🏫 MAAIS API running on ${appUrl}/api/v1`);
   console.log(`📖 Swagger docs: ${appUrl}/api/docs`);
