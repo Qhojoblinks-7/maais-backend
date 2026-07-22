@@ -27,6 +27,7 @@ import { HODModule } from './hod/hod.module';
 import { CacheModule } from './cache/cache.module';
 import { DatabaseInitService } from './common/services/database-init.service';
 import { HealthController } from './health.controller';
+import { BootstrapController } from './bootstrap.controller';
 
 @Module({
   imports: [
@@ -71,6 +72,6 @@ import { HealthController } from './health.controller';
     },
     DatabaseInitService,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, BootstrapController],
 })
 export class AppModule {}
