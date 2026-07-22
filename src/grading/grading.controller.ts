@@ -206,7 +206,7 @@ export class GradingController {
   }
 
   @Get('students/for-grading')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({
     summary: 'Get students eligible for grading by subject and class',
   })

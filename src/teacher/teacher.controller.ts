@@ -241,7 +241,7 @@ export class TeacherController {
   }
 
   @Get('grading/ids')
-  @Roles(Role.TEACHER)
+  @Roles(Role.TEACHER, Role.SUPER_ADMIN, Role.HEADMASTER)
   @ApiOperation({ summary: 'Resolve subject, class, and term IDs by name' })
   getGradingIds(
     @Query('subject') subjectName: string,
