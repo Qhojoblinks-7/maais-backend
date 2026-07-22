@@ -6,6 +6,16 @@ import { ResponseCompressionMiddleware } from './common/middleware/response-comp
 import { QueryProfilingMiddleware } from './common/middleware/query-profiling.middleware';
 import { RateLimitingMiddleware } from './common/middleware/rate-limiting.middleware';
 
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT_EXCEPTION', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED_REJECTION', reason);
+  process.exit(1);
+});
+
 function requestTimingMiddleware(req: any, res: any, next: () => void) {
   const start = Date.now();
   res.on('finish', () => {
