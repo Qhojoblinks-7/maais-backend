@@ -1,7 +1,7 @@
 import { Controller, Post, Body, ConflictException } from '@nestjs/common';
 import { PrismaService } from './common/prisma/prisma.service';
 import { Role } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import * as argon2 from 'argon2';
 
 @Controller('bootstrap')
 export class BootstrapController {
@@ -16,7 +16,7 @@ export class BootstrapController {
       throw new ConflictException('Super admin already exists');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await argon2.hash(dto.password);
 
     const admin = await this.prisma.user.create({
       data: {
