@@ -85,6 +85,10 @@ export interface UpdateStaffDto {
   email?: string;
   role?: Role;
   isActive?: boolean;
+  isHod?: boolean;
+  hodDepartmentId?: string;
+  canTeach?: boolean;
+  canOversight?: boolean;
 }
 
 export interface CreateStudentDto {
@@ -168,6 +172,10 @@ export class UsersService {
     if (dto.staffId !== undefined) profileData.staffId = dto.staffId;
     if (dto.departmentId !== undefined) profileData.departmentId = dto.departmentId;
     if (dto.gender !== undefined) profileData.gender = dto.gender;
+    if (dto.isHod !== undefined) profileData.isHod = dto.isHod;
+    if (dto.hodDepartmentId !== undefined) profileData.hodDepartmentId = dto.hodDepartmentId || null;
+    if (dto.canTeach !== undefined) profileData.canTeach = dto.canTeach;
+    if (dto.canOversight !== undefined) profileData.canOversight = dto.canOversight;
 
     if (Object.keys(profileData).length > 0) {
       await this.prisma.staffProfile.update({
@@ -511,6 +519,7 @@ export class UsersService {
       include: {
         user: { select: { email: true, role: true, isActive: true } },
         department: true,
+        hodDepartment: true,
         teachingAssignments: { include: { subject: true, classSection: true } },
       },
       orderBy: { lastName: 'asc' },

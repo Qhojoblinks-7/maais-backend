@@ -51,4 +51,21 @@ export class UpdateStaffDto {
   @ApiPropertyOptional()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  isHod?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  hodDepartmentId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  canTeach?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  canOversight?: boolean;
 }
