@@ -497,11 +497,11 @@ export class UsersService {
   async getAllStaff(user?: { id: string; role: Role }) {
     let departmentId: string | undefined;
 
-    if (user?.role === Role.HOD) {
+    if (user?.role === Role.HOD || user?.role === Role.HEADMASTER || user?.role === Role.SUPER_ADMIN) {
       const staff = await this.prisma.staffProfile.findUnique({
         where: { userId: user.id },
       });
-      departmentId = staff?.departmentId || undefined;
+      departmentId = staff?.departmentId || staff?.hodDepartmentId || undefined;
     }
 
     return this.prisma.staffProfile.findMany({
@@ -517,14 +517,53 @@ export class UsersService {
     });
   }
 
+  async getMyContext(user: { id: string; role: Role }) {
+    const profile = await this.prisma.staffProfile.findUnique({
+      where: { userId: user.id },
+      include: {
+        department: true,
+        hodDepartment: true,
+        teachingAssignments: { include: { subject: true, classSection: true } },
+      },
+    });
+
+    if (!profile) {
+      return {
+        role: user.role,
+        department: null,
+        hodDepartment: null,
+        teachingAssignments: [],
+        canTeach: false,
+        canOversight: false,
+        isHod: false,
+        activeMode: 'teaching',
+      };
+    }
+
+    const canTeach = profile.canTeach ?? true;
+    const canOversight = profile.canOversight || profile.hodDepartmentId != null;
+    const isHod = profile.isHod || false;
+
+    return {
+      role: user.role,
+      department: profile.department,
+      hodDepartment: profile.hodDepartment,
+      teachingAssignments: profile.teachingAssignments,
+      canTeach,
+      canOversight,
+      isHod,
+      activeMode: canTeach && canOversight ? 'dual' : canOversight ? 'oversight' : 'teaching',
+    };
+  }
+
   async searchTeachers(user?: { id: string; role: Role }, search?: string) {
     let departmentId: string | undefined;
 
-    if (user?.role === Role.HOD) {
+    if (user?.role === Role.HOD || user?.role === Role.HEADMASTER || user?.role === Role.SUPER_ADMIN) {
       const staff = await this.prisma.staffProfile.findUnique({
         where: { userId: user.id },
       });
-      departmentId = staff?.departmentId || undefined;
+      departmentId = staff?.departmentId || staff?.hodDepartmentId || undefined;
     }
 
     const where: any = {
@@ -810,6 +849,7 @@ export class UsersService {
           },
         },
         department: true,
+        hodDepartment: true,
         teachingAssignments: {
           include: { subject: true, classSection: true },
         },

@@ -162,6 +162,13 @@ export class UsersController {
     return this.usersService.deactivateUser(id);
   }
 
+  @Get('me/context')
+  @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get current user context for dual-role support' })
+  getMyContext(@CurrentUser() user: { id: string; role: Role }) {
+    return this.usersService.getMyContext(user);
+  }
+
   @Post('students/batch')
   @Roles(Role.HOD)
   @ApiOperation({ summary: 'Batch import students from CSSPS file' })

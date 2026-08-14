@@ -160,6 +160,8 @@ model StaffProfile {
   hiredAt      DateTime    @default(now())
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
+  hodDepartmentId String?
+  hodDepartment   Department? @relation("HODDepartment", fields: [hodDepartmentId], references: [id])
 
   // Teaching assignments
   teachingAssignments TeachingAssignment[]
@@ -167,8 +169,9 @@ model StaffProfile {
   timetableEntries    TimetableEntry[]
   behaviorsRecorded   StudentBehavior[]
 
-  canTeach     Boolean @default(false)
+  canTeach     Boolean @default(true)
   canOversight Boolean @default(false)
+  isHod        Boolean @default(false)
 
   // Notifications
   notifications Notification[]
@@ -331,6 +334,7 @@ model Department {
   createdAt    DateTime  @default(now())
 
   staff    StaffProfile[]
+  hodStaff StaffProfile[] @relation("HODDepartment")
   subjects Subject[]
   students StudentProfile[]
 
