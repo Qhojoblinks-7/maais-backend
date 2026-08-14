@@ -505,7 +505,7 @@ export class UsersService {
   async getAllStaff(user?: { id: string; role: Role }) {
     let departmentId: string | undefined;
 
-    if (user?.role === Role.HOD || user?.role === Role.HEADMASTER || user?.role === Role.SUPER_ADMIN) {
+    if (user?.role === Role.HOD) {
       const staff = await this.prisma.staffProfile.findUnique({
         where: { userId: user.id },
       });
