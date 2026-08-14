@@ -3,7 +3,7 @@ services:
     name: maais-backend
     runtime: node
     plan: starter
-    buildCommand: npm install --legacy-peer-deps && npm run build
+    buildCommand: npm install --legacy-peer-deps && npx prisma migrate deploy && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/v1/health
     healthCheckTimeout: 120

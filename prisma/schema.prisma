@@ -757,6 +757,7 @@ model SupportTicket {
   resolvedAt DateTime?
 
   @@index([studentId])
+  @@index([createdAt])
   @@map("support_tickets")
 }
 

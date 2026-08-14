@@ -4,7 +4,7 @@
   "description": "MAAIS - Academic Audit & Intervention System Backend",
   "private": true,
   "scripts": {
-    "build": "npx prisma generate && node ./node_modules/@nestjs/cli/bin/nest.js build",
+    "build": "npx prisma migrate deploy && npx prisma generate && node ./node_modules/@nestjs/cli/bin/nest.js build",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
