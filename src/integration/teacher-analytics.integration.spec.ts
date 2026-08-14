@@ -57,7 +57,7 @@ describe('TeacherService - getAnalytics (integration)', () => {
     const mockStaffProfile = { id: 'teacher-1', userId: 'user-1' };
     const mockActiveTerm = {
       id: 'term-1',
-      termNumber: 'TERM_1',
+      termNumber: 'SEMESTER_1',
       academicYearId: 'year-1',
       startDate: new Date(),
     };

@@ -8,7 +8,7 @@ export async function seedApprovals(prisma: PrismaClient, teachers: any[]) {
   const statuses = ['pending', 'approved', 'rejected'];
   const details = [
     'Request to approve grades for Mathematics',
-    'Request to generate report card for Term 1',
+    'Request to generate report card for Semester 1',
     'Request for access to archived records',
     'Request to update student information',
     'Request to approve exam schedule changes',

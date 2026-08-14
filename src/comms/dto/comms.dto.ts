@@ -11,11 +11,11 @@ export class SendNotificationDto {
   @IsArray()
   studentIds?: string[];
 
-  @ApiProperty({ example: 'Term 2 Results Ready' })
+  @ApiProperty({ example: 'Semester 2 Results Ready' })
   @IsString()
   title: string;
 
-  @ApiProperty({ example: 'Your Term 2 report cards are now available.' })
+  @ApiProperty({ example: 'Your Semester 2 report cards are now available.' })
   @IsString()
   body: string;
 

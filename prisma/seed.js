@@ -86,18 +86,17 @@ async function main() {
         },
     });
     const terms = [
-        { termNumber: client_1.TermNumber.TERM_1, startDate: new Date('2024-09-02'), endDate: new Date('2024-12-20') },
-        { termNumber: client_1.TermNumber.TERM_2, startDate: new Date('2025-01-13'), endDate: new Date('2025-04-11') },
-        { termNumber: client_1.TermNumber.TERM_3, startDate: new Date('2025-05-05'), endDate: new Date('2025-07-25') },
+        { termNumber: client_1.TermNumber.SEMESTER_1, startDate: new Date('2024-09-02'), endDate: new Date('2024-12-20') },
+        { termNumber: client_1.TermNumber.SEMESTER_2, startDate: new Date('2025-01-13'), endDate: new Date('2025-04-11') },
     ];
     for (const t of terms) {
         await prisma.term.upsert({
             where: { academicYearId_termNumber: { academicYearId: year.id, termNumber: t.termNumber } },
             update: {},
-            create: { academicYearId: year.id, ...t, isActive: t.termNumber === client_1.TermNumber.TERM_1 },
+            create: { academicYearId: year.id, ...t, isActive: t.termNumber === client_1.TermNumber.SEMESTER_1 },
         });
     }
-    console.log('✅ Academic Year: 2024/2025 with 3 terms');
+    console.log('✅ Academic Year: 2024/2025 with 2 semesters');
     console.log('\n🎉 Seed complete!');
     console.log('   Admin login: admin@mandoshts.edu.gh / Admin@2024!');
 }

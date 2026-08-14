@@ -91,11 +91,13 @@ export interface CreateStudentDto {
   email?: string;
   password: string;
   indexNumber: string;
+  nationalId?: string;
   firstName: string;
   lastName: string;
   middleName?: string;
   gender: Gender;
   dateOfBirth?: string;
+  subjects?: any;
   currentClassId?: string;
   departmentId?: string;
   parentFirstName?: string;
@@ -221,11 +223,13 @@ export class UsersService {
         studentProfile: {
           create: {
             indexNumber,
+            nationalId: dto.nationalId,
             firstName: sanitizeText(dto.firstName),
             lastName: sanitizeText(dto.lastName),
             middleName: sanitizeText(dto.middleName),
             gender: dto.gender,
             dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : null,
+            subjects: dto.subjects,
             currentClassId: dto.currentClassId,
             departmentId: dto.departmentId,
             isBoarder: dto.isBoarder ?? false,
@@ -877,16 +881,32 @@ export class UsersService {
         let currentClassId = s.currentClassId || s.currentclassid;
         let departmentId = s.departmentId || s.departmentid;
 
-        if (!currentClassId && s.className) {
-          const cls = await this.prisma.classSection.findFirst({
-            where: { name: { equals: s.className, mode: 'insensitive' } },
-          });
-          if (cls) currentClassId = cls.id;
+        const rawClassName = (s.className || s.class_name || s.cassyear || '').trim();
+        const csspsDeptName = (s.departmentName || s.department_name || s.programname || '').trim();
+
+        const classAliases = [rawClassName];
+        if (/^Year\s+\d+$/i.test(rawClassName)) {
+          classAliases.push(rawClassName.replace(/^Year\s+/i, 'Form '));
+        }
+        if (/^Form\s+\d+$/i.test(rawClassName)) {
+          classAliases.push(rawClassName.replace(/^Form\s+/i, 'Year '));
         }
 
-        if (!departmentId && s.departmentName) {
+        if (!currentClassId && classAliases[0]) {
+          for (const alias of classAliases) {
+            const cls = await this.prisma.classSection.findFirst({
+              where: { name: { equals: alias, mode: 'insensitive' } },
+            });
+            if (cls) {
+              currentClassId = cls.id;
+              break;
+            }
+          }
+        }
+
+        if (!departmentId && csspsDeptName) {
           const dept = await this.prisma.department.findFirst({
-            where: { name: { equals: s.departmentName, mode: 'insensitive' } },
+            where: { name: { equals: csspsDeptName, mode: 'insensitive' } },
           });
           if (dept) departmentId = dept.id;
         }
@@ -906,11 +926,13 @@ export class UsersService {
         const dto = {
           password: 'Student@123!',
           indexNumber,
+          nationalId: s.nationalId || s.nationalid || s.natid,
           firstName: s.firstName || s.first_name,
           lastName: s.lastName || s.last_name,
           middleName: s.middleName || s.middle_name,
           gender: (s.gender || 'MALE').toUpperCase(),
           dateOfBirth: s.dateOfBirth || s.date_of_birth || s.dob,
+          subjects: s.subjects || s.subject_list,
           currentClassId,
           departmentId,
           parentFirstName: s.parentFirstName || s.parent_first_name || s.parentFirstName,
@@ -921,7 +943,25 @@ export class UsersService {
           isBoarder: s.isBoarder != null ? s.isBoarder : (s.residential_status === 'BOARDING' ? true : (s.boarding === 'true' ? true : false)),
         };
 
-        await this.createStudent(dto);
+        const created = await this.createStudent(dto);
+
+        const disability = (s.disability || s.disability_type || '').trim();
+        const canReadBraille = s.canReadBraille != null ? s.canReadBraille : (s.can_read_braille === 'true' ? true : (s.canreadbraille === 'true' ? true : null));
+
+        const hasMedicalFlag = disability && !['NORMAL', 'NONE', ''].includes(disability.toUpperCase()) || canReadBraille === true;
+
+        if (hasMedicalFlag) {
+          await this.prisma.medicalRecord.create({
+            data: {
+              studentId: created.studentProfile.id,
+              condition: 'CSSPS Import',
+              disability: hasMedicalFlag && disability ? disability : null,
+              canReadBraille: canReadBraille ?? false,
+              status: 'ACTIVE',
+            },
+          });
+        }
+
         results.success++;
       } catch (err: any) {
         results.failed++;

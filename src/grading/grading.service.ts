@@ -354,9 +354,8 @@ export class GradingService {
     });
 
     const termOrder: Record<string, number> = {
-      TERM_1: 1,
-      TERM_2: 2,
-      TERM_3: 3,
+      SEMESTER_1: 1,
+      SEMESTER_2: 2,
     };
     const currentNum = termOrder[currentTerm.termNumber];
 
@@ -1621,9 +1620,8 @@ export class GradingService {
     });
 
     const TERM_DISPLAY: Record<string, string> = {
-      TERM_1: 'Term 1',
-      TERM_2: 'Term 2',
-      TERM_3: 'Term 3',
+      SEMESTER_1: 'Semester 1',
+      SEMESTER_2: 'Semester 2',
     };
 
     const termLabel = term.academicYear

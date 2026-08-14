@@ -16,6 +16,8 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   HEADMASTER
+  ASSISTANT_HEAD_ADMINISTRATION
+  ASSISTANT_HEAD_DOMESTIC
   HOD // Head of Department
   TEACHER
   STUDENT
@@ -43,9 +45,6 @@ enum GradeRemark {
 }
 
 enum TermNumber {
-  TERM_1
-  TERM_2
-  TERM_3
   SEMESTER_1
   SEMESTER_2
 }
@@ -182,12 +181,14 @@ model StudentProfile {
   id             String        @id @default(uuid())
   userId         String        @unique
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  indexNumber    String        @unique // e.g. MSHTS/2024/001
+  indexNumber    String    @unique // e.g. MSHTS/2024/001
+  nationalId     String?   @unique // NatID from CSSPS
   firstName      String
   lastName       String
   middleName     String?
   gender         Gender
   dateOfBirth    DateTime?
+  subjects       Json?    // subjects from CSSPS import
   photoUrl       String?
   admissionDate  DateTime      @default(now())
   currentClassId String?
@@ -266,6 +267,9 @@ model MedicalRecord {
   medication String?
   dosage     String?
 
+  disability     String? // e.g. NORMAL, LOW VISION
+  canReadBraille Boolean?
+
   notes String?
 
   status String @default("ACTIVE") // ACTIVE, RESOLVED, ONGOING
@@ -287,7 +291,7 @@ model AcademicYear {
   startDate  DateTime
   endDate    DateTime
   isActive   Boolean  @default(false)
-  termSystem String   @default("THREE_TERMS") // "THREE_TERMS" or "TWO_SEMESTERS"
+  termSystem String   @default("TWO_SEMESTERS") // "TWO_SEMESTERS"
   createdAt  DateTime @default(now())
 
   terms              Term[]

@@ -547,7 +547,7 @@ describe('GradingService', () => {
         id: 'term-1',
         academicYearId: 'year-1',
         academicYear: { label: '2024/2025' },
-        termNumber: 'TERM_1',
+        termNumber: 'SEMESTER_1',
       });
       mockPrisma.classSection.findMany = jest
         .fn()
@@ -557,7 +557,7 @@ describe('GradingService', () => {
 
       const result = await service.getTermSummary('term-1', 'user-1', Role.HOD);
 
-      expect(result.termLabel).toBe('2024/2025 — Term 1');
+      expect(result.termLabel).toBe('2024/2025 — Semester 1');
       expect(result.studentCount).toBe(50);
       expect(result.gradeEntryCount).toBe(200);
     });

@@ -361,12 +361,12 @@ describe('ArchiveService', () => {
         {
           totalScore: 75,
           termId: 'term-1',
-          term: { academicYear: { label: '2024' }, termNumber: 'TERM_1' },
+          term: { academicYear: { label: '2024' }, termNumber: 'SEMESTER_1' },
         },
         {
           totalScore: 80,
           termId: 'term-1',
-          term: { academicYear: { label: '2024' }, termNumber: 'TERM_1' },
+          term: { academicYear: { label: '2024' }, termNumber: 'SEMESTER_1' },
         },
       ]);
 

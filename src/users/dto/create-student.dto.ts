@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsEmail,
   IsDateString,
+  IsBoolean,
 } from 'class-validator';
 import { Gender } from '@prisma/client';
 
@@ -14,6 +15,11 @@ export class CreateStudentDto {
   @IsString()
   @IsNotEmpty()
   indexNumber: string;
+
+  @ApiPropertyOptional({ example: 'GHA-123456789' })
+  @IsOptional()
+  @IsString()
+  nationalId?: string;
 
   @ApiProperty({ example: 'Kwame' })
   @IsString()
@@ -36,6 +42,20 @@ export class CreateStudentDto {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
+
+  @ApiPropertyOptional({ example: 'NORMAL' })
+  @IsOptional()
+  @IsString()
+  disability?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  canReadBraille?: boolean;
+
+  @ApiPropertyOptional({ type: [String], example: ['Mathematics', 'English'] })
+  @IsOptional()
+  subjects?: string[];
 
   @ApiPropertyOptional({ example: 'student@email.com' })
   @IsOptional()

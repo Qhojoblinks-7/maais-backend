@@ -172,7 +172,7 @@ async function main() {
   const activeYearData = await withRetry(
     () => prisma.academicYear.findFirst({
       where: { label: activeYear.label },
-      include: { terms: { where: { termNumber: 'TERM_1' } } },
+      include: { terms: { where: { termNumber: 'SEMESTER_1' } } },
     }),
     3,
     'findActiveYear'

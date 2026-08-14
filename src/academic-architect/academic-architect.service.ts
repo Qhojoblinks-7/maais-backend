@@ -67,15 +67,11 @@ export class AcademicArchitectService {
     endDate: Date,
     termSystem?: string,
   ) {
-    const system =
-      termSystem === 'TWO_SEMESTERS' ? 'TWO_SEMESTERS' : 'THREE_TERMS';
+    const system = 'TWO_SEMESTERS';
     const yearStart = new Date(startDate);
     const yearEnd = new Date(endDate);
 
-    const terms =
-      system === 'TWO_SEMESTERS'
-        ? this.buildSemesters(yearStart, yearEnd)
-        : this.buildTerms(yearStart, yearEnd);
+    const terms = this.buildSemesters(yearStart, yearEnd);
 
     return this.prisma.academicYear.create({
       data: {
@@ -109,14 +105,6 @@ export class AcademicArchitectService {
       });
     }
     return segments;
-  }
-
-  private buildTerms(yearStart: Date, yearEnd: Date) {
-    return this.splitRange(yearStart, yearEnd, 3).map((seg, idx) => ({
-      termNumber: `TERM_${idx + 1}` as TermNumber,
-      startDate: seg.start,
-      endDate: seg.end,
-    }));
   }
 
   private buildSemesters(yearStart: Date, yearEnd: Date) {

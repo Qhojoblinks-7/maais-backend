@@ -49,8 +49,8 @@ export async function seedAcademicYear(prisma: PrismaClient, label: string, star
   });
 
   const termsData = [
-    { termNumber: TermNumber.TERM_1, startDate, endDate: new Date(startDate.getFullYear(), 10, 15) },
-    { termNumber: TermNumber.TERM_2, startDate: new Date(startDate.getFullYear() + 1, 1, 1), endDate },
+    { termNumber: TermNumber.SEMESTER_1, startDate, endDate: new Date(startDate.getFullYear(), 10, 15) },
+    { termNumber: TermNumber.SEMESTER_2, startDate: new Date(startDate.getFullYear() + 1, 1, 1), endDate },
   ];
 
   const terms = [];
@@ -58,7 +58,7 @@ export async function seedAcademicYear(prisma: PrismaClient, label: string, star
     const term = await prisma.term.upsert({
       where: { academicYearId_termNumber: { academicYearId: year.id, termNumber: t.termNumber } },
       update: {},
-      create: { academicYearId: year.id, ...t, isActive: t.termNumber === TermNumber.TERM_1 && label === '2024/2025' },
+      create: { academicYearId: year.id, ...t, isActive: t.termNumber === TermNumber.SEMESTER_1 && label === '2024/2025' },
     });
     terms.push(term);
   }

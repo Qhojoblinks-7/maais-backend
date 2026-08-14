@@ -75,9 +75,8 @@ export class InterventionSchedulerService {
     if (!currentTerm) return null;
 
     const termOrder: Record<string, number> = {
-      TERM_1: 1,
-      TERM_2: 2,
-      TERM_3: 3,
+      SEMESTER_1: 1,
+      SEMESTER_2: 2,
     };
 
     const currentNum = termOrder[currentTerm.termNumber];
