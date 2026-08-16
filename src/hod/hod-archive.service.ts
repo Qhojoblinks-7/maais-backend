@@ -176,35 +176,37 @@ export class HODArchiveService {
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
 
-    const scoreToGradePoint = (score: number): number => {
-      if (score >= 80) return 4.0;
-      if (score >= 70) return 3.5;
-      if (score >= 65) return 3.0;
-      if (score >= 60) return 2.5;
-      if (score >= 55) return 2.0;
-      if (score >= 50) return 1.5;
-      if (score >= 45) return 1.0;
-      if (score >= 40) return 0.5;
-      return 0.0;
+    const scoreToGrade = (score: number): string => {
+      if (score >= 80) return 'A1';
+      if (score >= 70) return 'B2';
+      if (score >= 65) return 'B3';
+      if (score >= 60) return 'C4';
+      if (score >= 55) return 'C5';
+      if (score >= 50) return 'C6';
+      if (score >= 45) return 'D7';
+      if (score >= 40) return 'E8';
+      return 'F9';
+    };
+
+    const gradeToPoint = (grade: string): number => {
+      const map: Record<string, number> = {
+        A1: 1,
+        B2: 2,
+        B3: 3,
+        C4: 4,
+        C5: 5,
+        C6: 6,
+        D7: 7,
+        E8: 8,
+        F9: 9,
+      };
+      return map[grade] ?? 9;
     };
 
     return students.map((student) => {
-      const scoreToGrade = (score: number): string => {
-        if (score >= 80) return 'A1';
-        if (score >= 70) return 'B2';
-        if (score >= 65) return 'B3';
-        if (score >= 60) return 'C4';
-        if (score >= 55) return 'C5';
-        if (score >= 50) return 'C6';
-        if (score >= 45) return 'D7';
-        if (score >= 40) return 'E8';
-        return 'F9';
-      };
-
       const subjects = student.grades.map((grade) => ({
         subject: grade.subject?.name || '',
         grade: grade.grade || scoreToGrade(grade.totalScore ?? 0),
-        credits: 1,
         totalScore: grade.totalScore ?? 0,
       }));
 
@@ -214,27 +216,36 @@ export class HODArchiveService {
           if (!acc[key]) {
             acc[key] = {
               term: key,
-              termGPA: 0,
-              termCredits: 0,
+              wassceAggregate: 0,
             };
           }
-          if (grade.totalScore != null) {
-            acc[key].termGPA += scoreToGradePoint(grade.totalScore);
-            acc[key].termCredits += 1;
+          if (grade.totalScore != null && grade.grade) {
+            const sortedGrades = student.grades
+              .filter((g) => g.termId === grade.termId && g.grade)
+              .map((g) => gradeToPoint(g.grade!))
+              .sort((a, b) => a - b)
+              .slice(0, 6);
+            acc[key].wassceAggregate = sortedGrades.reduce(
+              (sum, p) => sum + p,
+              0,
+            );
           }
           return acc;
         },
         {} as Record<string, any>,
       );
 
-      Object.values(termHistory).forEach((th: any) => {
-        th.termGPA =
-          th.termCredits > 0
-            ? parseFloat((th.termGPA / th.termCredits).toFixed(2))
-            : 0;
-      });
-
       const termHistoryArray = Object.values(termHistory);
+
+      const currentTermGrades = student.grades.filter(
+        (g) => g.termId === student.grades[0]?.termId,
+      );
+      const sortedAggregate = currentTermGrades
+        .filter((g) => g.grade)
+        .map((g) => gradeToPoint(g.grade!))
+        .sort((a, b) => a - b)
+        .slice(0, 6);
+      const wassceAggregate = sortedAggregate.reduce((sum, p) => sum + p, 0);
 
       return {
         id: student.id,
@@ -247,6 +258,7 @@ export class HODArchiveService {
           : 'PROMOTED',
         subjects,
         termHistory: termHistoryArray,
+        wassceAggregate,
       };
     });
   }

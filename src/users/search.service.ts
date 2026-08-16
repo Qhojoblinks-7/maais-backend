@@ -22,9 +22,11 @@ export class SearchService {
 
     const departmentId =
       user?.role === Role.HOD
-        ? (await this.prisma.staffProfile.findUnique({
-            where: { userId: user.id },
-          }))?.departmentId || undefined
+        ? (
+            await this.prisma.staffProfile.findUnique({
+              where: { userId: user.id },
+            })
+          )?.departmentId || undefined
         : undefined;
 
     const like = { contains: q, mode: 'insensitive' as const };
@@ -48,11 +50,7 @@ export class SearchService {
           where: {
             user: { role: Role.TEACHER },
             ...(departmentId ? { departmentId } : {}),
-            OR: [
-              { firstName: like },
-              { lastName: like },
-              { staffId: like },
-            ],
+            OR: [{ firstName: like }, { lastName: like }, { staffId: like }],
           },
           take: 6,
         }),
@@ -78,22 +76,14 @@ export class SearchService {
           where: {
             user: { role: { not: Role.TEACHER } },
             ...(departmentId ? { departmentId } : {}),
-            OR: [
-              { firstName: like },
-              { lastName: like },
-              { staffId: like },
-            ],
+            OR: [{ firstName: like }, { lastName: like }, { staffId: like }],
           },
           include: { department: true },
           take: 6,
         }),
         this.prisma.department.findMany({
           where: {
-            OR: [
-              { name: like },
-              { code: like },
-              { description: like },
-            ],
+            OR: [{ name: like }, { code: like }, { description: like }],
           },
           take: 6,
         }),

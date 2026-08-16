@@ -46,7 +46,8 @@ export async function seedStudents(prisma: PrismaClient, classes: any[], departm
       const firstName = firstNames[studentIndex % firstNames.length];
       const lastName = lastNames[studentIndex % lastNames.length];
       const seq = String(studentIndex + 1).padStart(3, '0');
-      const indexNumber = `${yearPrefix}${seq}`;
+      const deptCode = dept?.code || 'GEN';
+      const indexNumber = `${deptCode}${yearLabel}${String(seq).padStart(3, '0')}`;
       const email = `${indexNumber}@st.mandoshts.edu.gh`;
 
       const existing = await prisma.user.findUnique({

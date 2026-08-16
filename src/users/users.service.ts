@@ -94,7 +94,7 @@ export interface UpdateStaffDto {
 export interface CreateStudentDto {
   email?: string;
   password: string;
-  indexNumber: string;
+  indexNumber?: string;
   nationalId?: string;
   firstName: string;
   lastName: string;
@@ -122,6 +122,8 @@ export interface CreateParentDto {
   studentIds?: string[];
 }
 
+
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
@@ -132,7 +134,9 @@ export class UsersService {
     });
     if (exists) throw new ConflictException('Email already in use');
 
-    const passwordHash = await argon2.hash(dto.password || DEFAULT_STAFF_PASSWORD);
+    const passwordHash = await argon2.hash(
+      dto.password || DEFAULT_STAFF_PASSWORD,
+    );
 
     return this.prisma.user.create({
       data: {
@@ -170,12 +174,15 @@ export class UsersService {
     if (dto.middleName !== undefined) profileData.middleName = dto.middleName;
     if (dto.phone !== undefined) profileData.phone = dto.phone;
     if (dto.staffId !== undefined) profileData.staffId = dto.staffId;
-    if (dto.departmentId !== undefined) profileData.departmentId = dto.departmentId;
+    if (dto.departmentId !== undefined)
+      profileData.departmentId = dto.departmentId;
     if (dto.gender !== undefined) profileData.gender = dto.gender;
     if (dto.isHod !== undefined) profileData.isHod = dto.isHod;
-    if (dto.hodDepartmentId !== undefined) profileData.hodDepartmentId = dto.hodDepartmentId || null;
+    if (dto.hodDepartmentId !== undefined)
+      profileData.hodDepartmentId = dto.hodDepartmentId || null;
     if (dto.canTeach !== undefined) profileData.canTeach = dto.canTeach;
-    if (dto.canOversight !== undefined) profileData.canOversight = dto.canOversight;
+    if (dto.canOversight !== undefined)
+      profileData.canOversight = dto.canOversight;
 
     if (Object.keys(profileData).length > 0) {
       await this.prisma.staffProfile.update({
@@ -205,8 +212,51 @@ export class UsersService {
     });
   }
 
+
+  private async resolveDepartmentCode(departmentId: string | undefined): Promise<string> {
+    if (!departmentId) return 'GEN';
+    const dept = await this.prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { code: true },
+    });
+    return dept?.code || 'GEN';
+  }
+
+  private async generateIndexNumber(prefix: string, year: number): Promise<string> {
+    const compositeKey = `${prefix}${year}`;
+
+    await this.prisma.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtext(\${compositeKey}))
+    `;
+
+    let seq = await this.prisma.indexNumberSequence.findUnique({
+      where: {
+        prefix_year: { prefix, year },
+      },
+    });
+
+    if (!seq) {
+      seq = await this.prisma.indexNumberSequence.create({
+        data: { prefix, year, lastSeq: 1 },
+      });
+      return `${prefix}${year}001`;
+    }
+
+    seq = await this.prisma.indexNumberSequence.update({
+      where: { prefix_year: { prefix, year } },
+      data: { lastSeq: { increment: 1 } },
+    });
+
+    return `${prefix}${year}${String(seq.lastSeq).padStart(3, '0')}`;
+  }
+
   async createStudent(dto: CreateStudentDto) {
-    const indexNumber = sanitizeIndexNumber(dto.indexNumber);
+    const deptCode = await this.resolveDepartmentCode(dto.departmentId);
+    const admissionYear = new Date().getFullYear();
+
+    const indexNumber = dto.indexNumber && dto.indexNumber.trim()
+      ? sanitizeIndexNumber(dto.indexNumber)
+      : await this.generateIndexNumber(deptCode, admissionYear);
 
     const indexExists = await this.prisma.studentProfile.findUnique({
       where: { indexNumber },
@@ -216,9 +266,9 @@ export class UsersService {
         `Index number ${indexNumber} already registered`,
       );
 
-      const passwordHash = await argon2.hash(
-        dto.password || DEFAULT_STUDENT_PASSWORD,
-      );
+    const passwordHash = await argon2.hash(
+      dto.password || DEFAULT_STUDENT_PASSWORD,
+    );
 
     const email = deriveStudentEmail(indexNumber);
 
@@ -255,10 +305,7 @@ export class UsersService {
 
       let parent = await this.prisma.user.findFirst({
         where: {
-          OR: [
-            { phone: parentPhone },
-            { email: parentEmail },
-          ],
+          OR: [{ phone: parentPhone }, { email: parentEmail }],
           role: Role.PARENT,
         },
         include: { parentProfile: true },
@@ -331,7 +378,7 @@ export class UsersService {
     });
 
     if (dto.studentIds?.length) {
-      const links = dto.studentIds.map(studentId => ({
+      const links = dto.studentIds.map((studentId) => ({
         studentId,
         parentId: parent.parentProfile!.id,
         relationship: 'Guardian',
@@ -550,7 +597,8 @@ export class UsersService {
     }
 
     const canTeach = profile.canTeach ?? true;
-    const canOversight = profile.canOversight || profile.hodDepartmentId != null;
+    const canOversight =
+      profile.canOversight || profile.hodDepartmentId != null;
     const isHod = profile.isHod || false;
 
     return {
@@ -561,14 +609,23 @@ export class UsersService {
       canTeach,
       canOversight,
       isHod,
-      activeMode: canTeach && canOversight ? 'dual' : canOversight ? 'oversight' : 'teaching',
+      activeMode:
+        canTeach && canOversight
+          ? 'dual'
+          : canOversight
+            ? 'oversight'
+            : 'teaching',
     };
   }
 
   async searchTeachers(user?: { id: string; role: Role }, search?: string) {
     let departmentId: string | undefined;
 
-    if (user?.role === Role.HOD || user?.role === Role.HEADMASTER || user?.role === Role.SUPER_ADMIN) {
+    if (
+      user?.role === Role.HOD ||
+      user?.role === Role.HEADMASTER ||
+      user?.role === Role.SUPER_ADMIN
+    ) {
       const staff = await this.prisma.staffProfile.findUnique({
         where: { userId: user.id },
       });
@@ -900,7 +957,9 @@ export class UsersService {
           email: s.email,
           password: s.password || DEFAULT_STAFF_PASSWORD,
           role: s.role || Role.TEACHER,
-          staffId: s.staffId || `STF-${Date.now()}-${results.success + results.failed}`,
+          staffId:
+            s.staffId ||
+            `STF-${Date.now()}-${results.success + results.failed}`,
           firstName: s.firstName,
           lastName: s.lastName,
           middleName: s.middleName,
@@ -925,13 +984,36 @@ export class UsersService {
   async batchImportStudents(students: any[]) {
     const results = { success: 0, failed: 0, errors: [] };
 
-    for (const s of students) {
+    for (let i = 0; i < students.length; i++) {
+      const s = students[i];
       try {
+        const rowLabel = `row ${i + 1} (indexNumber=${s.indexNumber || s.index_number || 'missing'})`;
         let currentClassId = s.currentClassId || s.currentclassid;
         let departmentId = s.departmentId || s.departmentid;
 
-        const rawClassName = (s.className || s.class_name || s.cassyear || '').trim();
-        const csspsDeptName = (s.departmentName || s.department_name || s.programname || '').trim();
+        const rawClassName = (
+          s.className ||
+          s.class_name ||
+          s.cassyear ||
+          ''
+        ).trim();
+        const csspsDeptName = (
+          s.departmentName ||
+          s.department_name ||
+          s.programname ||
+          ''
+        ).trim();
+
+        const missing = [];
+        if (!(s.firstName || s.first_name))
+          missing.push('firstName/first_name');
+        if (!(s.lastName || s.last_name)) missing.push('lastName/last_name');
+        if (!s.gender) missing.push('gender');
+        if (missing.length) {
+          throw new Error(
+            `Missing required fields in ${rowLabel}: ${missing.join(', ')}`,
+          );
+        }
 
         const classAliases = [rawClassName];
         if (/^Year\s+\d+$/i.test(rawClassName)) {
@@ -960,16 +1042,22 @@ export class UsersService {
           if (dept) departmentId = dept.id;
         }
 
-        const indexNumber = s.indexNumber || s.index_number;
-        if (!indexNumber) {
-          throw new Error('Index number is required');
-        }
+        const deptCode = departmentId
+          ? await this.resolveDepartmentCode(departmentId)
+          : 'GEN';
+        const admissionYear = 2025;
+
+        const indexNumber = s.indexNumber || s.index_number
+          ? sanitizeIndexNumber(s.indexNumber || s.index_number)
+          : await this.generateIndexNumber(deptCode, admissionYear);
 
         const existing = await this.prisma.studentProfile.findUnique({
           where: { indexNumber },
         });
         if (existing) {
-          throw new Error(`Student with index number ${indexNumber} already exists`);
+          throw new Error(
+            `Student with index number ${indexNumber} already exists`,
+          );
         }
 
         const dto = {
@@ -984,20 +1072,43 @@ export class UsersService {
           subjects: s.subjects || s.subject_list,
           currentClassId,
           departmentId,
-          parentFirstName: s.parentFirstName || s.parent_first_name || s.parentFirstName,
-          parentLastName: s.parentLastName || s.parent_last_name || s.parentLastName,
+          parentFirstName:
+            s.parentFirstName || s.parent_first_name || s.parentFirstName,
+          parentLastName:
+            s.parentLastName || s.parent_last_name || s.parentLastName,
           parentPhone: s.parentPhone || s.parent_phone || s.parentPhone,
           parentEmail: s.parentEmail || s.parent_email || s.parentEmail,
-          parentRelationship: s.parentRelationship || s.parent_relationship || s.parentRelationship || 'Guardian',
-          isBoarder: s.isBoarder != null ? s.isBoarder : (s.residential_status === 'BOARDING' ? true : (s.boarding === 'true' ? true : false)),
+          parentRelationship:
+            s.parentRelationship ||
+            s.parent_relationship ||
+            s.parentRelationship ||
+            'Guardian',
+          isBoarder:
+            s.isBoarder != null
+              ? s.isBoarder
+              : s.residential_status === 'BOARDING'
+                ? true
+                : s.boarding === 'true'
+                  ? true
+                  : false,
         };
 
         const created = await this.createStudent(dto);
 
         const disability = (s.disability || s.disability_type || '').trim();
-        const canReadBraille = s.canReadBraille != null ? s.canReadBraille : (s.can_read_braille === 'true' ? true : (s.canreadbraille === 'true' ? true : null));
+        const canReadBraille =
+          s.canReadBraille != null
+            ? s.canReadBraille
+            : s.can_read_braille === 'true'
+              ? true
+              : s.canreadbraille === 'true'
+                ? true
+                : null;
 
-        const hasMedicalFlag = disability && !['NORMAL', 'NONE', ''].includes(disability.toUpperCase()) || canReadBraille === true;
+        const hasMedicalFlag =
+          (disability &&
+            !['NORMAL', 'NONE', ''].includes(disability.toUpperCase())) ||
+          canReadBraille === true;
 
         if (hasMedicalFlag) {
           await this.prisma.medicalRecord.create({

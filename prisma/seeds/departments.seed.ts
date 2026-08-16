@@ -9,6 +9,9 @@ export async function seedDepartments(prisma: PrismaClient) {
     { name: 'General Arts', code: 'ART' },
     { name: 'Technical', code: 'TEC' },
     { name: 'Languages', code: 'LAN' },
+    { name: 'STEM', code: 'STEM' },
+    { name: 'Applied Technology', code: 'AT' },
+    { name: 'Agriculture', code: 'AGR' },
   ];
 
   const results = [];

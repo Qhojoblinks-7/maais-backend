@@ -20,7 +20,9 @@ export class DatabaseInitService implements OnModuleInit {
         return;
       }
 
-      this.logger.warn('DB-level audit_logs insert-only trigger not found. Creating it now.');
+      this.logger.warn(
+        'DB-level audit_logs insert-only trigger not found. Creating it now.',
+      );
 
       await this.prisma.$executeRaw`
         CREATE OR REPLACE FUNCTION prevent_audit_log_modification()

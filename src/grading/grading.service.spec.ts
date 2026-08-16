@@ -400,9 +400,13 @@ describe('GradingService', () => {
           { id: 'ge-1', studentId: 's1' },
           { id: 'ge-2', studentId: 's2' },
         ]);
-      mockPrisma.gradeEntry.createMany = jest.fn().mockResolvedValue({ count: 2 });
+      mockPrisma.gradeEntry.createMany = jest
+        .fn()
+        .mockResolvedValue({ count: 2 });
       mockPrisma.gradeEntry.update = jest.fn().mockResolvedValue({});
-      mockPrisma.auditLog.createMany = jest.fn().mockResolvedValue({ count: 2 });
+      mockPrisma.auditLog.createMany = jest
+        .fn()
+        .mockResolvedValue({ count: 2 });
       mockPrisma.term.findUniqueOrThrow = jest
         .fn()
         .mockResolvedValue({ id: 'term-1', isLocked: false });
@@ -511,7 +515,13 @@ describe('GradingService', () => {
         Role.TEACHER,
       );
 
-      expect(result).toEqual({ data: [], total: 0, page: 1, limit: 50, pages: 0 });
+      expect(result).toEqual({
+        data: [],
+        total: 0,
+        page: 1,
+        limit: 50,
+        pages: 0,
+      });
     });
   });
 

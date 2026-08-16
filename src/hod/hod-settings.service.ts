@@ -114,10 +114,10 @@ export class HODSettingsService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-      const isValid = await argon2.verify(user.passwordHash, currentPassword);
+    const isValid = await argon2.verify(user.passwordHash, currentPassword);
     if (!isValid) throw new ForbiddenException('Current password is incorrect');
 
-      const newHash = await argon2.hash(newPassword);
+    const newHash = await argon2.hash(newPassword);
     await this.prisma.user.update({
       where: { id: userId },
       data: {

@@ -15,7 +15,10 @@ export class SearchController {
 
   @Get('search')
   @Roles(Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Global search across students, staff, parents, departments and classes' })
+  @ApiOperation({
+    summary:
+      'Global search across students, staff, parents, departments and classes',
+  })
   globalSearch(
     @CurrentUser() user: { id: string; role: Role },
     @Query('q') q?: string,

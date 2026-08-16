@@ -252,7 +252,9 @@ export class TeacherController {
 
   @Get('students')
   @Roles(Role.TEACHER)
-  @ApiOperation({ summary: 'List students enrolled in the teacher\'s assigned classes' })
+  @ApiOperation({
+    summary: "List students enrolled in the teacher's assigned classes",
+  })
   getStudents(
     @CurrentUser()
     user: { id: string; role: Role; staffProfile?: { id: string } },

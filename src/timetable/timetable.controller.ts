@@ -32,7 +32,13 @@ export class TimetableController {
   }
 
   @Get()
-  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(
+    Role.STUDENT,
+    Role.TEACHER,
+    Role.HOD,
+    Role.HEADMASTER,
+    Role.SUPER_ADMIN,
+  )
   @ApiOperation({ summary: 'Get all timetable entries with optional filters' })
   findAll(
     @Query('teacherId') teacherId?: string,
@@ -74,7 +80,13 @@ export class TimetableController {
   }
 
   @Get('class/:classId')
-  @Roles(Role.STUDENT, Role.TEACHER, Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
+  @Roles(
+    Role.STUDENT,
+    Role.TEACHER,
+    Role.HOD,
+    Role.HEADMASTER,
+    Role.SUPER_ADMIN,
+  )
   @ApiOperation({ summary: 'Get timetable for a specific class' })
   getByClass(
     @Param('classId') classId: string,

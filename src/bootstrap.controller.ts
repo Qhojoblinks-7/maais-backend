@@ -8,7 +8,15 @@ export class BootstrapController {
   constructor(private prisma: PrismaService) {}
 
   @Post('admin')
-  async createFirstAdmin(@Body() dto: { email: string; password: string; firstName: string; lastName: string }) {
+  async createFirstAdmin(
+    @Body()
+    dto: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+    },
+  ) {
     const existing = await this.prisma.user.findFirst({
       where: { role: Role.SUPER_ADMIN },
     });

@@ -341,6 +341,18 @@ model Department {
   @@map("departments")
 }
 
+model IndexNumberSequence {
+  id        String   @id @default(uuid())
+  prefix    String   // e.g. "ART", "SCI", "BUS"
+  year      Int      // e.g. 2025
+  lastSeq   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([prefix, year])
+  @@map("index_number_sequences")
+}
+
 model Subject {
   id                 String      @id @default(uuid())
   name               String

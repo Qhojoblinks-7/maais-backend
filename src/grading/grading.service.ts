@@ -165,7 +165,13 @@ export class GradingService {
     return GRADE_BOUNDARIES.find((b) => b.grade === grade)?.smartRemarks ?? [];
   }
 
-  async upsertGrade(dto: any, submittedById: string, term?: any, existingEntry?: any, previousTermId?: string | null) {
+  async upsertGrade(
+    dto: any,
+    submittedById: string,
+    term?: any,
+    existingEntry?: any,
+    previousTermId?: string | null,
+  ) {
     console.log(
       `[GradingService] upsertGrade called:`,
       JSON.stringify(dto, null, 2),
@@ -184,9 +190,11 @@ export class GradingService {
       throw new Error('termId is required');
     }
 
-    const activeTerm = term ?? await this.prisma.term.findUniqueOrThrow({
-      where: { id: dto.termId },
-    });
+    const activeTerm =
+      term ??
+      (await this.prisma.term.findUniqueOrThrow({
+        where: { id: dto.termId },
+      }));
 
     console.log(
       `[GradingService] Term found: id=${activeTerm.id}, isLocked=${activeTerm.isLocked}`,
@@ -209,22 +217,24 @@ export class GradingService {
       grade = computed.grade;
     }
 
-    const existing = existingEntry ?? await this.prisma.gradeEntry.findFirst({
-      where: {
-        studentId: dto.studentId,
-        subjectId: dto.subjectId,
-        termId: dto.termId,
-      },
-      select: {
-        id: true,
-        classScore: true,
-        examScore: true,
-        totalScore: true,
-        grade: true,
-        isLocked: true,
-        version: true,
-      },
-    });
+    const existing =
+      existingEntry ??
+      (await this.prisma.gradeEntry.findFirst({
+        where: {
+          studentId: dto.studentId,
+          subjectId: dto.subjectId,
+          termId: dto.termId,
+        },
+        select: {
+          id: true,
+          classScore: true,
+          examScore: true,
+          totalScore: true,
+          grade: true,
+          isLocked: true,
+          version: true,
+        },
+      }));
 
     if (existing?.isLocked) {
       throw new ForbiddenException(
@@ -331,7 +341,8 @@ export class GradingService {
       },
     });
 
-    const resolvedPreviousTermId = previousTermId ?? await this.getPreviousTermId(dto.termId);
+    const resolvedPreviousTermId =
+      previousTermId ?? (await this.getPreviousTermId(dto.termId));
     if (resolvedPreviousTermId) {
       try {
         await this.interventionsService.checkPerformanceDrop(
@@ -1251,10 +1262,14 @@ export class GradingService {
 
     const { termId, subjectId } = entries[0];
 
-    const term = await this.prisma.term.findUniqueOrThrow({ where: { id: termId } });
+    const term = await this.prisma.term.findUniqueOrThrow({
+      where: { id: termId },
+    });
 
     if (term.isLocked) {
-      throw new ForbiddenException('Term is locked. Grades cannot be modified.');
+      throw new ForbiddenException(
+        'Term is locked. Grades cannot be modified.',
+      );
     }
 
     const existingEntries = await this.prisma.gradeEntry.findMany({
@@ -1348,7 +1363,9 @@ export class GradingService {
       this.prisma.auditLog.createMany({
         data: entries.map((e) => ({
           userId: submittedById,
-          action: existingMap.get(e.studentId) ? AuditAction.UPDATE : AuditAction.CREATE,
+          action: existingMap.get(e.studentId)
+            ? AuditAction.UPDATE
+            : AuditAction.CREATE,
           entity: 'GradeEntry',
           entityId: existingMap.get(e.studentId)?.id ?? 'pending',
           payload: {

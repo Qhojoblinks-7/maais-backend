@@ -198,9 +198,7 @@ export class ArchiveService {
       where: {
         AND: [
           roleFilter,
-          query.id
-            ? { id: query.id }
-            : {},
+          query.id ? { id: query.id } : {},
           query.indexNumber
             ? {
                 indexNumber: {
@@ -235,7 +233,9 @@ export class ArchiveService {
                 include: { term: { include: { academicYear: true } } },
               },
               behaviors: {
-                include: { recordedBy: { select: { firstName: true, lastName: true } } },
+                include: {
+                  recordedBy: { select: { firstName: true, lastName: true } },
+                },
                 orderBy: { createdAt: 'desc' },
               },
               interventionAlerts: {

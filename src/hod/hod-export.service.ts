@@ -12,36 +12,60 @@ export class HODExportService {
   private readonly validSubjectCodes = [
     // Core subjects
     302, // English Language
-    402, // Mathematics (Core)
-    502, // Integrated Science
+    402, // Mathematics
+    502, // General Science
     204, // Social Studies
+    511, // Physical Education and Health
+    705, // Art and Design Foundation
+    507, // Agricultural Science
 
     // Science electives
     512, // Physics
     505, // Chemistry
     504, // Biology
-    401, // Elective Mathematics
-    507, // Agricultural Science
+    401, // Additional Mathematics
     216, // Geography
+    601, // Robotics
+    602, // Engineering
+    603, // Aviation and Aerospace Engineering
+    604, // Biomedical Science
+    605, // Manufacturing Engineering
+
+    // Applied Technology electives
+    608, // Design and Communication Technology
+    609, // Applied Technology (Automobile and Metal)
+    610, // Applied Technology (Building Construction and Wood)
+    611, // Applied Technology (Electrical and Electronic)
+
+    // ICT
     319, // ICT
-    608, // Technical Drawing
 
     // Business electives
-    103, // Commerce
+    103, // Business Studies
     104, // Financial Accounting
     113, // Business Management
     203, // Economics
     114, // Office Practice
     112, // Marketing
 
+    // Home Economics electives
+    702, // Home Economics
+    703, // Home Management
+
     // Arts electives
+    706, // Art and Design Studio
+    707, // Performing Arts
     210, // Literature in English
     205, // Government
     207, // History
     202, // Christian Religious Studies
     208, // Islamic Religious Studies
+    209, // Religious Studies
+
+    // Languages electives
     304, // French
     301, // Arabic
+    305, // Spanish
     321, // Akan/Fante
     322, // Ewe
     323, // Ga
@@ -49,19 +73,12 @@ export class HODExportService {
     325, // Dagbani
     326, // Gonja
     330, // Dagaare
-    705, // Music
-    706, // Visual Art
-
-    // Technical/Trade electives
     327, // Hausa
     328, // Igbo
     329, // Yoruba
 
-    // Other common subjects
-    508, // Health Education
-    511, // Physical Education
-    702, // Food and Nutrition
-    703, // Home Management
+    // Agriculture elective
+    506, // Agriculture
   ];
 
   validateExportData(data: {
@@ -128,21 +145,6 @@ export class HODExportService {
       return staffProfile.departmentId;
     }
     return null;
-  }
-
-  private getGradePoint(grade: string): number {
-    const map: Record<string, number> = {
-      A1: 4.0,
-      B2: 3.5,
-      B3: 3.0,
-      C4: 2.5,
-      C5: 2.0,
-      C6: 1.5,
-      D7: 1.0,
-      E8: 0.5,
-      F9: 0.0,
-    };
-    return map[grade] ?? 0.0;
   }
 
   async exportWAECCSV(

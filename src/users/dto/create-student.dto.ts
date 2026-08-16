@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
-  IsNotEmpty,
   IsEnum,
   IsOptional,
   IsEmail,
@@ -11,10 +10,10 @@ import {
 import { Gender } from '@prisma/client';
 
 export class CreateStudentDto {
-  @ApiProperty({ example: 'MSHTS/2024/001' })
+  @ApiPropertyOptional({ example: 'ART2025001' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  indexNumber: string;
+  indexNumber?: string;
 
   @ApiPropertyOptional({ example: 'GHA-123456789' })
   @IsOptional()

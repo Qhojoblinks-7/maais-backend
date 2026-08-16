@@ -192,10 +192,10 @@ export class PortalService {
       },
     });
 
-    const cgpa =
-      latestReport?.averageScore != null
-        ? this.percentageToGpa(latestReport.averageScore)
-        : 0;
+    const wassceAggregate = await this.calculateWASSCEAggregate(
+      targetStudentId,
+      activeTerm?.id || latestReport?.termId,
+    );
 
     const yearForm =
       latestReport?.term?.academicYear?.label ||
@@ -243,7 +243,7 @@ export class PortalService {
         department,
         user: null,
       },
-      cgpa,
+      wassceAggregate,
       classRank: latestReport?.classPosition,
       approvalStatus: latestReport?.releasedAt ? 'APPROVED' : 'PENDING',
       attendancePercentage,
@@ -253,13 +253,12 @@ export class PortalService {
       waecExamScore: 0,
       finalScore: latestReport?.averageScore ?? 0,
       grade: undefined,
-      gpaPerTerm: cgpa,
       terminalResults,
       coreResults: terminalResults.filter((r) =>
         [
           'Core Mathematics',
           'English Language',
-          'Integrated Science',
+          'General Science',
           'Social Studies',
         ].includes(r.subject),
       ),
@@ -268,7 +267,7 @@ export class PortalService {
           ![
             'Core Mathematics',
             'English Language',
-            'Integrated Science',
+            'General Science',
             'Social Studies',
           ].includes(r.subject),
       ),
@@ -376,21 +375,44 @@ export class PortalService {
     return Number(((present / total) * 100).toFixed(2));
   }
 
-  private percentageToGpa(percentage: number): number {
-    if (percentage >= 90) return 4.0;
-    if (percentage >= 85) return 3.75;
-    if (percentage >= 80) return 3.5;
-    if (percentage >= 75) return 3.25;
-    if (percentage >= 70) return 3.0;
-    if (percentage >= 65) return 2.75;
-    if (percentage >= 60) return 2.5;
-    if (percentage >= 55) return 2.25;
-    if (percentage >= 50) return 2.0;
-    if (percentage >= 45) return 1.75;
-    if (percentage >= 40) return 1.5;
-    if (percentage >= 35) return 1.0;
-    if (percentage >= 30) return 0.75;
-    if (percentage >= 25) return 0.5;
-    return 0.0;
+  private gradeToPoint(grade: string): number {
+    const map: Record<string, number> = {
+      A1: 1,
+      B2: 2,
+      B3: 3,
+      C4: 4,
+      C5: 5,
+      C6: 6,
+      D7: 7,
+      E8: 8,
+      F9: 9,
+    };
+    return map[grade] ?? 9;
+  }
+
+  private async calculateWASSCEAggregate(
+    studentId: string,
+    termId: string,
+  ): Promise<number> {
+    if (!termId) return 0;
+
+    const grades = await this.prisma.gradeEntry.findMany({
+      where: { studentId, termId },
+      include: { subject: { select: { name: true } } },
+    });
+
+    const points = grades
+      .filter((g) => g.grade)
+      .map((g) => ({
+        subject: g.subject?.name || '',
+        point: this.gradeToPoint(g.grade!),
+      }));
+
+    const sorted = points
+      .sort((a, b) => a.point - b.point)
+      .slice(0, 6);
+
+    const aggregate = sorted.reduce((sum, p) => sum + p.point, 0);
+    return aggregate || 0;
   }
 }
