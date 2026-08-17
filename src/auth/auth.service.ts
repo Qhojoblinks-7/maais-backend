@@ -1,10 +1,12 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { EmailService } from '../common/services/email.service';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { User } from '@prisma/client';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +14,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private emailService: EmailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -110,6 +113,71 @@ export class AuthService {
   async logout(userId: string, token: string) {
     await this.prisma.refreshToken.deleteMany({ where: { userId, token } });
     return { success: true };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) {
+      return { success: true, message: 'If an account exists, a reset link has been sent.' };
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: expiresAt,
+      },
+    });
+
+    const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${rawToken}`;
+
+    try {
+      await this.emailService.sendMail(
+        email,
+        'MAAIS Password Reset',
+        `<p>Click the link below to reset your password. This link expires in 1 hour.</p>
+         <p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      );
+    } catch (e) {
+      console.error('Password reset email failed:', e);
+    }
+
+    return { success: true, message: 'If an account exists, a reset link has been sent.' };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new ForbiddenException('Invalid or expired reset token');
+    }
+
+    const newHash = await argon2.hash(password);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newHash,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      },
+    });
+
+    await this.prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    return { success: true, message: 'Password reset successful' };
   }
 
   private async signAccessToken(id: string, email: string, role: string) {

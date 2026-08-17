@@ -15,7 +15,8 @@
     "prisma:push": "prisma db push",
     "prisma:db-sync": "prisma db push",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "admin:reset": "ts-node scripts/reset-admin.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
