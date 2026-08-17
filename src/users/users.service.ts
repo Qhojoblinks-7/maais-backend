@@ -226,7 +226,7 @@ export class UsersService {
     const compositeKey = `${prefix}${year}`;
 
     await this.prisma.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(\${compositeKey}))
+      SELECT pg_advisory_xact_lock(hashtext(${compositeKey}))
     `;
 
     let seq = await this.prisma.indexNumberSequence.findUnique({
