@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../common/prisma/prisma.service';
-import { Role, Gender } from '@prisma/client';
+import { Role, Gender, ClassLevel } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 // Student accounts always use a strict, deterministic email derived from the
@@ -65,7 +65,7 @@ export interface CreateStaffDto {
   email: string;
   password: string;
   role: Role;
-  staffId: string;
+  staffId?: string;
   firstName: string;
   lastName: string;
   middleName?: string;
@@ -105,6 +105,7 @@ export interface CreateStudentDto {
   currentClassId?: string;
   departmentId?: string;
   parentFirstName?: string;
+  parentMiddleName?: string;
   parentLastName?: string;
   parentPhone?: string;
   parentEmail?: string;
@@ -138,6 +139,8 @@ export class UsersService {
       dto.password || DEFAULT_STAFF_PASSWORD,
     );
 
+    const resolvedStaffId = dto.staffId || await this.generateStaffId(dto.role, dto.departmentId);
+
     return this.prisma.user.create({
       data: {
         email: dto.email,
@@ -146,7 +149,7 @@ export class UsersService {
         mustChangePassword: true,
         staffProfile: {
           create: {
-            staffId: dto.staffId,
+            staffId: resolvedStaffId,
             firstName: dto.firstName,
             lastName: dto.lastName,
             middleName: dto.middleName,
@@ -223,31 +226,51 @@ export class UsersService {
   }
 
   private async generateIndexNumber(prefix: string, year: number): Promise<string> {
-    const compositeKey = `${prefix}${year}`;
-
-    await this.prisma.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${compositeKey}))
-    `;
-
-    let seq = await this.prisma.indexNumberSequence.findUnique({
-      where: {
-        prefix_year: { prefix, year },
-      },
-    });
-
-    if (!seq) {
-      seq = await this.prisma.indexNumberSequence.create({
-        data: { prefix, year, lastSeq: 1 },
-      });
-      return `${prefix}${year}001`;
-    }
-
-    seq = await this.prisma.indexNumberSequence.update({
+    const seq = await this.prisma.indexNumberSequence.upsert({
       where: { prefix_year: { prefix, year } },
-      data: { lastSeq: { increment: 1 } },
+      update: { lastSeq: { increment: 1 } },
+      create: { prefix, year, lastSeq: 1 },
     });
 
     return `${prefix}${year}${String(seq.lastSeq).padStart(3, '0')}`;
+  }
+
+  private static readonly STAFF_ID_PREFIXES: Record<string, string> = {
+    SUPER_ADMIN: 'ADM',
+    HEADMASTER: 'HDM',
+    ASSISTANT_HEAD_ADMINISTRATION: 'AHA',
+    ASSISTANT_HEAD_DOMESTIC: 'AHD',
+    HOD: 'HOD',
+    TEACHER: 'TCH',
+    STUDENT: 'STF',
+    PARENT: 'PAR',
+  };
+
+  private async generateStaffId(role: string, departmentId?: string): Promise<string> {
+    const prefix = UsersService.STAFF_ID_PREFIXES[role] || 'STF';
+    const year = new Date().getFullYear();
+    const yy = String(year).slice(-2);
+
+    const isDeptIndependent = role === 'ASSISTANT_HEAD_ADMINISTRATION' || role === 'ASSISTANT_HEAD_DOMESTIC';
+
+    let deptCode = '00';
+    if (departmentId && !isDeptIndependent) {
+      const dept = await this.prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { code: true },
+      });
+      if (dept?.code) {
+        deptCode = dept.code.slice(0, 2).toUpperCase().padEnd(2, '0');
+      }
+    }
+
+    const seq = await this.prisma.staffIdSequence.upsert({
+      where: { prefix_year_deptCode: { prefix, year, deptCode } },
+      update: { lastSeq: { increment: 1 } },
+      create: { prefix, year, deptCode, lastSeq: 1 },
+    });
+
+    return `${prefix}${yy}${deptCode}${String(seq.lastSeq).padStart(3, '0')}`;
   }
 
   async createStudent(dto: CreateStudentDto) {
@@ -323,6 +346,7 @@ export class UsersService {
             parentProfile: {
               create: {
                 firstName: sanitizeText(dto.parentFirstName || ''),
+                middleName: sanitizeText(dto.parentMiddleName || ''),
                 lastName: sanitizeText(dto.parentLastName || ''),
                 phone: parentPhone,
                 email: parentEmail,
@@ -495,14 +519,18 @@ export class UsersService {
   }
 
   async getStudentBoarderStats() {
-    const [boarders, dayStudents] = await Promise.all([
-      this.prisma.studentProfile.count({
-        where: { archivedAt: null, isBoarder: true },
-      }),
-      this.prisma.studentProfile.count({
-        where: { archivedAt: null, isBoarder: false },
-      }),
-    ]);
+    const result = await this.prisma.$queryRaw<
+      { boarders: number; day_students: number }[]
+    >`
+      SELECT
+        COUNT(*) FILTER (WHERE "isBoarder" = true) AS boarders,
+        COUNT(*) FILTER (WHERE "isBoarder" = false OR "isBoarder" IS NULL) AS day_students
+      FROM "student_profiles"
+      WHERE "archivedAt" IS NULL
+    `;
+
+    const boarders = Number(result[0]?.boarders ?? 0);
+    const dayStudents = Number(result[0]?.day_students ?? 0);
     return { boarders, dayStudents, total: boarders + dayStudents };
   }
 
@@ -1015,6 +1043,7 @@ export class UsersService {
             : Role.TEACHER;
 
           const passwordHash = passwordHashes[globalIdx];
+          const resolvedStaffId = s.staffId || await this.generateStaffId(validRole, departmentId);
 
           await this.prisma.user.create({
             data: {
@@ -1024,7 +1053,7 @@ export class UsersService {
               mustChangePassword: true,
               staffProfile: {
                 create: {
-                  staffId: s.staffId || `STF-${Date.now()}-${globalIdx}`,
+                  staffId: resolvedStaffId,
                   firstName: s.firstName || '',
                   lastName: s.lastName || '',
                   middleName: s.middleName,
@@ -1053,154 +1082,287 @@ export class UsersService {
   }
 
   async batchImportStudents(students: any[]) {
-    const results = { success: 0, failed: 0, errors: [] };
+    const results = { success: 0, failed: 0, errors: [], warnings: [] };
+    if (!students.length) return results;
 
-    for (let i = 0; i < students.length; i++) {
-      const s = students[i];
-      try {
-        const rowLabel = `row ${i + 1} (indexNumber=${s.indexNumber || s.index_number || 'missing'})`;
-        let currentClassId = s.currentClassId || s.currentclassid;
-        let departmentId = s.departmentId || s.departmentid;
-
-        const rawClassName = (
-          s.className ||
-          s.class_name ||
-          s.cassyear ||
-          ''
-        ).trim();
-        const csspsDeptName = (
-          s.departmentName ||
-          s.department_name ||
-          s.programname ||
-          ''
-        ).trim();
-
-        const missing = [];
-        if (!(s.firstName || s.first_name))
-          missing.push('firstName/first_name');
-        if (!(s.lastName || s.last_name)) missing.push('lastName/last_name');
-        if (!s.gender) missing.push('gender');
-        if (missing.length) {
-          throw new Error(
-            `Missing required fields in ${rowLabel}: ${missing.join(', ')}`,
-          );
+    // Deduplicate input by student identity to prevent the same student
+    // being created multiple times when a CSV has repeated rows (e.g. one
+    // row per subject instead of one row per student).
+    // Primary key: indexNumber (CassRefID). Fallback: name + phone + dob.
+    const seenIndexNumbers = new Set<string>();
+    const seenStudents = new Set<string>();
+    const dedupedStudents: any[] = [];
+    for (const s of students) {
+      const indexNumber = (s.indexNumber || s.index_number || '').trim();
+      if (indexNumber) {
+        if (seenIndexNumbers.has(indexNumber)) {
+          results.warnings.push({
+            indexNumber,
+            className: s.className || s.class_name || 'unknown',
+            message: `Duplicate student skipped: ${indexNumber}`,
+          });
+          continue;
         }
+        seenIndexNumbers.add(indexNumber);
+        dedupedStudents.push(s);
+        continue;
+      }
 
-        const classAliases = [rawClassName];
-        if (/^Year\s+\d+$/i.test(rawClassName)) {
-          classAliases.push(rawClassName.replace(/^Year\s+/i, 'Form '));
-        }
-        if (/^Form\s+\d+$/i.test(rawClassName)) {
-          classAliases.push(rawClassName.replace(/^Form\s+/i, 'Year '));
-        }
+      const firstName = (s.firstName || s.first_name || '').trim().toLowerCase();
+      const lastName = (s.lastName || s.last_name || '').trim().toLowerCase();
+      const phone = (s.parentPhone || s.parent_phone || '').trim().toLowerCase();
+      const dob = (s.dateOfBirth || s.date_of_birth || s.dob || '').trim().toLowerCase();
+      const dedupeKey = `${firstName}|${lastName}|${phone}|${dob}`;
+      if (seenStudents.has(dedupeKey)) {
+        results.warnings.push({
+          indexNumber: 'unknown',
+          className: s.className || s.class_name || 'unknown',
+          message: `Duplicate student skipped: ${firstName} ${lastName}`,
+        });
+        continue;
+      }
+      seenStudents.add(dedupeKey);
+      dedupedStudents.push(s);
+    }
+    const activeStudents = dedupedStudents;
 
-        if (!currentClassId && classAliases[0]) {
-          for (const alias of classAliases) {
-            const cls = await this.prisma.classSection.findFirst({
-              where: { name: { equals: alias, mode: 'insensitive' } },
-            });
-            if (cls) {
-              currentClassId = cls.id;
-              break;
+    const [allClasses, allDepts, existingIndexRows] = await Promise.all([
+      this.prisma.classSection.findMany({ select: { id: true, name: true, level: true, program: true } }),
+      this.prisma.department.findMany({ select: { id: true, name: true, code: true } }),
+      this.prisma.studentProfile.findMany({
+        where: { indexNumber: { in: activeStudents.map(s => s.indexNumber || s.index_number).filter((v): v is string => Boolean(v)) } },
+        select: { indexNumber: true },
+      }),
+    ]);
+
+    const classByName = new Map(allClasses.map(c => [c.name.toLowerCase(), c.id]));
+    const classByLevelProgram = new Map(allClasses.map(c => [`${c.level}|${(c.program || '').toLowerCase()}`, c.id]));
+    const deptByName = new Map(allDepts.map(d => [d.name.toLowerCase(), d.id]));
+    const deptCodeById = new Map(allDepts.map(d => [d.id, d.code || 'GEN']));
+    const existingIndexSet = new Set(existingIndexRows.map(s => s.indexNumber));
+
+    const BATCH_SIZE = 20;
+
+    const passwordCache = new Map<string, string>();
+
+    const getPasswordHash = async (pwd: string) => {
+      if (passwordCache.has(pwd)) return passwordCache.get(pwd)!;
+      const hash = await argon2.hash(pwd);
+      passwordCache.set(pwd, hash);
+      return hash;
+    };
+
+    for (let i = 0; i < activeStudents.length; i += BATCH_SIZE) {
+      const batch = activeStudents.slice(i, i + BATCH_SIZE);
+
+      const batchPromises = batch.map(async (s, idx) => {
+        const globalIdx = i + idx;
+        try {
+          const rowLabel = `row ${globalIdx + 1}`;
+          let currentClassId = s.currentClassId || s.currentclassid;
+          let departmentId = s.departmentId || s.departmentid;
+          let usedFallbackClass = false;
+
+          const rawClassName = (s.className || s.class_name || s.cassyear || '').trim();
+          const csspsDeptName = (s.departmentName || s.department_name || s.programname || '').trim();
+
+          const missing = [];
+          if (!(s.firstName || s.first_name)) missing.push('firstName');
+          if (!(s.lastName || s.last_name)) missing.push('lastName');
+          if (!s.gender) missing.push('gender');
+          if (missing.length) throw new Error(`Missing required fields in ${rowLabel}: ${missing.join(', ')}`);
+
+          if (!currentClassId && rawClassName) {
+            const aliases = [rawClassName.toLowerCase()];
+            if (/^year\s+\d+$/i.test(rawClassName)) aliases.push(rawClassName.replace(/^year\s+/i, 'Form ').toLowerCase());
+            if (/^form\s+\d+$/i.test(rawClassName)) aliases.push(rawClassName.replace(/^form\s+/i, 'Year ').toLowerCase());
+
+            for (const alias of aliases) {
+              const found = classByName.get(alias);
+              if (found) { currentClassId = found; break; }
+            }
+
+            if (!currentClassId) {
+              const levelMatch = rawClassName.match(/year\s*(\d)|form\s*(\d)/i);
+              if (levelMatch) {
+                const levelNum = levelMatch[1] || levelMatch[2];
+                const levelMap: Record<string, ClassLevel> = { '1': 'FORM_1', '2': 'FORM_2', '3': 'FORM_3' };
+                const targetLevel = levelMap[levelNum] as ClassLevel | undefined;
+                if (targetLevel) {
+                  const programForClass = csspsDeptName || 'General';
+                  const fallbackKey = `${targetLevel}|${programForClass.toLowerCase()}`;
+                  const fallback = classByLevelProgram.get(fallbackKey);
+                  if (fallback) {
+                    currentClassId = fallback;
+                    usedFallbackClass = true;
+                  } else {
+                    const newClass = await this.prisma.classSection.upsert({
+                      where: { name_level: { name: `Form ${levelNum} ${programForClass}`, level: targetLevel } },
+                      update: {},
+                      create: { name: `Form ${levelNum} ${programForClass}`, level: targetLevel, program: programForClass, capacity: 40 },
+                    });
+                    currentClassId = newClass.id;
+                    classByLevelProgram.set(fallbackKey, newClass.id);
+                    classByName.set(newClass.name.toLowerCase(), newClass.id);
+                    usedFallbackClass = true;
+                  }
+                }
+              }
             }
           }
-        }
 
-        if (!departmentId && csspsDeptName) {
-          const dept = await this.prisma.department.findFirst({
-            where: { name: { equals: csspsDeptName, mode: 'insensitive' } },
-          });
-          if (dept) departmentId = dept.id;
-        }
+          if (!currentClassId) throw new Error(`Could not resolve class for ${rowLabel}`);
 
-        const deptCode = departmentId
-          ? await this.resolveDepartmentCode(departmentId)
-          : 'GEN';
-        const admissionYear = 2025;
+          if (usedFallbackClass) {
+            results.warnings.push({
+              indexNumber: s.indexNumber || s.index_number || 'unknown',
+              className: rawClassName || 'unknown',
+              message: `Assigned to fallback class (original: "${rawClassName || 'none'}")`,
+            });
+          }
 
-        const indexNumber = s.indexNumber || s.index_number
-          ? sanitizeIndexNumber(s.indexNumber || s.index_number)
-          : await this.generateIndexNumber(deptCode, admissionYear);
+          if (!departmentId && csspsDeptName) {
+            const deptId = deptByName.get(csspsDeptName.toLowerCase());
+            if (deptId) departmentId = deptId;
+          }
 
-        const existing = await this.prisma.studentProfile.findUnique({
-          where: { indexNumber },
-        });
-        if (existing) {
-          throw new Error(
-            `Student with index number ${indexNumber} already exists`,
-          );
-        }
+          const rawIndex = s.indexNumber || s.index_number;
+          const indexNumber = rawIndex ? sanitizeIndexNumber(rawIndex) : undefined;
+          if (!indexNumber) {
+            const deptCode = departmentId ? (deptCodeById.get(departmentId) || 'GEN') : 'GEN';
+            const admissionYear = 2025;
+            const compositeKey = `${deptCode}${admissionYear}`;
 
-        const dto = {
-          password: 'Student@123!',
-          indexNumber,
-          nationalId: s.nationalId || s.nationalid || s.natid,
-          firstName: s.firstName || s.first_name,
-          lastName: s.lastName || s.last_name,
-          middleName: s.middleName || s.middle_name,
-          gender: (s.gender || 'MALE').toUpperCase(),
-          dateOfBirth: s.dateOfBirth || s.date_of_birth || s.dob,
-          subjects: s.subjects || s.subject_list,
-          currentClassId,
-          departmentId,
-          parentFirstName:
-            s.parentFirstName || s.parent_first_name || s.parentFirstName,
-          parentLastName:
-            s.parentLastName || s.parent_last_name || s.parentLastName,
-          parentPhone: s.parentPhone || s.parent_phone || s.parentPhone,
-          parentEmail: s.parentEmail || s.parent_email || s.parentEmail,
-          parentRelationship:
-            s.parentRelationship ||
-            s.parent_relationship ||
-            s.parentRelationship ||
-            'Guardian',
-          isBoarder:
-            s.isBoarder != null
-              ? s.isBoarder
-              : s.residential_status === 'BOARDING'
-                ? true
-                : s.boarding === 'true'
-                  ? true
-                  : false,
-        };
+            const seq = await this.prisma.indexNumberSequence.upsert({
+              where: { prefix_year: { prefix: deptCode, year: admissionYear } },
+              update: { lastSeq: { increment: 1 } },
+              create: { prefix: deptCode, year: admissionYear, lastSeq: 1 },
+            });
+            s.__generatedIndex = `${deptCode}${admissionYear}${String(seq.lastSeq).padStart(3, '0')}`;
+          } else {
+            s.__generatedIndex = indexNumber;
+          }
 
-        const created = await this.createStudent(dto);
+          if (existingIndexSet.has(s.__generatedIndex)) {
+            throw new Error(`Student with index number ${s.__generatedIndex} already exists`);
+          }
+          existingIndexSet.add(s.__generatedIndex);
 
-        const disability = (s.disability || s.disability_type || '').trim();
-        const canReadBraille =
-          s.canReadBraille != null
-            ? s.canReadBraille
-            : s.can_read_braille === 'true'
-              ? true
-              : s.canreadbraille === 'true'
-                ? true
-                : null;
+          const passwordHash = await getPasswordHash('Student@123!');
+          const email = deriveStudentEmail(s.__generatedIndex);
 
-        const hasMedicalFlag =
-          (disability &&
-            !['NORMAL', 'NONE', ''].includes(disability.toUpperCase())) ||
-          canReadBraille === true;
+          const gender = (s.gender || 'MALE').toUpperCase();
 
-        if (hasMedicalFlag) {
-          await this.prisma.medicalRecord.create({
+          const student = await this.prisma.user.create({
             data: {
-              studentId: created.studentProfile.id,
-              condition: 'CSSPS Import',
-              disability: hasMedicalFlag && disability ? disability : null,
-              canReadBraille: canReadBraille ?? false,
-              status: 'ACTIVE',
+              email,
+              passwordHash,
+              role: Role.STUDENT,
+              mustChangePassword: true,
+              studentProfile: {
+                create: {
+                  indexNumber: s.__generatedIndex,
+                  nationalId: s.nationalId || s.nationalid || s.natid,
+                  firstName: sanitizeText(s.firstName || s.first_name),
+                  lastName: sanitizeText(s.lastName || s.last_name),
+                  middleName: sanitizeText(s.middleName || s.middle_name),
+                  gender,
+                  dateOfBirth: s.dateOfBirth || s.date_of_birth || s.dob ? new Date(s.dateOfBirth || s.date_of_birth || s.dob) : null,
+                  subjects: s.subjects || s.subject_list,
+                  currentClassId,
+                  departmentId,
+                  isBoarder: s.isBoarder != null ? s.isBoarder : s.residential_status === 'BOARDING' || s.boarding === 'true',
+                },
+              },
             },
+            include: { studentProfile: { include: { currentClass: true, department: true } } },
+          });
+
+          const disability = (s.disability || s.disability_type || '').trim();
+          const canReadBraille = s.canReadBraille != null ? s.canReadBraille : s.can_read_braille === 'true' || s.canreadbraille === 'true';
+          const hasMedicalFlag = (disability && !['NORMAL', 'NONE', ''].includes(disability.toUpperCase())) || canReadBraille === true;
+
+          if (hasMedicalFlag) {
+            try {
+              await this.prisma.medicalRecord.create({
+                data: {
+                  studentId: student.studentProfile.id,
+                  condition: 'CSSPS Import',
+                  disability: hasMedicalFlag && disability ? disability : null,
+                  canReadBraille: canReadBraille ?? false,
+                  status: 'ACTIVE',
+                },
+              });
+            } catch (e: any) {
+              if (e?.message?.includes('disability') || e?.message?.includes('column') || e?.message?.includes('does not exist')) {
+                await this.prisma.$executeRaw`ALTER TABLE "medical_records" ADD COLUMN IF NOT EXISTS "disability" TEXT, ADD COLUMN IF NOT EXISTS "canReadBraille" BOOLEAN`;
+                await this.prisma.medicalRecord.create({
+                  data: {
+                    studentId: student.studentProfile.id,
+                    condition: 'CSSPS Import',
+                    disability: hasMedicalFlag && disability ? disability : null,
+                    canReadBraille: canReadBraille ?? false,
+                    status: 'ACTIVE',
+                  },
+                });
+              } else {
+                throw e;
+              }
+            }
+          }
+
+          if (s.parentPhone || s.parentEmail) {
+            const parentPhone = s.parentPhone || '';
+            const parentEmail = s.parentEmail || `${parentPhone}@parent.com`;
+
+            let parent: any = await this.prisma.user.findFirst({
+              where: { OR: [{ phone: parentPhone }, { email: parentEmail }], role: Role.PARENT },
+            });
+
+            if (!parent) {
+              const parentHash = await argon2.hash('Parent@123!');
+              parent = await this.prisma.user.create({
+                data: {
+                  email: parentEmail,
+                  passwordHash: parentHash,
+                  role: Role.PARENT,
+                  phone: parentPhone || null,
+                  mustChangePassword: true,
+                  parentProfile: {
+                    create: {
+                      firstName: sanitizeText(s.parentFirstName || s.parent_first_name || ''),
+                      middleName: sanitizeText(s.parentMiddleName || s.parent_middle_name || ''),
+                      lastName: sanitizeText(s.parentLastName || s.parent_last_name || ''),
+                      phone: parentPhone,
+                      email: parentEmail,
+                      occupation: null,
+                    },
+                  },
+                },
+              });
+            }
+
+            await this.prisma.studentParentLink.create({
+              data: {
+                studentId: student.studentProfile.id,
+                parentId: parent.id,
+                relationship: s.parentRelationship || s.parent_relationship || s.parentRelationship || 'Guardian',
+                isPrimary: true,
+              },
+            });
+          }
+
+          results.success++;
+        } catch (err: any) {
+          results.failed++;
+          results.errors.push({
+            indexNumber: s.indexNumber || s.index_number || 'unknown',
+            error: err.message || 'Unknown error',
           });
         }
+      });
 
-        results.success++;
-      } catch (err: any) {
-        results.failed++;
-        results.errors.push({
-          indexNumber: s.indexNumber || s.index_number || 'unknown',
-          error: err.message || 'Unknown error',
-        });
-      }
+      await Promise.all(batchPromises);
     }
 
     return results;

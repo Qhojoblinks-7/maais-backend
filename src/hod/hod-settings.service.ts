@@ -77,7 +77,7 @@ export class HODSettingsService {
 
     const updates: any[] = [];
     if (settings.profile?.name) {
-      const nameParts = settings.profile.name.trim().split(/\s+/);
+      const nameParts = settings.profile.name.trim().split(/[\s-]+/).filter(Boolean);
       updates.push(
         this.prisma.staffProfile.update({
           where: { id: staffProfile.id },

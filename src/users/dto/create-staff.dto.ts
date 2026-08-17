@@ -15,9 +15,10 @@ export class CreateStaffDto {
   @IsEnum(Role)
   role: Role;
 
-  @ApiProperty({ example: 'TCH-2024-001' })
+  @ApiPropertyOptional({ example: 'TCH25SC001', description: 'Auto-generated: prefix + 2-digit year + dept code + 3-digit seq' })
+  @IsOptional()
   @IsString()
-  staffId: string;
+  staffId?: string;
 
   @ApiProperty({ example: 'Ama' })
   @IsString()

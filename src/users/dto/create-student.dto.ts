@@ -84,6 +84,11 @@ export class CreateStudentDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  parentMiddleName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   parentLastName?: string;
 
   @ApiPropertyOptional()

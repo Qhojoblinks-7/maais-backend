@@ -234,6 +234,7 @@ model ParentProfile {
   userId     String  @unique
   user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName  String
+  middleName String?
   lastName   String
   phone      String
   email      String?
@@ -351,6 +352,19 @@ model IndexNumberSequence {
 
   @@unique([prefix, year])
   @@map("index_number_sequences")
+}
+
+model StaffIdSequence {
+  id        String   @id @default(uuid())
+  prefix    String   // e.g. "TCH", "HOD", "ADM", "STA"
+  year      Int      // e.g. 2025
+  deptCode  String   @default("00") // first 2 chars of dept code, "00" for no dept
+  lastSeq   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([prefix, year, deptCode])
+  @@map("staff_id_sequences")
 }
 
 model Subject {

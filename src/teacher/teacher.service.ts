@@ -968,7 +968,7 @@ export class TeacherService {
       throw new NotFoundException('Teacher profile not found');
     }
 
-    const nameParts = (data.name || '').trim().split(/\s+/);
+    const nameParts = (data.name || '').trim().split(/[\s-]+/).filter(Boolean);
     const firstName = nameParts[0] || staffProfile.firstName;
     const lastName =
       nameParts.length > 1
