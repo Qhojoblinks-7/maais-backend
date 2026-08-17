@@ -942,40 +942,111 @@ export class UsersService {
   async bulkImportStaff(staffList: any[]) {
     const results = { success: 0, failed: 0, errors: [] };
 
-    for (const s of staffList) {
-      try {
-        let departmentId = s.departmentId;
+    if (!staffList.length) return results;
 
-        if (!departmentId && s.departmentName) {
-          const dept = await this.prisma.department.findFirst({
-            where: { name: { equals: s.departmentName, mode: 'insensitive' } },
+    const uniqueDeptNames = Array.from(
+      new Set(
+        staffList
+          .map((s) => (s.departmentName || s.department || '').trim())
+          .filter(Boolean),
+      ),
+    );
+
+    const departments = await this.prisma.department.findMany({
+      where: {
+        name: {
+          in: uniqueDeptNames,
+          mode: 'insensitive',
+        },
+      },
+      select: { id: true, name: true },
+    });
+
+    const deptMap = new Map(
+      departments.map((d) => [d.name.toLowerCase(), d.id]),
+    );
+
+    const emails = staffList
+      .map((s) => s.email)
+      .filter(Boolean)
+      .map((e) => e.toLowerCase().trim());
+
+    const existingUsers = await this.prisma.user.findMany({
+      where: { email: { in: emails } },
+      select: { email: true },
+    });
+
+    const existingEmailSet = new Set(
+      existingUsers.map((u) => u.email.toLowerCase()),
+    );
+
+    const passwordPromises = staffList.map((s) =>
+      argon2.hash(s.password || DEFAULT_STAFF_PASSWORD).catch((err) => {
+        throw new Error(`Password hash failed for ${s.email || s.staffId}: ${err.message}`);
+      }),
+    );
+
+    const passwordHashes = await Promise.all(passwordPromises);
+
+    const BATCH_SIZE = 20;
+
+    for (let i = 0; i < staffList.length; i += BATCH_SIZE) {
+      const batch = staffList.slice(i, i + BATCH_SIZE);
+
+      const createPromises = batch.map(async (s, idx) => {
+        const globalIdx = i + idx;
+        try {
+          const email = (s.email || '').toLowerCase().trim();
+          if (!email) {
+            throw new Error('Missing email');
+          }
+          if (existingEmailSet.has(email)) {
+            throw new Error('Email already exists');
+          }
+
+          const departmentName = (s.departmentName || s.department || '').trim();
+          const departmentId = departmentName
+            ? deptMap.get(departmentName.toLowerCase()) || undefined
+            : undefined;
+
+          const role = (s.role || 'TEACHER').toString().toUpperCase();
+          const validRole = ['TEACHER', 'HOD', 'HEADMASTER', 'SUPER_ADMIN', 'ASSISTANT_HEAD_ADMINISTRATION', 'ASSISTANT_HEAD_DOMESTIC'].includes(role)
+            ? role
+            : Role.TEACHER;
+
+          const passwordHash = passwordHashes[globalIdx];
+
+          await this.prisma.user.create({
+            data: {
+              email,
+              passwordHash,
+              role: validRole,
+              mustChangePassword: true,
+              staffProfile: {
+                create: {
+                  staffId: s.staffId || `STF-${Date.now()}-${globalIdx}`,
+                  firstName: s.firstName || '',
+                  lastName: s.lastName || '',
+                  middleName: s.middleName,
+                  gender: (s.gender || 'MALE').toUpperCase(),
+                  phone: s.phone || '',
+                  departmentId,
+                },
+              },
+            },
           });
-          if (dept) departmentId = dept.id;
-        }
 
-        const dto: CreateStaffDto = {
-          email: s.email,
-          password: s.password || DEFAULT_STAFF_PASSWORD,
-          role: s.role || Role.TEACHER,
-          staffId:
-            s.staffId ||
-            `STF-${Date.now()}-${results.success + results.failed}`,
-          firstName: s.firstName,
-          lastName: s.lastName,
-          middleName: s.middleName,
-          gender: (s.gender || 'MALE').toUpperCase(),
-          phone: s.phone,
-          departmentId,
-        };
-        await this.createStaff(dto);
-        results.success++;
-      } catch (err: any) {
-        results.failed++;
-        results.errors.push({
-          staffId: s.staffId || s.email || 'unknown',
-          error: err.message || 'Unknown error',
-        });
-      }
+          results.success++;
+        } catch (err: any) {
+          results.failed++;
+          results.errors.push({
+            staffId: s.staffId || s.email || `row-${globalIdx + 1}`,
+            error: err.message || 'Unknown error',
+          });
+        }
+      });
+
+      await Promise.all(createPromises);
     }
 
     return results;
