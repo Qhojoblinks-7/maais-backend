@@ -1,4 +1,4 @@
-import {
+﻿import {
   Injectable,
   ForbiddenException,
   NotFoundException,
@@ -19,7 +19,7 @@ const GRADE_BOUNDARIES = [
     smartRemarks: [
       'Outstanding performance',
       'Exceptional academic achievement',
-      'An excellent student — keep it up!',
+      'An excellent student â€” keep it up!',
     ],
   },
   {
@@ -30,7 +30,7 @@ const GRADE_BOUNDARIES = [
     smartRemarks: [
       'Very good performance',
       'Great effort shown',
-      'Well done — aim for the top!',
+      'Well done â€” aim for the top!',
     ],
   },
   {
@@ -72,7 +72,7 @@ const GRADE_BOUNDARIES = [
     max: 54,
     remark: GradeRemark.PASS,
     smartRemarks: [
-      'Satisfactory — more work needed',
+      'Satisfactory â€” more work needed',
       'Pay closer attention in class',
     ],
   },
@@ -82,7 +82,7 @@ const GRADE_BOUNDARIES = [
     max: 49,
     remark: GradeRemark.WEAK_PASS,
     smartRemarks: [
-      'Weak performance — please seek help',
+      'Weak performance â€” please seek help',
       'Extra classes recommended',
     ],
   },
@@ -92,7 +92,7 @@ const GRADE_BOUNDARIES = [
     max: 44,
     remark: GradeRemark.WEAK_PASS,
     smartRemarks: [
-      'Very weak — urgent improvement needed',
+      'Very weak â€” urgent improvement needed',
       'Must attend remedial sessions',
     ],
   },
@@ -102,7 +102,7 @@ const GRADE_BOUNDARIES = [
     max: 39,
     remark: GradeRemark.FAILURE,
     smartRemarks: [
-      'Failed — must repeat this subject',
+      'Failed â€” must repeat this subject',
       'Serious academic counselling required',
     ],
   },
@@ -902,7 +902,7 @@ export class GradingService {
         accessibleStudentIds.length === 0 ||
         accessibleSubjectIds.length === 0
       ) {
-        return [];
+        return { data: [], total: 0, page: 1, limit: 50, pages: 0 };
       }
       whereClause.studentId = { in: accessibleStudentIds };
       whereClause.subjectId = { in: accessibleSubjectIds };
@@ -1642,7 +1642,7 @@ export class GradingService {
     };
 
     const termLabel = term.academicYear
-      ? `${term.academicYear.label} — ${TERM_DISPLAY[term.termNumber] || term.termNumber}`
+      ? `${term.academicYear.label} â€” ${TERM_DISPLAY[term.termNumber] || term.termNumber}`
       : TERM_DISPLAY[term.termNumber] || `Term ${term.termNumber}`;
 
     return {
@@ -1652,3 +1652,4 @@ export class GradingService {
     };
   }
 }
+

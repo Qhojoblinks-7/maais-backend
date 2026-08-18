@@ -1,4 +1,4 @@
-import {
+﻿import {
   Controller,
   Get,
   Param,
@@ -312,19 +312,7 @@ export class TeacherController {
     });
   }
 
-  @Get('observations')
-  @Roles(Role.TEACHER)
-  @ApiOperation({ summary: 'Get teacher observation audit logs' })
-  getObservationLogs(
-    @CurrentUser()
-    user: {
-      id: string;
-      role: Role;
-      staffProfile?: { id: string };
-    },
-  ) {
-    return this.gradingService.getObservationLogs(user.id, user.role);
-  }
+
 
   @Post('observations')
   @Roles(Role.TEACHER)
@@ -407,3 +395,4 @@ export class TeacherController {
     );
   }
 }
+

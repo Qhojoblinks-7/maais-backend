@@ -1,4 +1,4 @@
-import {
+﻿import {
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -655,7 +655,7 @@ export class TeacherService {
         this.notifyStaff(
           targetTeacherId,
           'Grade Revision Requested',
-          `HOD has requested a revision for ${revision.className || 'a class'} — ${body.issue}`,
+          `HOD has requested a revision for ${revision.className || 'a class'} â€” ${body.issue}`,
           requester.id,
         );
       } else {
@@ -1287,8 +1287,8 @@ export class TeacherService {
       teacher: entry.submittedById
         ? teacherMap.get(entry.submittedById) || 'Unknown'
         : 'Unknown',
+      hod: 'Unknown',
     }));
-
     return { data, total, page, limit, pages: Math.ceil(total / limit) };
   }
 
