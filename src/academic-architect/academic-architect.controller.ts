@@ -15,8 +15,11 @@ import { Roles, CurrentUser } from '../common/decorators/roles.decorator';
 import {
   CreateAcademicYearDto,
   CreateTermDto,
+  UpdateAcademicYearDto,
+  UpdateTermDto,
   CreateDepartmentDto,
   CreateSubjectDto,
+  UpdateSubjectDto,
   CreateClassSectionDto,
   UpdateClassSectionDto,
   AssignTeacherDto,
@@ -37,7 +40,10 @@ export class AcademicArchitectController {
       dto.label,
       new Date(dto.startDate),
       new Date(dto.endDate),
-      dto.termSystem,
+      dto.semester1Start,
+      dto.semester1End,
+      dto.semester2Start,
+      dto.semester2End,
     );
   }
 
@@ -46,6 +52,17 @@ export class AcademicArchitectController {
   @ApiOperation({ summary: 'Set active academic year' })
   activateYear(@Param('id') id: string) {
     return this.service.setActiveYear(id);
+  }
+
+  @Patch('years/:id')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Update an academic year' })
+  updateYear(@Param('id') id: string, @Body() dto: UpdateAcademicYearDto) {
+    return this.service.updateAcademicYear(id, {
+      label: dto.label,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+    });
   }
 
   @Get('years/active')
@@ -94,6 +111,17 @@ export class AcademicArchitectController {
     return this.service.deactivateTerm(id);
   }
 
+  @Patch('terms/:id')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Update a term (dates or active status)' })
+  updateTerm(@Param('id') id: string, @Body() dto: UpdateTermDto) {
+    return this.service.updateTerm(id, {
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      isActive: dto.isActive,
+    });
+  }
+
   @Post('departments')
   @Roles(Role.HEADMASTER)
   @ApiOperation({ summary: 'Create a department' })
@@ -134,6 +162,13 @@ export class AcademicArchitectController {
   @ApiOperation({ summary: 'Create a subject' })
   createSubject(@Body() dto: CreateSubjectDto) {
     return this.service.createSubject(dto);
+  }
+
+  @Patch('subjects/:id')
+  @Roles(Role.HEADMASTER)
+  @ApiOperation({ summary: 'Update a subject (name, description, departmentId)' })
+  updateSubject(@Param('id') id: string, @Body() dto: UpdateSubjectDto) {
+    return this.service.updateSubject(id, dto);
   }
 
   @Get('subjects')

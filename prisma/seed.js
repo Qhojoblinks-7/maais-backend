@@ -98,7 +98,7 @@ async function main() {
         await prisma.subject.upsert({
             where: { code: s.code },
             update: {},
-            create: { name: s.name, code: s.code, type: s.type, departmentId: deptMap[s.deptCode] },
+            create: { name: s.name, code: s.code, type: s.type },
         });
     }
     console.log('✅ Subjects:', coreSubjects.length + electiveSubjects.length, 'created');

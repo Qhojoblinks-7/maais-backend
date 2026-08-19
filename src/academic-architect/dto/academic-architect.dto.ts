@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsDateString,
   IsInt,
+  IsBoolean,
 } from 'class-validator';
 import { TermNumber, ClassLevel, SubjectType } from '@prisma/client';
 
@@ -21,14 +22,25 @@ export class CreateAcademicYearDto {
   @IsDateString()
   endDate: string;
 
-  @ApiPropertyOptional({
-    example: 'TWO_SEMESTERS',
-    enum: ['TWO_SEMESTERS'],
-    description: 'Term system for this academic year',
-  })
+  @ApiPropertyOptional({ example: '2024-09-02', description: 'Start date for Semester 1' })
   @IsOptional()
-  @IsString()
-  termSystem?: string;
+  @IsDateString()
+  semester1Start?: string;
+
+  @ApiPropertyOptional({ example: '2025-01-15', description: 'End date for Semester 1' })
+  @IsOptional()
+  @IsDateString()
+  semester1End?: string;
+
+  @ApiPropertyOptional({ example: '2025-01-20', description: 'Start date for Semester 2' })
+  @IsOptional()
+  @IsDateString()
+  semester2Start?: string;
+
+  @ApiPropertyOptional({ example: '2025-07-31', description: 'End date for Semester 2' })
+  @IsOptional()
+  @IsDateString()
+  semester2End?: string;
 }
 
 export class CreateTermDto {
@@ -47,6 +59,40 @@ export class CreateTermDto {
   @ApiProperty({ example: '2024-12-20' })
   @IsDateString()
   endDate: string;
+}
+
+export class UpdateAcademicYearDto {
+  @ApiPropertyOptional({ example: '2024/2025' })
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @ApiPropertyOptional({ example: '2024-09-02' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2025-07-31' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+}
+
+export class UpdateTermDto {
+  @ApiPropertyOptional({ example: '2024-09-02' })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2024-12-20' })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class CreateDepartmentDto {
@@ -95,6 +141,23 @@ export class CreateSubjectDto {
   @IsOptional()
   @IsString()
   description?: string;
+}
+
+export class UpdateSubjectDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  departmentId?: string;
 }
 
 export class CreateClassSectionDto {

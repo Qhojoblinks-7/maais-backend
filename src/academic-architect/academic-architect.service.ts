@@ -65,22 +65,40 @@ export class AcademicArchitectService {
     label: string,
     startDate: Date,
     endDate: Date,
-    termSystem?: string,
+    semester1Start?: string,
+    semester1End?: string,
+    semester2Start?: string,
+    semester2End?: string,
   ) {
-    const system = 'TWO_SEMESTERS';
     const yearStart = new Date(startDate);
     const yearEnd = new Date(endDate);
 
-    const terms = this.buildSemesters(yearStart, yearEnd);
+    let semesters;
+    if (semester1Start && semester1End && semester2Start && semester2End) {
+      semesters = [
+        {
+          termNumber: 'SEMESTER_1' as TermNumber,
+          startDate: new Date(semester1Start),
+          endDate: new Date(semester1End),
+        },
+        {
+          termNumber: 'SEMESTER_2' as TermNumber,
+          startDate: new Date(semester2Start),
+          endDate: new Date(semester2End),
+        },
+      ];
+    } else {
+      semesters = this.buildSemesters(yearStart, yearEnd);
+    }
 
     return this.prisma.academicYear.create({
       data: {
         label,
         startDate: yearStart,
         endDate: yearEnd,
-        termSystem: system,
+        termSystem: 'TWO_SEMESTERS',
         terms: {
-          create: terms.map((t, idx) => ({
+          create: semesters.map((t, idx) => ({
             ...t,
             isActive: idx === 0,
           })),
@@ -169,6 +187,22 @@ export class AcademicArchitectService {
       where: { id: termId },
       data: { isActive: false },
     });
+  }
+
+  async updateAcademicYear(id: string, dto: { label?: string; startDate?: Date; endDate?: Date }) {
+    const data: any = {};
+    if (dto.label !== undefined) data.label = dto.label;
+    if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
+    return this.prisma.academicYear.update({ where: { id }, data });
+  }
+
+  async updateTerm(id: string, dto: { startDate?: Date; endDate?: Date; isActive?: boolean }) {
+    const data: any = {};
+    if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
+    if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    return this.prisma.term.update({ where: { id }, data });
   }
 
   // ─── Departments ──────────────────────────────────────
@@ -272,6 +306,10 @@ export class AcademicArchitectService {
       );
     }
     return this.prisma.subject.create({ data: dto });
+  }
+
+  async updateSubject(id: string, dto: { name?: string; description?: string; departmentId?: string }) {
+    return this.prisma.subject.update({ where: { id }, data: dto });
   }
 
   async getAllSubjects() {

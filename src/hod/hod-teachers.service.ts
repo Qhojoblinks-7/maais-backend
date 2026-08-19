@@ -66,33 +66,86 @@ export class HODTeacherService {
       });
     }
 
-    const teachers = await this.prisma.staffProfile.findMany({
-      where: {
-        departmentId: staffProfile.departmentId,
-        user: { role: Role.TEACHER },
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        teachingAssignments: {
-          select: {
-            classSectionId: true,
-            subjectId: true,
+    const deptId = staffProfile.departmentId;
+
+    const [homeTeachers, visitingTeachers, homeCount, visitingCount] = await Promise.all([
+      this.prisma.staffProfile.findMany({
+        where: { departmentId: deptId, user: { role: Role.TEACHER } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          teachingAssignments: {
+            select: {
+              classSectionId: true,
+              subjectId: true,
+            },
           },
         },
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.staffProfile.findMany({
+        where: {
+          departmentId: { not: deptId },
+          user: { role: Role.TEACHER },
+          teachingAssignments: {
+            some: {
+              classSection: {
+                students: {
+                  some: {
+                    departmentId: deptId,
+                    archivedAt: null,
+                  },
+                },
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          teachingAssignments: {
+            select: {
+              classSectionId: true,
+              subjectId: true,
+            },
+          },
+        },
+      }),
+      this.prisma.staffProfile.count({
+        where: { departmentId: deptId, user: { role: Role.TEACHER } },
+      }),
+      this.prisma.staffProfile.count({
+        where: {
+          departmentId: { not: deptId },
+          user: { role: Role.TEACHER },
+          teachingAssignments: {
+            some: {
+              classSection: {
+                students: {
+                  some: {
+                    departmentId: deptId,
+                    archivedAt: null,
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
 
+    const visitingSet = new Set(visitingTeachers.map((t) => t.id));
+    const allTeachers = [
+      ...homeTeachers.map((t) => ({ ...t, isVisiting: false })),
+      ...visitingTeachers.map((t) => ({ ...t, isVisiting: true })),
+    ];
+
+    const teachers = allTeachers.slice((page - 1) * limit, page * limit);
     const teacherIds = teachers.map((t) => t.id);
-    const totalTeachers = await this.prisma.staffProfile.count({
-      where: {
-        departmentId: staffProfile.departmentId,
-        user: { role: Role.TEACHER },
-      },
-    });
+    const totalTeachers = homeCount + visitingCount;
 
     const allClassIds = Array.from(
       new Set(
@@ -228,6 +281,7 @@ export class HODTeacherService {
               ? 'IN_PROGRESS'
               : 'DRAFT',
         progress,
+        isVisiting: teacher.isVisiting ?? false,
       };
     });
 
@@ -283,37 +337,73 @@ export class HODTeacherService {
     >('hod:dept-teachers', cacheKey);
     if (cached) return cached;
 
-    const whereClause: any = {
-      departmentId: staffProfile.departmentId,
+    const deptId = staffProfile.departmentId;
+
+    const baseWhere: any = {
       user: { role: { in: [Role.TEACHER, Role.HOD] } },
     };
 
     if (params?.search) {
       const search = params.search.toLowerCase();
-      whereClause.OR = [
+      baseWhere.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const [teachers, total] = await Promise.all([
-      this.prisma.staffProfile.findMany({
-        where: whereClause,
-        include: {
-          user: { select: { email: true, isActive: true } },
-          teachingAssignments: {
-            include: {
-              subject: { select: { name: true } },
-              classSection: { select: { name: true, level: true } },
+    const homeWhere = { ...baseWhere, departmentId: deptId };
+    const visitingWhere = {
+      ...baseWhere,
+      departmentId: { not: deptId },
+      teachingAssignments: {
+        some: {
+          classSection: {
+            students: {
+              some: {
+                departmentId: deptId,
+                archivedAt: null,
+              },
             },
           },
         },
+      },
+    };
+
+    const includeClause = {
+      user: { select: { email: true, isActive: true } },
+      teachingAssignments: {
+        include: {
+          subject: { select: { name: true } },
+          classSection: { select: { name: true, level: true } },
+        },
+      },
+    };
+
+    const [homeTeachers, visitingTeachers, homeCount, visitingCount] = await Promise.all([
+      this.prisma.staffProfile.findMany({
+        where: homeWhere,
+        include: includeClause,
         orderBy: { lastName: 'asc' },
-        skip,
-        take: limit,
       }),
-      this.prisma.staffProfile.count({ where: whereClause }),
+      this.prisma.staffProfile.findMany({
+        where: visitingWhere,
+        include: includeClause,
+        orderBy: { lastName: 'asc' },
+      }),
+      this.prisma.staffProfile.count({ where: homeWhere }),
+      this.prisma.staffProfile.count({ where: visitingWhere }),
     ]);
+
+    const visitingIds = new Set(visitingTeachers.map((t) => t.id));
+    const allTeachers = [
+      ...homeTeachers.map((t) => ({ ...t, isVisiting: false })),
+      ...visitingTeachers.map((t) => ({ ...t, isVisiting: true })),
+    ];
+
+    allTeachers.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+    const teachers = allTeachers.slice(skip, skip + limit);
+    const total = homeCount + visitingCount;
 
     const activeTerm = await this.prisma.term.findFirst({
       where: { isActive: true },
@@ -413,6 +503,7 @@ export class HODTeacherService {
         classes,
         rating,
         status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
+        isVisiting: teacher.isVisiting ?? false,
       };
     });
 
@@ -460,10 +551,28 @@ export class HODTeacherService {
       const teacher = await this.prisma.staffProfile.findUnique({
         where: { id: teacherId },
       });
-      if (!teacher || teacher.departmentId !== staffProfile.departmentId) {
-        throw new ForbiddenException(
-          'You can only reset passwords for teachers in your department',
-        );
+      if (!teacher) {
+        throw new ForbiddenException('Teacher not found');
+      }
+      const isHomeTeacher = teacher.departmentId === staffProfile.departmentId;
+      if (!isHomeTeacher) {
+        const visitingAssignment = await this.prisma.teachingAssignment.findFirst({
+          where: {
+            teacherId: teacherId,
+            classSection: {
+              students: {
+                some: {
+                  departmentId: staffProfile.departmentId,
+                },
+              },
+            },
+          },
+        });
+        if (!visitingAssignment) {
+          throw new ForbiddenException(
+            'You can only reset passwords for teachers in your department',
+          );
+        }
       }
     }
 
@@ -491,14 +600,40 @@ export class HODTeacherService {
     });
     if (!staffProfile) throw new NotFoundException('HOD profile not found');
 
-    const departmentUserIds = await this.prisma.user
+    const deptId = staffProfile.departmentId;
+
+    const homeUserIds = await this.prisma.user
       .findMany({
         where: {
-          staffProfile: { departmentId: staffProfile.departmentId },
+          staffProfile: { departmentId: deptId },
         },
         select: { id: true },
       })
       .then((u) => u.map((x) => x.id));
+
+    const visitingUserIds = await this.prisma.user
+      .findMany({
+        where: {
+          staffProfile: {
+            departmentId: { not: deptId },
+            teachingAssignments: {
+              some: {
+                classSection: {
+                  students: {
+                    some: {
+                      departmentId: deptId,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        select: { id: true },
+      })
+      .then((u) => u.map((x) => x.id));
+
+    const departmentUserIds = [...homeUserIds, ...visitingUserIds];
 
     const results: any[] = [];
 

@@ -1088,11 +1088,28 @@ export class UsersService {
     // Deduplicate input by student identity to prevent the same student
     // being created multiple times when a CSV has repeated rows (e.g. one
     // row per subject instead of one row per student).
-    // Primary key: indexNumber (CassRefID). Fallback: name + phone + dob.
+    // Primary key: cassRefId (CassRefID from source file). Fallback: auto-generated
+    // indexNumber. Final fallback: name + middleName + gender + phone + dob.
+    const seenCassRefs = new Set<string>();
     const seenIndexNumbers = new Set<string>();
     const seenStudents = new Set<string>();
     const dedupedStudents: any[] = [];
     for (const s of students) {
+      const cassRefId = (s.cassRefId || '').trim();
+      if (cassRefId) {
+        if (seenCassRefs.has(cassRefId)) {
+          results.warnings.push({
+            indexNumber: s.indexNumber || s.index_number || 'unknown',
+            className: s.className || s.class_name || 'unknown',
+            message: `Duplicate student skipped (CassRefID: ${cassRefId})`,
+          });
+          continue;
+        }
+        seenCassRefs.add(cassRefId);
+        dedupedStudents.push(s);
+        continue;
+      }
+
       const indexNumber = (s.indexNumber || s.index_number || '').trim();
       if (indexNumber) {
         if (seenIndexNumbers.has(indexNumber)) {
@@ -1110,9 +1127,11 @@ export class UsersService {
 
       const firstName = (s.firstName || s.first_name || '').trim().toLowerCase();
       const lastName = (s.lastName || s.last_name || '').trim().toLowerCase();
+      const middleName = (s.middleName || s.middle_name || '').trim().toLowerCase();
       const phone = (s.parentPhone || s.parent_phone || '').trim().toLowerCase();
       const dob = (s.dateOfBirth || s.date_of_birth || s.dob || '').trim().toLowerCase();
-      const dedupeKey = `${firstName}|${lastName}|${phone}|${dob}`;
+      const gender = (s.gender || '').trim().toLowerCase();
+      const dedupeKey = `${firstName}|${lastName}|${middleName}|${gender}|${phone}|${dob}`;
       if (seenStudents.has(dedupeKey)) {
         results.warnings.push({
           indexNumber: 'unknown',

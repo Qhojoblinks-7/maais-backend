@@ -251,10 +251,28 @@ export class HODSettingsService {
       const teacher = await this.prisma.staffProfile.findUnique({
         where: { id: teacherId },
       });
-      if (!teacher || teacher.departmentId !== staffProfile.departmentId) {
-        throw new ForbiddenException(
-          'You can only impersonate teachers in your department',
-        );
+      if (!teacher) {
+        throw new ForbiddenException('Teacher not found');
+      }
+      const isHomeTeacher = teacher.departmentId === staffProfile.departmentId;
+      if (!isHomeTeacher) {
+        const visitingAssignment = await this.prisma.teachingAssignment.findFirst({
+          where: {
+            teacherId: teacherId,
+            classSection: {
+              students: {
+                some: {
+                  departmentId: staffProfile.departmentId,
+                },
+              },
+            },
+          },
+        });
+        if (!visitingAssignment) {
+          throw new ForbiddenException(
+            'You can only impersonate teachers in your department',
+          );
+        }
       }
     }
 
