@@ -206,6 +206,23 @@ export class GradingService {
       );
     }
 
+    const assessmentRules = await this.prisma.assessmentRules.findUnique({
+      where: { termId: activeTerm.id },
+      select: { submissionDeadline: true, isLocked: true },
+    });
+
+    if (assessmentRules?.isLocked) {
+      throw new ForbiddenException(
+        'Submission deadline has passed. Grading is locked.',
+      );
+    }
+
+    if (assessmentRules?.submissionDeadline && new Date() > assessmentRules.submissionDeadline) {
+      throw new ForbiddenException(
+        'Submission deadline has passed. Grading is locked.',
+      );
+    }
+
     let totalScore: number | undefined;
     let grade: string | undefined;
 
@@ -1269,6 +1286,23 @@ export class GradingService {
     if (term.isLocked) {
       throw new ForbiddenException(
         'Term is locked. Grades cannot be modified.',
+      );
+    }
+
+    const assessmentRules = await this.prisma.assessmentRules.findUnique({
+      where: { termId: term.id },
+      select: { submissionDeadline: true, isLocked: true },
+    });
+
+    if (assessmentRules?.isLocked) {
+      throw new ForbiddenException(
+        'Submission deadline has passed. Grading is locked.',
+      );
+    }
+
+    if (assessmentRules?.submissionDeadline && new Date() > assessmentRules.submissionDeadline) {
+      throw new ForbiddenException(
+        'Submission deadline has passed. Grading is locked.',
       );
     }
 

@@ -476,6 +476,11 @@ export class HODGradeService {
       data: { isLocked: true },
     });
 
+    await this.prisma.assessmentRules.updateMany({
+      where: { termId },
+      data: { isLocked: true, lockedAt: new Date() },
+    });
+
     // Cascade lock: mark all grade entries for this term as locked
     await this.prisma.gradeEntry.updateMany({
       where: { termId },
@@ -620,6 +625,11 @@ export class HODGradeService {
     const updated = await this.prisma.term.update({
       where: { id: termId },
       data: { isLocked: false },
+    });
+
+    await this.prisma.assessmentRules.updateMany({
+      where: { termId },
+      data: { isLocked: false, lockedAt: null, lockedById: null },
     });
 
     await this.prisma.gradeEntry.updateMany({

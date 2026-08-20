@@ -340,6 +340,7 @@ model Department {
   hodStaff StaffProfile[] @relation("HODDepartment")
   subjects Subject[]
   students StudentProfile[]
+  classSections ClassSection[]
 
   @@map("departments")
 }
@@ -397,6 +398,8 @@ model ClassSection {
   level          ClassLevel
   capacity       Int           @default(40)
   program        String? // e.g. "Science", "General Arts", "Business", "Vocational"
+  departmentId   String?
+  department     Department?   @relation(fields: [departmentId], references: [id])
   classTeacherId String?       @unique
   classTeacher   StaffProfile? @relation("ClassTeacher", fields: [classTeacherId], references: [id])
   track          String? // "Gold" or "Green" for double-track schools
