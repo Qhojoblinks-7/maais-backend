@@ -824,41 +824,51 @@ export class TeacherService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const transformed = await Promise.all(
-      revisions.map(async (r) => {
-        const student = await this.prisma.studentProfile.findUnique({
-          where: { id: r.studentId },
-          select: {
-            firstName: true,
-            lastName: true,
-            indexNumber: true,
-            currentClass: { select: { name: true } },
-          },
-        });
-        const subject = await this.prisma.subject.findUnique({
-          where: { id: r.subjectId },
-          select: { name: true },
-        });
+    const studentIds = [...new Set(revisions.map((r) => r.studentId))];
+    const subjectIds = [...new Set(revisions.map((r) => r.subjectId))];
 
-        return {
-          id: r.id,
-          recordId: r.id,
-          studentId: r.studentId,
-          student: student
-            ? `${student.firstName} ${student.lastName}`
-            : 'Unknown Student',
-          index: student?.indexNumber || '',
-          className:
-            r.className || student?.currentClass?.name || 'Unknown Class',
-          subject: subject?.name || 'Unknown Subject',
-          issue: r.issue,
-          status: r.status,
-          date: r.createdAt.toISOString().split('T')[0],
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-        };
+    const [students, subjects] = await Promise.all([
+      this.prisma.studentProfile.findMany({
+        where: { id: { in: studentIds } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          indexNumber: true,
+          currentClass: { select: { name: true } },
+        },
       }),
-    );
+      this.prisma.subject.findMany({
+        where: { id: { in: subjectIds } },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    const studentMap = new Map(students.map((s) => [s.id, s]));
+    const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+
+    const transformed = revisions.map((r) => {
+      const student = studentMap.get(r.studentId);
+      const subject = subjectMap.get(r.subjectId);
+
+      return {
+        id: r.id,
+        recordId: r.id,
+        studentId: r.studentId,
+        student: student
+          ? `${student.firstName} ${student.lastName}`
+          : 'Unknown Student',
+        index: student?.indexNumber || '',
+        className:
+          r.className || student?.currentClass?.name || 'Unknown Class',
+        subject: subject?.name || 'Unknown Subject',
+        issue: r.issue,
+        status: r.status,
+        date: r.createdAt.toISOString().split('T')[0],
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      };
+    });
 
     return transformed;
   }
@@ -907,24 +917,34 @@ export class TeacherService {
       ],
     });
 
-    return Promise.all(
-      assignments.map(async (assignment) => {
-        const students = await this.prisma.studentProfile.findMany({
-          where: {
-            currentClassId: assignment.classSectionId,
-            archivedAt: null,
-          },
-          select: { id: true },
-        });
+    const classSectionIds = assignments
+      .map((a) => a.classSectionId)
+      .filter(Boolean);
 
-        return {
-          id: assignment.id,
-          subject: assignment.subject.name,
-          className: assignment.classSection.name,
-          studentCount: students.length,
-        };
-      }),
-    );
+    const students = await this.prisma.studentProfile.findMany({
+      where: {
+        currentClassId: { in: classSectionIds },
+        archivedAt: null,
+      },
+      select: { id: true, currentClassId: true },
+    });
+
+    const studentCountByClass = new Map<string, number>();
+    for (const s of students) {
+      if (s.currentClassId) {
+        studentCountByClass.set(
+          s.currentClassId,
+          (studentCountByClass.get(s.currentClassId) || 0) + 1,
+        );
+      }
+    }
+
+    return assignments.map((assignment) => ({
+      id: assignment.id,
+      subject: assignment.subject.name,
+      className: assignment.classSection.name,
+      studentCount: studentCountByClass.get(assignment.classSectionId) || 0,
+    }));
   }
 
   async getNotificationPreferences() {

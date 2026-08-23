@@ -157,22 +157,21 @@ export class ReportsService {
 
     const classSize = reportCards.length;
     let currentRank = 1;
-
+    const updates = [];
     for (let i = 0; i < reportCards.length; i++) {
       const rc = reportCards[i];
-
-      // Handle ties: if this student has the same score as the previous one, use same rank
       if (i > 0 && rc.averageScore === reportCards[i - 1].averageScore) {
-        // rank remains the same
       } else {
         currentRank = i + 1;
       }
-
-      await this.prisma.reportCard.update({
-        where: { id: rc.id },
-        data: { classPosition: currentRank, classSize },
-      });
+      updates.push(
+        this.prisma.reportCard.update({
+          where: { id: rc.id },
+          data: { classPosition: currentRank, classSize },
+        }),
+      );
     }
+    await Promise.all(updates);
   }
 
   /**

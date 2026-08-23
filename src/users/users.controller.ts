@@ -63,8 +63,10 @@ export class UsersController {
   getAllStudents(
     @CurrentUser() user: { id: string; role: Role },
     @Query('search') search?: string,
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
   ) {
-    return this.usersService.getAllStudents(user, search);
+    return this.usersService.getAllStudents(user, search, Number(take) || 1000, Number(skip) || 0);
   }
 
   @Get('students/count')
@@ -113,8 +115,12 @@ export class UsersController {
   @Get('staff')
   @Roles(Role.HOD, Role.HEADMASTER, Role.SUPER_ADMIN)
   @ApiOperation({ summary: 'List all staff members' })
-  getAllStaff(@CurrentUser() user: { id: string; role: Role }) {
-    return this.usersService.getAllStaff(user);
+  getAllStaff(
+    @CurrentUser() user: { id: string; role: Role },
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
+    return this.usersService.getAllStaff(user, Number(take) || 500, Number(skip) || 0);
   }
 
   @Get('staff/:id')
@@ -141,8 +147,11 @@ export class UsersController {
   @Roles(Role.HOD)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List all parent accounts' })
-  getAllParents() {
-    return this.usersService.getAllParents();
+  getAllParents(
+    @Query('take') take?: string,
+    @Query('skip') skip?: string,
+  ) {
+    return this.usersService.getAllParents(Number(take) || 500, Number(skip) || 0);
   }
 
   @Get('parents/search')

@@ -414,7 +414,7 @@ export class UsersService {
     return parent;
   }
 
-  async getAllStudents(user?: { id: string; role: Role }, search?: string) {
+  async getAllStudents(user?: { id: string; role: Role }, search?: string, take = 200, skip = 0) {
     let departmentId: string | undefined;
 
     if (user?.role === Role.HOD) {
@@ -455,9 +455,15 @@ export class UsersService {
 
       return this.prisma.studentProfile.findMany({
         where,
-        include: {
-          currentClass: true,
-          department: true,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          indexNumber: true,
+          currentClassId: true,
+          departmentId: true,
+          currentClass: { select: { name: true, program: true } },
+          department: { select: { name: true } },
           user: {
             select: {
               email: true,
@@ -467,10 +473,23 @@ export class UsersService {
               lastLoginAt: true,
             },
           },
-          parentLinks: { take: 1, include: { parent: true } },
-          grades: { take: 20, include: { subject: true } },
+          parentLinks: {
+            take: 1,
+            select: {
+              parent: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                  email: true,
+                },
+              },
+            },
+          },
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+        take,
+        skip,
       });
     }
 
@@ -489,9 +508,15 @@ export class UsersService {
 
     return this.prisma.studentProfile.findMany({
       where,
-      include: {
-        currentClass: true,
-        department: true,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        indexNumber: true,
+        currentClassId: true,
+        departmentId: true,
+        currentClass: { select: { name: true, program: true } },
+        department: { select: { name: true } },
         user: {
           select: {
             email: true,
@@ -501,10 +526,23 @@ export class UsersService {
             lastLoginAt: true,
           },
         },
-        parentLinks: { take: 1, include: { parent: true } },
-        grades: { take: 20, include: { subject: true } },
+        parentLinks: {
+          take: 1,
+          select: {
+            parent: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true,
+                email: true,
+              },
+            },
+          },
+        },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      take,
+      skip,
     });
   }
 
@@ -577,7 +615,7 @@ export class UsersService {
     return baseProfile;
   }
 
-  async getAllStaff(user?: { id: string; role: Role }) {
+  async getAllStaff(user?: { id: string; role: Role }, take = 200, skip = 0) {
     let departmentId: string | undefined;
 
     if (user?.role === Role.HOD) {
@@ -591,13 +629,36 @@ export class UsersService {
       where: {
         ...(departmentId ? { departmentId } : {}),
       },
-      include: {
-        user: { select: { email: true, role: true, isActive: true } },
-        department: true,
-        hodDepartment: true,
-        teachingAssignments: { include: { subject: true, classSection: true } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        staffId: true,
+        phone: true,
+        isHod: true,
+        canTeach: true,
+        canOversight: true,
+        hodDepartmentId: true,
+        user: {
+          select: {
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
+        department: { select: { id: true, name: true, code: true } },
+        hodDepartment: { select: { id: true, name: true, code: true } },
+        teachingAssignments: {
+          select: {
+            id: true,
+            subject: { select: { id: true, name: true, code: true } },
+            classSection: { select: { id: true, name: true, level: true } },
+          },
+        },
       },
       orderBy: { lastName: 'asc' },
+      take,
+      skip,
     });
   }
 
@@ -742,7 +803,7 @@ export class UsersService {
     return updatedProfile;
   }
 
-  async getAllParents() {
+  async getAllParents(take = 200, skip = 0) {
     const parents = await this.prisma.parentProfile.findMany({
       select: {
         id: true,
@@ -759,6 +820,7 @@ export class UsersService {
           },
         },
         studentLinks: {
+          take: 3,
           select: {
             relationship: true,
             isPrimary: true,
@@ -767,47 +829,12 @@ export class UsersService {
                 id: true,
                 firstName: true,
                 lastName: true,
+                indexNumber: true,
                 currentClass: {
                   select: {
                     id: true,
                     name: true,
                     level: true,
-                  },
-                },
-                user: {
-                  select: {
-                    email: true,
-                  },
-                },
-                grades: {
-                  include: {
-                    subject: true,
-                    term: {
-                      include: {
-                        academicYear: true,
-                      },
-                    },
-                  },
-                  take: 50,
-                  orderBy: {
-                    term: {
-                      academicYear: {
-                        startDate: 'desc',
-                      },
-                    },
-                  },
-                },
-                attendance: {
-                  include: {
-                    term: true,
-                  },
-                  take: 10,
-                  orderBy: {
-                    term: {
-                      academicYear: {
-                        startDate: 'desc',
-                      },
-                    },
                   },
                 },
               },
@@ -816,30 +843,14 @@ export class UsersService {
         },
       },
       orderBy: { lastName: 'asc' },
+      take,
+      skip,
     });
 
     return (parents as any).map((p) => {
       const fullName = `${p.firstName} ${p.lastName}`;
       const wards = p.studentLinks.map((link) => {
         const student = link.student;
-        const grades = student.grades || [];
-        const totalScore = grades.reduce(
-          (sum, g) => sum + (g.totalScore || 0),
-          0,
-        );
-        const averageScore = grades.length
-          ? Math.round((totalScore / grades.length) * 10) / 10
-          : 0;
-
-        const attendance = student.attendance || [];
-        const latestAttendance = attendance[0];
-        const attendancePct =
-          latestAttendance && latestAttendance.totalDays
-            ? Math.round(
-                (latestAttendance.daysPresent / latestAttendance.totalDays) *
-                  100,
-              )
-            : 0;
 
         return {
           id: student.id,
@@ -847,8 +858,8 @@ export class UsersService {
             `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
             student.user?.email ||
             student.id,
-          averageScore,
-          attendance: attendancePct,
+          averageScore: 0,
+          attendance: 0,
           feesStatus: 'Paid',
           balance: 0,
           relationship: link.relationship,

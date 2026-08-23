@@ -226,8 +226,10 @@ model StudentProfile {
   archivedAt DateTime?
 
   @@index([currentClassId])
+  @@index([currentClassId, archivedAt])
   @@index([departmentId])
   @@index([archivedAt])
+  @@index([isBoarder])
   @@map("student_profiles")
 }
 
@@ -390,6 +392,8 @@ model Subject {
   curriculumMappings  CurriculumMapping[]
 
   @@map("subjects")
+  @@index([isActive])
+  @@index([departmentId])
 }
 
 model ClassSection {
@@ -410,6 +414,8 @@ model ClassSection {
   curriculumMappings  CurriculumMapping[]
 
   @@unique([name, level])
+  @@index([track])
+  @@index([departmentId])
   @@map("class_sections")
 }
 
@@ -522,7 +528,9 @@ model GradeEntry {
   @@unique([studentId, subjectId, termId])
   @@index([termId])
   @@index([subjectId])
+  @@index([termId, subjectId])
   @@index([submittedById])
+  @@index([submittedById, termId])
   @@index([totalScore])
   @@index([isLocked])
   @@index([studentId, termId])
@@ -655,6 +663,10 @@ model Notification {
   createdAt   DateTime            @default(now())
   createdById String?
 
+  @@index([staffId])
+  @@index([staffId, createdAt])
+  @@index([studentId, isRead])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -696,6 +708,7 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([userId, createdAt])
+  @@index([entity, entityId, createdAt])
   @@map("audit_logs")
 }
 
@@ -788,6 +801,9 @@ model SupportTicket {
   resolvedAt DateTime?
 
   @@index([studentId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
   @@index([createdAt])
   @@map("support_tickets")
 }
@@ -813,6 +829,9 @@ model TimetableEntry {
   subject      Subject      @relation(fields: [subjectId], references: [id])
   teacher      StaffProfile @relation(fields: [teacherId], references: [id])
 
+  @@index([classId])
+  @@index([teacherId])
+  @@index([dayOfWeek])
   @@map("timetable_entries")
 }
 

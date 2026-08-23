@@ -25,9 +25,11 @@ import { TimeSlotModule } from './timetable/time-slot.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { HODModule } from './hod/hod.module';
 import { CacheModule } from './cache/cache.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { DatabaseInitService } from './common/services/database-init.service';
 import { HealthController } from './health.controller';
 import { BootstrapController } from './bootstrap.controller';
+import { WarmupService } from './common/services/warmup.service';
 
 @Module({
   imports: [
@@ -52,6 +54,7 @@ import { BootstrapController } from './bootstrap.controller';
     TeacherModule,
     HODModule,
     CacheModule,
+    DashboardModule,
   ],
   providers: [
     {
@@ -71,6 +74,7 @@ import { BootstrapController } from './bootstrap.controller';
       useClass: AuditInterceptor,
     },
     DatabaseInitService,
+    WarmupService,
   ],
   controllers: [HealthController, BootstrapController],
 })

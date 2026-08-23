@@ -352,19 +352,26 @@ export class HODTeacherService {
     }
 
     const homeWhere = { ...baseWhere, departmentId: deptId };
+
+    const classSectionsWithDeptStudents = await this.prisma.classSection.findMany({
+      where: {
+        students: {
+          some: {
+            departmentId: deptId,
+            archivedAt: null,
+          },
+        },
+      },
+      select: { id: true },
+    });
+    const classSectionIds = classSectionsWithDeptStudents.map((cs) => cs.id);
+
     const visitingWhere = {
       ...baseWhere,
       departmentId: { not: deptId },
       teachingAssignments: {
         some: {
-          classSection: {
-            students: {
-              some: {
-                departmentId: deptId,
-                archivedAt: null,
-              },
-            },
-          },
+          classSectionId: { in: classSectionIds },
         },
       },
     };

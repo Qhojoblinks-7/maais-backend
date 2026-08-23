@@ -86,6 +86,15 @@ export class ArchiveService {
 
     const promotionRecords = [];
     const graduates = [];
+    const promoted = [];
+    const classSections = await this.prisma.classSection.findMany({
+      select: { id: true, level: true, name: true },
+    });
+    const classByLevelAndSuffix = new Map<string, string | null>();
+    for (const cs of classSections) {
+      const suffix = cs.name.replace(/^[1-3]/, '');
+      classByLevelAndSuffix.set(`${cs.level}:${suffix}`, cs.id);
+    }
 
     for (const student of students) {
       const currentLevel = student.currentClass!.level;
@@ -104,19 +113,10 @@ export class ArchiveService {
       } else {
         const currentClassName = student.currentClass!.name;
         const suffix = currentClassName.replace(/^[1-3]/, '');
+        const nextClassId = classByLevelAndSuffix.get(`${nextLevel}:${suffix}`) || null;
 
-        const nextClass = await this.prisma.classSection.findFirst({
-          where: {
-            level: nextLevel,
-            name: { endsWith: suffix },
-          },
-        });
-
-        if (nextClass) {
-          await this.prisma.studentProfile.update({
-            where: { id: student.id },
-            data: { currentClassId: nextClass.id },
-          });
+        if (nextClassId) {
+          promoted.push({ id: student.id, currentClassId: nextClassId });
         }
 
         promotionRecords.push({
@@ -128,6 +128,23 @@ export class ArchiveService {
           performedById: performedById || '',
         });
       }
+    }
+
+    if (promoted.length > 0) {
+      const byClass = new Map<string, string[]>();
+      for (const p of promoted) {
+        if (!byClass.has(p.currentClassId)) byClass.set(p.currentClassId, []);
+        byClass.get(p.currentClassId)!.push(p.id);
+      }
+
+      await Promise.all(
+        Array.from(byClass.entries()).map(([classId, ids]) =>
+          this.prisma.studentProfile.updateMany({
+            where: { id: { in: ids } },
+            data: { currentClassId: classId },
+          }),
+        ),
+      );
     }
 
     await this.prisma.studentProfile.updateMany({

@@ -121,81 +121,71 @@ export class PortalService {
         : null,
     ]);
 
-    const latestReport = await this.prisma.reportCard.findFirst({
-      where: { studentId: targetStudentId },
-      orderBy: { createdAt: 'desc' },
-      include: { term: { include: { academicYear: true } } },
-    });
-
-    const attendance = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: targetStudentId },
-    });
-
-    // Only include student notifications when the requester is the student viewing their own profile.
-    // Staff and admin can view student records but do not see private notification inbox.
-    const notifications =
+    const [latestReport, attendance, notifications, gradeEntries, interventions, activeTerm, latestBehavior, characterTraits, medicalRecords, parentLinks] = await Promise.all([
+      this.prisma.reportCard.findFirst({
+        where: { studentId: targetStudentId },
+        orderBy: { createdAt: 'desc' },
+        include: { term: { include: { academicYear: true } } },
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: { studentId: targetStudentId },
+      }),
       requesterRole === Role.STUDENT && targetStudentId
-        ? await this.prisma.notification.findMany({
+        ? this.prisma.notification.findMany({
             where: { studentId: targetStudentId },
             orderBy: { createdAt: 'desc' },
             take: 10,
           })
-        : [];
-
-    const gradeEntries = await this.prisma.gradeEntry.findMany({
-      where: { studentId: targetStudentId },
-      include: { subject: true, term: { include: { academicYear: true } } },
-    });
-
-    const interventions = await this.prisma.interventionAlert.findMany({
-      where: {
-        studentId: targetStudentId,
-        status: { in: ['ACTIVE', 'IN_PROGRESS'] },
-      },
-    });
-
-    const activeTerm = await this.prisma.term.findFirst({
-      where: { isActive: true },
-      include: { academicYear: true },
-    });
-
-    const attendancePercentage = this.calculateAttendance(attendance);
-
-    const latestBehavior = await this.prisma.studentBehavior.findFirst({
-      where: { studentId: targetStudentId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const characterTraits = await this.prisma.characterTrait.findFirst({
-      where: { studentId: targetStudentId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const medicalRecords = await this.prisma.medicalRecord.findMany({
-      where: { studentId: targetStudentId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const parentLinks = await this.prisma.studentParentLink.findMany({
-      where: { studentId: targetStudentId },
-      include: {
-        parent: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-            email: true,
-            occupation: true,
+        : Promise.resolve([]),
+      this.prisma.gradeEntry.findMany({
+        where: { studentId: targetStudentId },
+        include: { subject: true, term: { include: { academicYear: true } } },
+      }),
+      this.prisma.interventionAlert.findMany({
+        where: {
+          studentId: targetStudentId,
+          status: { in: ['ACTIVE', 'IN_PROGRESS'] },
+        },
+      }),
+      this.prisma.term.findFirst({
+        where: { isActive: true },
+        include: { academicYear: true },
+      }),
+      this.prisma.studentBehavior.findFirst({
+        where: { studentId: targetStudentId },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.characterTrait.findFirst({
+        where: { studentId: targetStudentId },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.medicalRecord.findMany({
+        where: { studentId: targetStudentId },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.studentParentLink.findMany({
+        where: { studentId: targetStudentId },
+        include: {
+          parent: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              email: true,
+              occupation: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     const wassceAggregate = await this.calculateWASSCEAggregate(
       targetStudentId,
       activeTerm?.id || latestReport?.termId,
     );
+
+    const attendancePercentage = this.calculateAttendance(attendance);
 
     const yearForm =
       latestReport?.term?.academicYear?.label ||

@@ -33,9 +33,9 @@ export class AuditInterceptor implements NestInterceptor {
     if (!meta || !user) return next.handle();
 
     return next.handle().pipe(
-      tap(async (result) => {
-        try {
-          await this.prisma.auditLog.create({
+      tap((result) => {
+        this.prisma.auditLog
+          .create({
             data: {
               userId: user.id,
               action: meta.action,
@@ -45,10 +45,8 @@ export class AuditInterceptor implements NestInterceptor {
               ipAddress: request.ip,
               userAgent: request.headers['user-agent'],
             },
-          });
-        } catch {
-          // Audit failure should never break the request
-        }
+          })
+          .catch(() => {});
       }),
     );
   }

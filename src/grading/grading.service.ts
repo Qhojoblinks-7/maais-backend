@@ -172,11 +172,6 @@ export class GradingService {
     existingEntry?: any,
     previousTermId?: string | null,
   ) {
-    console.log(
-      `[GradingService] upsertGrade called:`,
-      JSON.stringify(dto, null, 2),
-    );
-
     if (!dto.studentId) {
       console.error(`[GradingService] Missing studentId in dto`);
       throw new Error('studentId is required');
@@ -195,10 +190,6 @@ export class GradingService {
       (await this.prisma.term.findUniqueOrThrow({
         where: { id: dto.termId },
       }));
-
-    console.log(
-      `[GradingService] Term found: id=${activeTerm.id}, isLocked=${activeTerm.isLocked}`,
-    );
 
     if (activeTerm.isLocked) {
       throw new ForbiddenException(
@@ -322,11 +313,7 @@ export class GradingService {
     if (existing) {
       version = await this.occService.bumpVersion('GradeEntry', entry.id);
     } else {
-      const fresh = await this.prisma.gradeEntry.findUnique({
-        where: { id: entry.id },
-        select: { version: true },
-      });
-      version = fresh!.version;
+      version = entry.version;
     }
 
     await this.prisma.auditLog.create({
@@ -1434,17 +1421,15 @@ export class GradingService {
 
     const previousTermId = await this.getPreviousTermId(termId);
     if (previousTermId) {
-      for (const e of entries) {
-        try {
-          await this.interventionsService.checkPerformanceDrop(
+      await Promise.allSettled(
+        entries.map((e) =>
+          this.interventionsService.checkPerformanceDrop(
             e.studentId,
             termId,
             previousTermId,
-          );
-        } catch {
-          /* non-blocking */
-        }
-      }
+          ),
+        ),
+      );
     }
 
     return saved;
