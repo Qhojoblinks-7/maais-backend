@@ -803,7 +803,11 @@ export class UsersService {
     return updatedProfile;
   }
 
-  async getAllParents(take = 200, skip = 0) {
+  async getAllParents(take = 50, skip = 0) {
+    const total = await this.prisma.parentProfile.count();
+    const page = Math.floor(skip / take) + 1;
+    const pages = Math.ceil(total / take);
+
     const parents = await this.prisma.parentProfile.findMany({
       select: {
         id: true,
@@ -847,7 +851,7 @@ export class UsersService {
       skip,
     });
 
-    return (parents as any).map((p) => {
+    const data = (parents as any).map((p) => {
       const fullName = `${p.firstName} ${p.lastName}`;
       const wards = p.studentLinks.map((link) => {
         const student = link.student;
@@ -856,7 +860,6 @@ export class UsersService {
           id: student.id,
           name:
             `${student.firstName || ''} ${student.lastName || ''}`.trim() ||
-            student.user?.email ||
             student.id,
           averageScore: 0,
           attendance: 0,
@@ -883,6 +886,8 @@ export class UsersService {
         communicationLogs: [],
       };
     });
+
+    return { data, total, page, pages };
   }
 
   async searchParents(user?: { id: string; role: Role }, search?: string) {

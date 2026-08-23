@@ -68,52 +68,7 @@ export class HODTeacherService {
 
     const deptId = staffProfile.departmentId;
 
-    const [homeTeachers, visitingTeachers, homeCount, visitingCount] = await Promise.all([
-      this.prisma.staffProfile.findMany({
-        where: { departmentId: deptId, user: { role: Role.TEACHER } },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          teachingAssignments: {
-            select: {
-              classSectionId: true,
-              subjectId: true,
-            },
-          },
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.staffProfile.findMany({
-        where: {
-          departmentId: { not: deptId },
-          user: { role: Role.TEACHER },
-          teachingAssignments: {
-            some: {
-              classSection: {
-                students: {
-                  some: {
-                    departmentId: deptId,
-                    archivedAt: null,
-                  },
-                },
-              },
-            },
-          },
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          teachingAssignments: {
-            select: {
-              classSectionId: true,
-              subjectId: true,
-            },
-          },
-        },
-      }),
+    const [homeCount, visitingCount] = await Promise.all([
       this.prisma.staffProfile.count({
         where: { departmentId: deptId, user: { role: Role.TEACHER } },
       }),
@@ -137,6 +92,82 @@ export class HODTeacherService {
       }),
     ]);
 
+    const totalTeachers = homeCount + visitingCount;
+    const startIndex = (page - 1) * limit;
+    const remaining = totalTeachers - startIndex;
+    const pageLimit = Math.min(limit, Math.max(0, remaining));
+    
+    let homeSkip = 0;
+    let homeTake = 0;
+    let visitingSkip = 0;
+    let visitingTake = 0;
+    
+    if (startIndex < homeCount) {
+      homeSkip = startIndex;
+      homeTake = Math.min(pageLimit, homeCount - startIndex);
+      visitingTake = Math.max(0, pageLimit - homeTake);
+      visitingSkip = 0;
+    } else {
+      homeSkip = homeCount;
+      homeTake = 0;
+      visitingSkip = startIndex - homeCount;
+      visitingTake = Math.max(0, pageLimit);
+    }
+
+    const [homeTeachers, visitingTeachers] = await Promise.all([
+      homeTake > 0
+        ? this.prisma.staffProfile.findMany({
+            where: { departmentId: deptId, user: { role: Role.TEACHER } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              teachingAssignments: {
+                select: {
+                  classSectionId: true,
+                  subjectId: true,
+                },
+              },
+            },
+            skip: homeSkip,
+            take: homeTake,
+          })
+        : Promise.resolve([]),
+      visitingTake > 0
+        ? this.prisma.staffProfile.findMany({
+            where: {
+              departmentId: { not: deptId },
+              user: { role: Role.TEACHER },
+              teachingAssignments: {
+                some: {
+                  classSection: {
+                    students: {
+                      some: {
+                        departmentId: deptId,
+                        archivedAt: null,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              teachingAssignments: {
+                select: {
+                  classSectionId: true,
+                  subjectId: true,
+                },
+              },
+            },
+            skip: visitingSkip,
+            take: visitingTake,
+          })
+        : Promise.resolve([]),
+    ]);
+
     const visitingSet = new Set(visitingTeachers.map((t) => t.id));
     const allTeachers = [
       ...homeTeachers.map((t) => ({ ...t, isVisiting: false })),
@@ -145,7 +176,6 @@ export class HODTeacherService {
 
     const teachers = allTeachers.slice((page - 1) * limit, page * limit);
     const teacherIds = teachers.map((t) => t.id);
-    const totalTeachers = homeCount + visitingCount;
 
     const allClassIds = Array.from(
       new Set(
@@ -386,19 +416,52 @@ export class HODTeacherService {
       },
     };
 
-    const [homeTeachers, visitingTeachers, homeCount, visitingCount] = await Promise.all([
-      this.prisma.staffProfile.findMany({
-        where: homeWhere,
-        include: includeClause,
-        orderBy: { lastName: 'asc' },
-      }),
-      this.prisma.staffProfile.findMany({
-        where: visitingWhere,
-        include: includeClause,
-        orderBy: { lastName: 'asc' },
-      }),
+    const [homeCount, visitingCount] = await Promise.all([
       this.prisma.staffProfile.count({ where: homeWhere }),
       this.prisma.staffProfile.count({ where: visitingWhere }),
+    ]);
+
+    const total = homeCount + visitingCount;
+    const startIndex = (page - 1) * limit;
+    const remaining = total - startIndex;
+    const pageLimit = Math.min(limit, Math.max(0, remaining));
+    
+    let homeSkip = 0;
+    let homeTake = 0;
+    let visitingSkip = 0;
+    let visitingTake = 0;
+    
+    if (startIndex < homeCount) {
+      homeSkip = startIndex;
+      homeTake = Math.min(pageLimit, homeCount - startIndex);
+      visitingTake = Math.max(0, pageLimit - homeTake);
+      visitingSkip = 0;
+    } else {
+      homeSkip = homeCount;
+      homeTake = 0;
+      visitingSkip = startIndex - homeCount;
+      visitingTake = Math.max(0, pageLimit);
+    }
+
+    const [homeTeachers, visitingTeachers] = await Promise.all([
+      homeTake > 0
+        ? this.prisma.staffProfile.findMany({
+            where: homeWhere,
+            include: includeClause,
+            orderBy: { lastName: 'asc' },
+            skip: homeSkip,
+            take: homeTake,
+          })
+        : Promise.resolve([]),
+      visitingTake > 0
+        ? this.prisma.staffProfile.findMany({
+            where: visitingWhere,
+            include: includeClause,
+            orderBy: { lastName: 'asc' },
+            skip: visitingSkip,
+            take: visitingTake,
+          })
+        : Promise.resolve([]),
     ]);
 
     const visitingIds = new Set(visitingTeachers.map((t) => t.id));
@@ -410,7 +473,6 @@ export class HODTeacherService {
     allTeachers.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
     const teachers = allTeachers.slice(skip, skip + limit);
-    const total = homeCount + visitingCount;
 
     const activeTerm = await this.prisma.term.findFirst({
       where: { isActive: true },
@@ -473,7 +535,8 @@ export class HODTeacherService {
               a.classSection,
             ]),
         ).values(),
-      ).map((c) => `${c.level || ''} ${c.name}`.trim());
+      ) as Array<{ level?: string; name: string }>;
+      const classNames = classes.map((c) => `${c.level || ''} ${c.name}`.trim());
 
       const subjectIds = [
         ...new Set(
@@ -507,7 +570,7 @@ export class HODTeacherService {
         phone: teacher.phone || '',
         active: teacher.user?.isActive ?? false,
         subjects,
-        classes,
+        classes: classNames,
         rating,
         status: teacher.user?.isActive ? 'ACTIVE' : 'INACTIVE',
         isVisiting: teacher.isVisiting ?? false,
@@ -659,6 +722,10 @@ export class HODTeacherService {
     if (params?.teacherId) auditWhere.userId = params.teacherId;
     if (params?.action) auditWhere.action = params.action;
 
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 50;
+    const skip = (page - 1) * limit;
+
     const auditLogs = await this.prisma.auditLog.findMany({
       where: auditWhere,
       orderBy: { createdAt: 'desc' },
@@ -669,8 +736,11 @@ export class HODTeacherService {
           },
         },
       },
-      take: 200,
+      skip,
+      take: limit,
     });
+
+    const totalAuditLogs = await this.prisma.auditLog.count({ where: auditWhere });
 
     for (const log of auditLogs) {
       const payload = (log.payload as any) || {};
@@ -750,7 +820,13 @@ export class HODTeacherService {
           },
         },
       },
+      skip,
+      take: limit,
     });
+
+    const totalCorrections = await this.prisma.gradeCorrection.count({ where: correctionWhere });
+    const total = totalAuditLogs + totalCorrections;
+    const pages = Math.ceil(total / limit);
 
     const userIds = corrections.map((c) => c.changedById);
     const userMap = await this.prisma.user
@@ -794,7 +870,7 @@ export class HODTeacherService {
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
-    return results;
+    return { data: results, total, page, pages };
   }
 
   async createAuditLog(

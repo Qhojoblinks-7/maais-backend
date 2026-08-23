@@ -20,6 +20,8 @@ export class HODArchiveService {
       academicYearId?: string;
       termNumber?: string;
       resolved?: boolean;
+      page?: number;
+      limit?: number;
     },
   ) {
     if (
@@ -80,6 +82,10 @@ export class HODArchiveService {
       }
     }
 
+    const page = filters?.page ?? 1;
+    const limit = filters?.limit ?? 50;
+    const skip = (page - 1) * limit;
+
     const interventions = await this.prisma.interventionAlert.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
@@ -93,43 +99,53 @@ export class HODArchiveService {
           },
         },
       },
+      skip,
+      take: limit,
     });
 
-    return interventions.map((i) => ({
-      id: i.id,
-      studentId: i.studentId,
-      studentName: i.student
-        ? `${i.student.firstName} ${i.student.lastName}`
-        : 'Unknown Student',
-      studentIndex: i.student?.indexNumber,
-      subjectId: null,
-      subjectName: 'Unknown',
-      termId: null,
-      alertType: 'PERFORMANCE_DROP',
-      severity: 'MEDIUM',
-      currentScore: i.currentAverage,
-      previousAverageScore: i.previousAverage,
-      percentageDrop: i.dropPercentage,
-      triggeredBy: null,
-      status: i.status,
-      resolved: i.status === 'RESOLVED',
-      notes: i.notes
-        ? typeof i.notes === 'string'
-          ? (() => {
-              try {
-                return JSON.parse(i.notes);
-              } catch {
-                return [];
-              }
-            })()
-          : Array.isArray(i.notes)
-            ? i.notes
-            : []
-        : [],
-      createdAt: i.createdAt.toISOString(),
-      resolvedAt: i.resolvedAt?.toISOString(),
-      resolvedById: null,
-    }));
+    const total = await this.prisma.interventionAlert.count({ where: whereClause });
+    const pages = Math.ceil(total / limit);
+
+    return {
+      data: interventions.map((i) => ({
+        id: i.id,
+        studentId: i.studentId,
+        studentName: i.student
+          ? `${i.student.firstName} ${i.student.lastName}`
+          : 'Unknown Student',
+        studentIndex: i.student?.indexNumber,
+        subjectId: null,
+        subjectName: 'Unknown',
+        termId: null,
+        alertType: 'PERFORMANCE_DROP',
+        severity: 'MEDIUM',
+        currentScore: i.currentAverage,
+        previousAverageScore: i.previousAverage,
+        percentageDrop: i.dropPercentage,
+        triggeredBy: null,
+        status: i.status,
+        resolved: i.status === 'RESOLVED',
+        notes: i.notes
+          ? typeof i.notes === 'string'
+            ? (() => {
+                try {
+                  return JSON.parse(i.notes);
+                } catch {
+                  return [];
+                }
+              })()
+            : Array.isArray(i.notes)
+              ? i.notes
+              : []
+          : [],
+        createdAt: i.createdAt.toISOString(),
+        resolvedAt: i.resolvedAt?.toISOString(),
+        resolvedById: null,
+      })),
+      total,
+      page,
+      pages,
+    };
   }
 
   async getArchivedDepartmentData(userId: string, role: Role, params?: any) {
@@ -156,6 +172,13 @@ export class HODArchiveService {
       };
     }
 
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 50;
+    const skip = (page - 1) * limit;
+
+    const total = await this.prisma.studentProfile.count({ where: whereClause });
+    const pages = Math.ceil(total / limit);
+
     const students = await this.prisma.studentProfile.findMany({
       where: whereClause,
       include: {
@@ -174,6 +197,8 @@ export class HODArchiveService {
         },
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      skip,
+      take: limit,
     });
 
     const scoreToGrade = (score: number): string => {
@@ -203,7 +228,7 @@ export class HODArchiveService {
       return map[grade] ?? 9;
     };
 
-    return students.map((student) => {
+    const data = students.map((student) => {
       const subjects = student.grades.map((grade) => ({
         subject: grade.subject?.name || '',
         grade: grade.grade || scoreToGrade(grade.totalScore ?? 0),
@@ -261,6 +286,8 @@ export class HODArchiveService {
         wassceAggregate,
       };
     });
+
+    return { data, total, page, pages };
   }
 
   async getPromotionRecommendations(userId: string, role: Role, params?: any) {

@@ -83,70 +83,50 @@ export class TeacherService {
         }),
       ]);
 
-      const classIds = assignments.map((a) => a.classSectionId);
-      const subjectIds = assignments.map((a) => a.subjectId);
+      const classIds = [...new Set(assignments.map((a) => a.classSectionId))];
+      const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
 
-      const [studentsRaw, allGrades] = await Promise.all([
-        this.prisma.studentProfile.findMany({
-          where: { currentClassId: { in: classIds }, archivedAt: null },
-          select: { id: true, currentClassId: true },
-        }),
-        activeTerm && subjectIds.length > 0
-          ? this.prisma.gradeEntry.findMany({
-              where: {
-                subjectId: { in: subjectIds },
-                termId: activeTerm.id,
-              },
-              select: {
-                studentId: true,
-                subjectId: true,
-                totalScore: true,
-                hasObservation: true,
-              },
-            })
-          : Promise.resolve([]),
-      ]);
+      const studentsForClasses = activeTerm && classIds.length > 0
+        ? await this.prisma.studentProfile.findMany({
+            where: { currentClassId: { in: classIds }, archivedAt: null },
+            select: { id: true, currentClassId: true },
+          })
+        : [];
 
-      const studentIds = studentsRaw.map((s) => s.id);
-      const gradesRaw = allGrades.filter((g) =>
-        studentIds.includes(g.studentId),
-      );
-
-      const studentsByClass = new Map<string, string[]>();
-      const studentClass = new Map<string, string>();
-      for (const s of studentsRaw) {
+      const studentCountMap = new Map<string, number>();
+      const studentToClass = new Map<string, string>();
+      for (const s of studentsForClasses) {
         if (!s.currentClassId) continue;
-        const arr = studentsByClass.get(s.currentClassId) ?? [];
-        arr.push(s.id);
-        studentsByClass.set(s.currentClassId, arr);
-        studentClass.set(s.id, s.currentClassId);
+        studentCountMap.set(s.currentClassId, (studentCountMap.get(s.currentClassId) || 0) + 1);
+        studentToClass.set(s.id, s.currentClassId);
       }
 
-      const gradesByClassSubject = new Map<string, typeof gradesRaw>();
-      for (const g of gradesRaw) {
-        const classId = studentClass.get(g.studentId);
+      const studentIds = Array.from(studentToClass.keys());
+      const completedGrades = activeTerm && subjectIds.length > 0 && studentIds.length > 0
+        ? await this.prisma.gradeEntry.groupBy({
+            by: ['studentId', 'subjectId'],
+            where: {
+              subjectId: { in: subjectIds },
+              termId: activeTerm.id,
+              studentId: { in: studentIds },
+              totalScore: { not: null },
+              hasObservation: true,
+            },
+          })
+        : [];
+
+      const completedByClassSubject = new Map<string, number>();
+      for (const row of completedGrades) {
+        const classId = studentToClass.get(row.studentId);
         if (!classId) continue;
-        const key = `${classId}:${g.subjectId}`;
-        const arr = gradesByClassSubject.get(key) ?? [];
-        arr.push(g);
-        gradesByClassSubject.set(key, arr);
+        const key = `${classId}:${row.subjectId}`;
+        completedByClassSubject.set(key, (completedByClassSubject.get(key) || 0) + 1);
       }
 
       const result = assignments.map((assignment) => {
-        const studentIds = studentsByClass.get(assignment.classSectionId) ?? [];
-        const classGrades =
-          gradesByClassSubject.get(
-            `${assignment.classSectionId}:${assignment.subjectId}`,
-          ) ?? [];
-
-        const completed = classGrades.filter(
-          (grade) =>
-            typeof grade.totalScore === 'number' &&
-            grade.hasObservation === true,
-        ).length;
-        const studentCount = studentIds.length;
-        const progress =
-          studentCount > 0 ? Math.round((completed / studentCount) * 100) : 0;
+        const studentCount = studentCountMap.get(assignment.classSectionId) || 0;
+        const completed = completedByClassSubject.get(`${assignment.classSectionId}:${assignment.subjectId}`) || 0;
+        const progress = studentCount > 0 ? Math.round((completed / studentCount) * 100) : 0;
 
         return {
           id: assignment.id,
@@ -1614,6 +1594,8 @@ export class TeacherService {
   async getStudents(
     user: { id: string; role: Role; staffProfile?: { id: string } },
     search?: string,
+    page = 1,
+    limit = 50,
   ) {
     let staffProfile = await this.prisma.staffProfile.findUnique({
       where: { id: user.staffProfile?.id || user.id },
@@ -1628,7 +1610,7 @@ export class TeacherService {
     }
 
     if (!staffProfile) {
-      return [];
+      return { data: [], total: 0, page, limit, pages: 0 };
     }
 
     if (
@@ -1636,7 +1618,7 @@ export class TeacherService {
       user.staffProfile?.id !== staffProfile.id &&
       user.id !== staffProfile.userId
     ) {
-      return [];
+      return { data: [], total: 0, page, limit, pages: 0 };
     }
 
     const teacherAssignments = await this.prisma.teachingAssignment.findMany({
@@ -1659,22 +1641,39 @@ export class TeacherService {
       ];
     }
 
-    return this.prisma.studentProfile.findMany({
-      where,
-      include: {
-        currentClass: true,
-        department: true,
-        user: {
-          select: {
-            email: true,
-            phone: true,
-            isActive: true,
-            role: true,
-            lastLoginAt: true,
+    const skip = (page - 1) * limit;
+
+    const [students, total] = await Promise.all([
+      this.prisma.studentProfile.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          indexNumber: true,
+          currentClass: { select: { id: true, name: true } },
+          department: { select: { id: true, name: true } },
+          user: {
+            select: {
+              email: true,
+              isActive: true,
+              lastLoginAt: true,
+            },
           },
         },
-      },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    });
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      }),
+      this.prisma.studentProfile.count({ where }),
+    ]);
+
+    return {
+      data: students,
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    };
   }
 }

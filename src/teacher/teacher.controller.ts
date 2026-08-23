@@ -259,8 +259,10 @@ export class TeacherController {
     @CurrentUser()
     user: { id: string; role: Role; staffProfile?: { id: string } },
     @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.teacherService.getStudents(user, search);
+    return this.teacherService.getStudents(user, search, page, limit);
   }
 
   @Post('grade-revisions')
