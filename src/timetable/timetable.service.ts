@@ -77,7 +77,7 @@ export class TimetableService {
           ...(filters?.teacherId && { teacherId: filters.teacherId }),
           ...(filters?.classId && { classId: filters.classId }),
           ...(filters?.dayOfWeek && { dayOfWeek: filters.dayOfWeek }),
-          ...(filters?.track && { track: filters.track }),
+          ...((filters?.track && !filters?.classId) && { track: filters.track }),
         },
         include: {
           classSection: true,

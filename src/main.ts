@@ -20,6 +20,10 @@ function requestTimingMiddleware(req: any, res: any, next: () => void) {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const httpServer = app.getHttpServer() as any;
+  if (httpServer?.app) {
+    httpServer.app.set('trust proxy', true);
+  }
   app.setGlobalPrefix('api/v1');
 
   app.use(new QueryProfilingMiddleware().use);

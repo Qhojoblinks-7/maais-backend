@@ -395,7 +395,6 @@ export class AcademicArchitectService {
     return this.prisma.teachingAssignment.findMany({
       where: {
         classSectionId,
-        ...(track ? { classSection: { track } } : {}),
       },
       include: {
         subject: { include: { department: true } },
